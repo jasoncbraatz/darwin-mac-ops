@@ -19,6 +19,7 @@ Everything required to rebuild lives here EXCEPT the secrets — those land in `
 
 ## Quick links
 
+- **When you want to change something:** [`HANDOFF.md`](HANDOFF.md) — paste it into a fresh session as your first message
 - **Fresh Mac install:** [`BOOTSTRAP.md`](BOOTSTRAP.md)
 - **Daily ops (where logs live, how to kick a run, etc.):** [`OPS.md`](OPS.md)
 - **The macOS 26 TCC dance, with footnotes:** [`shared/tcc-notes.md`](shared/tcc-notes.md)
