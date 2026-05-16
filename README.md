@@ -24,3 +24,15 @@ Everything required to rebuild lives here EXCEPT the secrets — those land in `
 - **Daily ops (where logs live, how to kick a run, etc.):** [`OPS.md`](OPS.md)
 - **The macOS 26 TCC dance, with footnotes:** [`shared/tcc-notes.md`](shared/tcc-notes.md)
 - **Grant FDA recipe (UI screenshots-of-words):** [`shared/grant-fda.md`](shared/grant-fda.md)
+
+## Related repos
+
+These three private repos make up Jason's personal infrastructure constellation:
+
+| Repo | What it covers |
+|---|---|
+| [**darwin-mac-ops**](https://github.com/jasoncbraatz/darwin-mac-ops) (here) | LaunchAgent-driven automation on Jason's Mac (NAS backups, scan-to-asana pipeline) |
+| [**braatz-mail-server**](https://github.com/jasoncbraatz/braatz-mail-server) | Self-hosted Stalwart mail server on flowers Linode |
+| [**miniblog**](https://github.com/jasoncbraatz/miniblog) | jason.braatz.ai personal site (Next.js + Postgres on n8n Linode) |
+
+Each repo has its own `HANDOFF.md` you can paste into a fresh Opus session to pick up cold.
