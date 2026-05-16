@@ -65,3 +65,7 @@ If you rotate either key, just replace the file contents. No restart needed — 
 ## How the original Asana token got here
 
 Originally minted in Asana → Developer Apps. Stored encrypted in the n8n credentials store. Migrated to this file when the scan pipeline moved off n8n on 2026-05-16. See `OPS.md` in this repo for the retrieval command if you need to re-extract from n8n.
+
+---
+
+**For the full cross-host secrets inventory (CF token, GitHub PAT, SSH keys, Stalwart admin, certbot creds, n8n encryption key, etc.), see [`SECRETS.md`](SECRETS.md).**

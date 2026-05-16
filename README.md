@@ -33,6 +33,9 @@ These three private repos make up Jason's personal infrastructure constellation:
 |---|---|
 | [**darwin-mac-ops**](https://github.com/jasoncbraatz/darwin-mac-ops) (here) | LaunchAgent-driven automation on Jason's Mac (NAS backups, scan-to-asana pipeline) |
 | [**braatz-mail-server**](https://github.com/jasoncbraatz/braatz-mail-server) | Self-hosted Stalwart mail server on flowers Linode |
+| [**n8n-stack**](https://github.com/jasoncbraatz/n8n-stack) | Docker + Caddy platform on the n8n Linode that hosts the miniblog + braatzresearch site |
+| [**braatzresearch-site**](https://github.com/jasoncbraatz/braatzresearch-site) | LessWrong-style one-pager at braatzresearch.com |
+| [**braatz-mail-server**](https://github.com/jasoncbraatz/braatz-mail-server) | Self-hosted Stalwart mail server on the flowers Linode |
 | [**miniblog**](https://github.com/jasoncbraatz/miniblog) | jason.braatz.ai personal site (Next.js + Postgres on n8n Linode) |
 
 Each repo has its own `HANDOFF.md` you can paste into a fresh Opus session to pick up cold.
