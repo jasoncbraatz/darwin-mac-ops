@@ -101,3 +101,42 @@ sudo docker exec n8n-n8n-1 rm /tmp/creds.json
 ```
 
 Then on darwin, paste into `~/.config/scan-pipeline/asana.token` cleanly (see `secrets/README.md`).
+
+## GitHub PAT (for future-Opus automation)
+
+A fine-grained Personal Access Token lives at `~/.config/github/pat` (0600 perms). Future Opus can use it to:
+
+- Push to private repos in this account (`Contents: Read and write`)
+- Create new repos under jasoncbraatz (`Administration: Read and write`)
+- Read repo metadata
+
+**Usage example:**
+
+```bash
+TOKEN=$(cat ~/.config/github/pat)
+
+# Push using HTTPS-auth (no SSH agent needed)
+cd ~/Code/some-repo
+git remote set-url origin "https://x-access-token:${TOKEN}@github.com/jasoncbraatz/some-repo.git"
+git push origin main
+git remote set-url origin "https://github.com/jasoncbraatz/some-repo.git"   # revert so PAT isn't in git config
+
+# Create a new repo via API
+curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/user/repos -d '{"name":"new-repo","private":true}'
+
+unset TOKEN
+```
+
+**Token shape:** `github_pat_*`, ~93 bytes (fine-grained format).
+
+**Rotation:** PATs expire (max 1 year). When you rotate at <https://github.com/settings/personal-access-tokens>, just overwrite the file:
+
+```bash
+cat > ~/.config/github/pat   # paste new token, Enter, Ctrl-D
+chmod 600 ~/.config/github/pat
+```
+
+**Scopes the PAT needs:**
+- Repository access: **All repositories** (or selected repos including any you want to push to / create)
+- Repository permissions: **Contents (R/W)**, **Administration (R/W)**, Metadata (R, auto)

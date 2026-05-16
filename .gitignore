@@ -26,3 +26,8 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+
+# GitHub PAT (lives only in ~/.config/github/pat)
+*.pat
+github-pat
+github/pat

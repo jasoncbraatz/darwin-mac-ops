@@ -141,3 +141,16 @@ Drop a test PDF into `/Volumes/Jason2/SCANS/`, kickstart again, and watch a task
 - **Anthropic returns 401:** the key file has trailing/leading junk. Inspect with `xxd ~/.config/scan-pipeline/anthropic.key` — should be 108 bytes plus optional newline.
 
 For the longer narrative on why all this dancing exists, see [`shared/tcc-notes.md`](shared/tcc-notes.md).
+
+
+## 7. GitHub PAT for future automation
+
+A fine-grained Personal Access Token at `~/.config/github/pat` (0600 perms) lets future-Opus push to private repos and create new ones without SSH-agent complications. See [`OPS.md`](OPS.md#github-pat-for-future-opus-automation) for the format, the scopes required, and the rotation procedure.
+
+If this file is missing on a fresh Mac, generate a new token at <https://github.com/settings/personal-access-tokens/new> with Contents R/W + Administration R/W on all repos, then stash it:
+
+```bash
+mkdir -p ~/.config/github && chmod 700 ~/.config/github
+cat > ~/.config/github/pat   # paste, Enter, Ctrl-D
+chmod 600 ~/.config/github/pat
+```
