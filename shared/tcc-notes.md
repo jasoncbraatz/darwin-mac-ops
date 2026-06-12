@@ -1,6 +1,6 @@
 # macOS 26 (Tahoe) TCC Notes
 
-The bit that took the longest to figure out. Capturing it here so future-Jason (or future-Opus rebuilding on a new Mac) doesn't waste an afternoon on it.
+The bit that took the longest to figure out. Capturing it here so future-Jason (or future-Claude rebuilding on a new Mac) doesn't waste an afternoon on it.
 
 ## The problem
 

@@ -38,4 +38,4 @@ These three private repos make up Jason's personal infrastructure constellation:
 | [**braatz-mail-server**](https://github.com/jasoncbraatz/braatz-mail-server) | Self-hosted Stalwart mail server on the flowers Linode |
 | [**miniblog**](https://github.com/jasoncbraatz/miniblog) | jason.braatz.ai personal site (Next.js + Postgres on n8n Linode) |
 
-Each repo has its own `HANDOFF.md` you can paste into a fresh Opus session to pick up cold.
+Each repo has its own `HANDOFF.md` you can paste into a fresh Claude session to pick up cold.

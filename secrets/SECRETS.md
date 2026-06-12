@@ -6,7 +6,7 @@ This document lists every credential file across all hosts. Each entry includes:
 
 | Path | What it is | Used by | Rotation |
 |---|---|---|---|
-| `~/.config/cloudflare/token` (0600) | Cloudflare API token, scoped to "All zones, DNS:Edit" | The `cf-add-records.sh` helper, ad-hoc DNS edits, future-Opus | Generate new at <https://dash.cloudflare.com/profile/api-tokens>, overwrite file. |
+| `~/.config/cloudflare/token` (0600) | Cloudflare API token, scoped to "All zones, DNS:Edit" | The `cf-add-records.sh` helper, ad-hoc DNS edits, future-Claude | Generate new at <https://dash.cloudflare.com/profile/api-tokens>, overwrite file. |
 | `~/.config/github/pat` (0600) | Fine-grained GitHub Personal Access Token, "All repositories", Contents R/W + Administration R/W | Pushing/pulling private repos, creating new repos via API | Edit existing at <https://github.com/settings/personal-access-tokens>, OR generate a new one and overwrite the file. |
 | `~/.config/scan-pipeline/asana.token` (0600) | Asana Personal Access Token (originally minted in Asana, mirrored from n8n's encrypted credentials store) | `scan_to_asana.py` for creating tasks in the Payments Calendar | Asana → Profile → Settings → Apps → Developer Apps. Overwrite the file. |
 | `~/.config/scan-pipeline/anthropic.key` (0600) | Anthropic API key, format `sk-ant-api03-...`, 108 chars | `scan_to_asana.py` for the Haiku classifier | console.anthropic.com → API Keys. Overwrite the file. |

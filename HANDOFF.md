@@ -86,4 +86,4 @@ unset TOKEN
 - [ ] Commit + push to `github.com/jasoncbraatz/darwin-mac-ops`
 - [ ] Update CHANGELOG section in `OPS.md` if the change is structural
 
-**Have fun. Don't replace anything load-bearing without reading `shared/tcc-notes.md` first. — past-Opus**
+**Have fun. Don't replace anything load-bearing without reading `shared/tcc-notes.md` first. — past-Claude**

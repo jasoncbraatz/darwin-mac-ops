@@ -102,9 +102,9 @@ sudo docker exec n8n-n8n-1 rm /tmp/creds.json
 
 Then on darwin, paste into `~/.config/scan-pipeline/asana.token` cleanly (see `secrets/README.md`).
 
-## GitHub PAT (for future-Opus automation)
+## GitHub PAT (for future-Claude automation)
 
-A fine-grained Personal Access Token lives at `~/.config/github/pat` (0600 perms). Future Opus can use it to:
+A fine-grained Personal Access Token lives at `~/.config/github/pat` (0600 perms). Future Claude can use it to:
 
 - Push to private repos in this account (`Contents: Read and write`)
 - Create new repos under jasoncbraatz (`Administration: Read and write`)

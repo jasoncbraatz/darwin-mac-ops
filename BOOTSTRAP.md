@@ -145,7 +145,7 @@ For the longer narrative on why all this dancing exists, see [`shared/tcc-notes.
 
 ## 7. GitHub PAT for future automation
 
-A fine-grained Personal Access Token at `~/.config/github/pat` (0600 perms) lets future-Opus push to private repos and create new ones without SSH-agent complications. See [`OPS.md`](OPS.md#github-pat-for-future-opus-automation) for the format, the scopes required, and the rotation procedure.
+A fine-grained Personal Access Token at `~/.config/github/pat` (0600 perms) lets future-Claude push to private repos and create new ones without SSH-agent complications. See [`OPS.md`](OPS.md#github-pat-for-future-opus-automation) for the format, the scopes required, and the rotation procedure.
 
 If this file is missing on a fresh Mac, generate a new token at <https://github.com/settings/personal-access-tokens/new> with Contents R/W + Administration R/W on all repos, then stash it:
 
