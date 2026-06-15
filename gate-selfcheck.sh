@@ -10,16 +10,17 @@
 #
 # So: run this FIRST when wrapping a session. It clears the boring checks so the
 # session can spend its attention on the judgment calls. SILENT-ish on pass,
-# LOUD on fail, in the house style.
+# LOUD on real drift, in the house style.
 #
-#   exit 0 = repo hygiene clean (PASS)
-#   exit 1 = at least one repo dirty or unpushed (FAIL) — fix before you hand off
+#   exit 0 = no real drift (PASS)         FAIL = uncommitted or unpushed work
+#   exit 1 = real drift found (FAIL)      WARN = no remote / tracking unset (noted)
 #
 # Usage:
 #   gate-selfcheck.sh                      # repo hygiene sweep across all roots
 #   gate-selfcheck.sh --fetch              # git fetch first (slower, more accurate)
 #   gate-selfcheck.sh --dead-value VAL     # also hunt VAL (repeatable) — G-I
 #   gate-selfcheck.sh --root ~/foo         # add an extra root to scan (repeatable)
+#   gate-selfcheck.sh --quiet              # only print WARN/FAIL lines + summary
 #
 # Source of truth: git repo ~/code/darwin-mac-ops (this file). Live copy
 # ~/Scripts/gate-selfcheck.sh is a SYMLINK into that repo. Referenced by
@@ -30,19 +31,21 @@ set -uo pipefail
 ROOTS=("$HOME/repos" "$HOME/code" "$HOME/Desktop/downloads" "$HOME/Scripts")
 DEAD_VALUES=()
 DO_FETCH=0
+QUIET=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --fetch) DO_FETCH=1; shift ;;
     --dead-value) DEAD_VALUES+=("$2"); shift 2 ;;
     --root) ROOTS+=("$2"); shift 2 ;;
-    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
+    --quiet) QUIET=1; shift ;;
+    -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
-FAILS=()
+FAILS=(); WARNS=()
 
 # --- discover unique git working-tree toplevels under the roots ---
 declare -a REPOS=()
@@ -64,18 +67,32 @@ for repo in "${REPOS[@]}"; do
   [ "$DO_FETCH" -eq 1 ] && git fetch --quiet 2>/dev/null
   dirty="$(git status --porcelain 2>/dev/null)"
   branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  has_remote=0; [ -n "$(git remote 2>/dev/null)" ] && has_remote=1
   if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
-    ahead="$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)"
-    upstream="ok"
+    ahead="$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)"; tracking="ok"
   else
-    ahead=0; upstream="NONE"
+    ahead=0; tracking="none"
   fi
-  nd="$(printf '%s' "$dirty" | grep -c . || true)"
-  status="clean"
-  if [ -n "$dirty" ]; then status="DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); fi
-  if [ "$ahead" -gt 0 ]; then status="$status UNPUSHED($ahead)"; FAILS+=("$name: $ahead unpushed commit(s) on $branch"); fi
-  if [ "$upstream" = "NONE" ]; then status="$status no-upstream"; fi
-  case "$status" in clean) printf '  ok    %s\n' "$name" ;; *) printf '  FAIL  %-45s %s\n' "$name" "$status" ;; esac
+
+  flags=""; level="ok"
+  if [ -n "$dirty" ]; then
+    nd="$(printf '%s\n' "$dirty" | grep -c .)"
+    flags="$flags DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); level="FAIL"
+  fi
+  if [ "$ahead" -gt 0 ]; then
+    flags="$flags UNPUSHED($ahead)"; FAILS+=("$name: $ahead unpushed commit(s) on $branch"); level="FAIL"
+  fi
+  if [ "$has_remote" -eq 0 ]; then
+    flags="$flags NO-REMOTE"; WARNS+=("$name: no git remote (work is unbacked)"); [ "$level" = ok ] && level="WARN"
+  elif [ "$tracking" = "none" ]; then
+    flags="$flags no-tracking"; WARNS+=("$name: remote exists but branch '$branch' has no upstream tracking"); [ "$level" = ok ] && level="WARN"
+  fi
+
+  case "$level" in
+    ok)   [ "$QUIET" -eq 1 ] || printf '  ok    %s\n' "$name" ;;
+    WARN) printf '  warn  %-45s%s\n' "$name" "$flags" ;;
+    FAIL) printf '  FAIL  %-45s%s\n' "$name" "$flags" ;;
+  esac
 done
 
 # --- G-I optional dead-value sweep (report-only; human judges intent) ---
@@ -97,8 +114,9 @@ if [ "${#DEAD_VALUES[@]}" -gt 0 ]; then
 fi
 
 echo
+[ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
 if [ "${#FAILS[@]}" -eq 0 ]; then
-  bold "GATE SELF-CHECK: PASS ✅  (repo hygiene clean — now answer the human-judgment checks)"
+  bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now answer the human-judgment checks)"
   exit 0
 else
   bold "GATE SELF-CHECK: FAIL ❌  (${#FAILS[@]} issue(s) — fix before writing the handoff)"
