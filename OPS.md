@@ -140,3 +140,8 @@ chmod 600 ~/.config/github/pat
 **Scopes the PAT needs:**
 - Repository access: **All repositories** (or selected repos including any you want to push to / create)
 - Repository permissions: **Contents (R/W)**, **Administration (R/W)**, Metadata (R, auto)
+
+## Git hygiene (added 2026-06-15)
+- **`gate-selfcheck.sh`** (this repo; symlinked to `~/Scripts/gate-selfcheck.sh`) sweeps all four clone roots — `~/repos`, `~/code`, `~/Desktop/downloads`, `~/Scripts` — for uncommitted/unpushed work (FAIL) and no-remote/no-tracking (WARN). `saturday-sanity-check` runs it weekly (check 8) so drift surfaces on tinker-day instead of rotting silently. It's the mechanical half of `~/Desktop/downloads/HANDOFF-GATE.md` (G-H#22 + G-I).
+- **Gotcha — empty fetch refspec breaks `@{u}`:** a clone with no `remote.origin.fetch` (some de-opus-era clones, e.g. `domain-inventory-repo`) makes `git branch --set-upstream-to` fail with *"not stored as a remote-tracking branch"* even though `origin/main` resolves. Fix: `git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && git fetch && git branch --set-upstream-to=origin/main`.
+- **Third-party tools:** we fork-and-own them (see claude-blackbook doctrine §12). Forked `google-ads-mcp-complete` from grantweston → jasoncbraatz on 2026-06-15; `origin`=our fork, `upstream`=grantweston (reference only).
