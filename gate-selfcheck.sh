@@ -113,6 +113,17 @@ if [ "${#DEAD_VALUES[@]}" -gt 0 ]; then
   done
 fi
 
+# --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
+CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
+MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
+if [ -f "$CANON_GATE" ]; then
+  if [ ! -f "$MIRROR_GATE" ]; then
+    WARNS+=("HANDOFF-GATE claude-blackbook mirror missing — clone it, then run ~/Scripts/mirror-handoff-gate.sh")
+  elif ! cmp -s "$CANON_GATE" "$MIRROR_GATE"; then
+    WARNS+=("HANDOFF-GATE claude-blackbook mirror is STALE — run ~/Scripts/mirror-handoff-gate.sh")
+  fi
+fi
+
 echo
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
 if [ "${#FAILS[@]}" -eq 0 ]; then
