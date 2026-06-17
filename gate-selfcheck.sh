@@ -113,6 +113,22 @@ if [ "${#DEAD_VALUES[@]}" -gt 0 ]; then
   done
 fi
 
+# --- G-E mechanical secret sweep (born 2026-06-17: a worker committed a live Shopify token) ---
+# Tight patterns (require the real high-entropy tail) so doc mentions of "shpat_"/regex literals don't trip it.
+# Loud WARN (not FAIL) to keep momentum; if a hit is a REAL secret, treat it as a blocker + rotate.
+# NOTE: only sweeps maxdepth-2 repos (same as the hygiene sweep); deeply-nested vendored clones are not covered.
+SECRET_RE='shpat_[a-f0-9]{32}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|xox[baprs]-[0-9A-Za-z-]{20,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+SECCOUNT=0
+for repo in "${REPOS[@]}"; do
+  cd "$repo" || continue
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    [ "$SECCOUNT" -eq 0 ] && bold "=== G-E · secret sweep (tracked files) ==="
+    printf '    %s: %s\n' "${repo/#$HOME/~}" "$(echo "$line" | cut -c1-90)"; SECCOUNT=$((SECCOUNT+1))
+  done < <(git grep -nIE "$SECRET_RE" 2>/dev/null)
+done
+[ "$SECCOUNT" -gt 0 ] && WARNS+=("G-E: $SECCOUNT possible SECRET(s) in tracked files (see list above) — if real, scrub from HEAD, ROTATE the credential, and never commit it")
+
 # --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
 CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
 MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
