@@ -143,7 +143,20 @@ fi
 echo
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
 if [ "${#FAILS[@]}" -eq 0 ]; then
-  bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now answer the human-judgment checks)"
+  bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
+  cat >&2 <<'TRIAD'
+
+  ── The self-review triad — answer IN WRITING before any handoff (even if Jason never asked) ──
+  The trigger is the work winding down, not Jason's reminder. He is human and will forget; you won't.
+  1. Did we capture EVERYTHING we did today for a zero-memory future Opus? every change, its real
+     path, how to undo it — enough to reconstruct today from the docs alone.            (-> G-A)
+  2. What did we learn the hard way that is NOT written down yet? anything that cost >~2 tool calls
+     (a trap, a quirk, a confirmed fact) goes into the LUT/lessons corpus NOW.           (-> G-B / G-N)
+  3. What ONE thing makes the next Opus's life easier than ours was — and did we ADD it THIS pass?
+     a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
+     nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
+  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-R).
+TRIAD
   exit 0
 else
   bold "GATE SELF-CHECK: FAIL ❌  (${#FAILS[@]} issue(s) — fix before writing the handoff)"
