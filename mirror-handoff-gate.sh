@@ -19,7 +19,7 @@ set -euo pipefail
 CANON="$HOME/Desktop/downloads/HANDOFF-GATE.md"
 MIRROR_REPO="$HOME/repos/claude-blackbook"
 MIRROR="$MIRROR_REPO/HANDOFF-GATE.md"
-ver() { grep -m1 -oE "Version [0-9.]+" "$1" 2>/dev/null || echo "Version ?"; }
+ver() { grep -m1 -oE "^- v[0-9.]+" "$1" 2>/dev/null | sed 's/^- //' || echo "v?"; }  # reads changelog top (self-correcting; never hardcode)
 
 [ -f "$CANON" ] || { echo "[mirror-gate] ERR: canonical gate missing: $CANON" >&2; exit 1; }
 if [ ! -d "$MIRROR_REPO/.git" ]; then
