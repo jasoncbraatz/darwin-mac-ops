@@ -95,6 +95,38 @@ for repo in "${REPOS[@]}"; do
   esac
 done
 
+# --- G-S · orphan code-island sweep (born 2026-06-22: cogs-mover was gitignored in
+#     ~/Scripts AND never made its own repo -> live-bearing code lived in NO git repo,
+#     invisible to the sweep above. The .gitignore even CLAIMED it was "its own repo".
+#     Force function: any dir a repo's .gitignore excludes that CONTAINS code MUST
+#     actually be its own git repo with a remote, or it is an unbacked island = FAIL.) ---
+bold "=== G-S · orphan code-island sweep (gitignored code dirs must be their own backed repo) ==="
+ORPHANS=0
+for repo in "${REPOS[@]}"; do
+  gi="$repo/.gitignore"
+  [ -f "$gi" ] || continue
+  while IFS= read -r raw; do
+    line="${raw%%#*}"; line="$(echo "$line" | xargs 2>/dev/null)"     # strip comments + surrounding space
+    case "$line" in ""|"!"*|*"*"*) continue ;; esac                    # skip blank / negation / glob lines
+    case "$line" in */) sub="${line%/}" ;; *) continue ;; esac         # only directory excludes (trailing /)
+    d="$repo/$sub"
+    [ -d "$d" ] || continue
+    hascode="$(find "$d" -maxdepth 2 \( -name '*.js' -o -name '*.py' -o -name '*.sh' -o -name '*.ts' -o -name 'package.json' \) -not -path '*/node_modules/*' 2>/dev/null | head -1)"
+    [ -z "$hascode" ] && continue                                      # only care about dirs that actually hold code
+    top="$(cd "$d" && git rev-parse --show-toplevel 2>/dev/null)"
+    rem=""; [ "$top" = "$d" ] && rem="$(cd "$d" && git remote get-url origin 2>/dev/null)"
+    if [ "$top" != "$d" ] || [ -z "$rem" ]; then
+      printf '  ORPHAN %-45s%s\n' "${d/#$HOME/~}" "gitignored code, NOT a backed repo"
+      FAILS+=("${d/#$HOME/~}: gitignored code island with no git remote (per .gitignore it should be its own repo) -> git init + gh repo create + push")
+      ORPHANS=$((ORPHANS+1))
+    else
+      [ "$QUIET" -eq 1 ] || printf '  ok     %-45s%s\n' "${d/#$HOME/~}" "-> own repo ($rem)"
+    fi
+  done < "$gi"
+done
+[ "$ORPHANS" -eq 0 ] && { [ "$QUIET" -eq 1 ] || echo "  (no orphan code-islands — every gitignored code dir is its own backed repo)"; }
+echo
+
 # --- G-I optional dead-value sweep (report-only; human judges intent) ---
 if [ "${#DEAD_VALUES[@]}" -gt 0 ]; then
   echo
