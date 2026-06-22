@@ -109,6 +109,8 @@ for repo in "${REPOS[@]}"; do
     line="${raw%%#*}"; line="$(echo "$line" | xargs 2>/dev/null)"     # strip comments + surrounding space
     case "$line" in ""|"!"*|*"*"*) continue ;; esac                    # skip blank / negation / glob lines
     case "$line" in */) sub="${line%/}" ;; *) continue ;; esac         # only directory excludes (trailing /)
+    base="$(basename "$sub")"                                          # skip build/cache/vendor artifacts (not source we'd back)
+    case "$base" in node_modules|.venv|venv|env|dist|build|out|target|__pycache__|.pytest_cache|.cache|.next|.nuxt|coverage|vendor|.git|.idea|.vscode|tmp|temp|.mypy_cache|.ruff_cache) continue ;; esac
     d="$repo/$sub"
     [ -d "$d" ] || continue
     hascode="$(find "$d" -maxdepth 2 \( -name '*.js' -o -name '*.py' -o -name '*.sh' -o -name '*.ts' -o -name 'package.json' \) -not -path '*/node_modules/*' 2>/dev/null | head -1)"
