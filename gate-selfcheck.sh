@@ -163,6 +163,23 @@ for repo in "${REPOS[@]}"; do
 done
 [ "$SECCOUNT" -gt 0 ] && WARNS+=("G-E: $SECCOUNT possible SECRET(s) in tracked files (see list above) — if real, scrub from HEAD, ROTATE the credential, and never commit it")
 
+# --- G-T#43 remote-runtime parity: is the sz-tick box actually in sync with the gh SSOT? (added v2.13) ---
+# The box self-reconciles via a read-only gh deploy key (2026-06-23); this proves it IS current, mechanizing
+# the human-judgment "did you deploy to the box?" check. WARN-level + graceful skip so an offline box or a
+# phone/web session (no ssh) NEVER blocks a wrap. Override host/paths via env if the topology changes.
+SZ_BOX_HOST="${SZ_BOX_HOST:-n8n}"
+SZ_BOX_REPO="${SZ_BOX_REPO:-~/virtual-darwin/spine/repos/strike-zone}"
+SZ_GH_LOCAL="${SZ_GH_LOCAL:-$HOME/repos/strike-zone}"
+if [ -d "$SZ_GH_LOCAL/.git" ] && command -v ssh >/dev/null 2>&1; then
+  GH_HEAD="$(git -C "$SZ_GH_LOCAL" rev-parse HEAD 2>/dev/null)"
+  BOX_HEAD="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$SZ_BOX_HOST" "git -C $SZ_BOX_REPO rev-parse HEAD" 2>/dev/null | tr -d '\r\n ')"
+  if [ -z "$BOX_HEAD" ]; then
+    : # box unreachable (offline / no-ssh session) — skip silently, never a wrap blocker
+  elif [ -n "$GH_HEAD" ] && [ "$BOX_HEAD" != "$GH_HEAD" ]; then
+    WARNS+=("G-T#43: sz-tick runtime box ($SZ_BOX_HOST) HEAD ${BOX_HEAD:0:7} != gh ${GH_HEAD:0:7} — deploy: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_REPO pull --ff-only'")
+  fi
+fi
+
 # --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
 CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
 MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
