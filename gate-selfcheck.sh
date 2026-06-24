@@ -163,20 +163,31 @@ for repo in "${REPOS[@]}"; do
 done
 [ "$SECCOUNT" -gt 0 ] && WARNS+=("G-E: $SECCOUNT possible SECRET(s) in tracked files (see list above) — if real, scrub from HEAD, ROTATE the credential, and never commit it")
 
-# --- G-T#43 remote-runtime parity: is the sz-tick box actually in sync with the gh SSOT? (added v2.13) ---
-# The box self-reconciles via a read-only gh deploy key (2026-06-23); this proves it IS current, mechanizing
-# the human-judgment "did you deploy to the box?" check. WARN-level + graceful skip so an offline box or a
-# phone/web session (no ssh) NEVER blocks a wrap. Override host/paths via env if the topology changes.
+# --- G-T#43 remote-runtime parity + scheduler presence (parity v2.13; scheduler-presence v2.16 2026-06-23) ---
+# The box self-reconciles via a read-only gh deploy key AND a */15 cron (sz-box-pull.sh). We check BOTH: that
+# the box IS current (HEAD==gh), AND that the MECHANISM keeping it current is still installed. A reflatten that
+# restored the checkout but dropped the cron would leave HEAD momentarily == gh yet silently stop all future
+# deploys — parity alone can't catch that; the scheduler-presence probe does. WARN-level + graceful skip so an
+# offline box or a phone/web session (no ssh) NEVER blocks a wrap. Override host/paths via env if topology moves.
 SZ_BOX_HOST="${SZ_BOX_HOST:-n8n}"
 SZ_BOX_REPO="${SZ_BOX_REPO:-~/virtual-darwin/spine/repos/strike-zone}"
 SZ_GH_LOCAL="${SZ_GH_LOCAL:-$HOME/repos/strike-zone}"
+SZ_BOX_SCHED="${SZ_BOX_SCHED:-sz-box-pull.sh}"   # the cron line that keeps the box converged to gh
 if [ -d "$SZ_GH_LOCAL/.git" ] && command -v ssh >/dev/null 2>&1; then
   GH_HEAD="$(git -C "$SZ_GH_LOCAL" rev-parse HEAD 2>/dev/null)"
-  BOX_HEAD="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$SZ_BOX_HOST" "git -C $SZ_BOX_REPO rev-parse HEAD" 2>/dev/null | tr -d '\r\n ')"
+  # ONE round-trip: line1 = box HEAD, line2 = count of the scheduler line in the box crontab.
+  BOX_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$SZ_BOX_HOST" "git -C $SZ_BOX_REPO rev-parse HEAD 2>/dev/null; crontab -l 2>/dev/null | grep -cF -- $SZ_BOX_SCHED" 2>/dev/null)"
+  BOX_HEAD="$(printf '%s\n' "$BOX_PROBE" | sed -n '1p' | tr -d '\r\n ')"
+  BOX_SCHED_N="$(printf '%s\n' "$BOX_PROBE" | sed -n '2p' | tr -d '\r\n ')"
   if [ -z "$BOX_HEAD" ]; then
     : # box unreachable (offline / no-ssh session) — skip silently, never a wrap blocker
-  elif [ -n "$GH_HEAD" ] && [ "$BOX_HEAD" != "$GH_HEAD" ]; then
-    WARNS+=("G-T#43: sz-tick runtime box ($SZ_BOX_HOST) HEAD ${BOX_HEAD:0:7} != gh ${GH_HEAD:0:7} — deploy: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_REPO pull --ff-only'")
+  else
+    if [ -n "$GH_HEAD" ] && [ "$BOX_HEAD" != "$GH_HEAD" ]; then
+      WARNS+=("G-T#43: sz-tick runtime box ($SZ_BOX_HOST) HEAD ${BOX_HEAD:0:7} != gh ${GH_HEAD:0:7} — deploy: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_REPO pull --ff-only'")
+    fi
+    if [ "${BOX_SCHED_N:-0}" = "0" ]; then
+      WARNS+=("G-T#43b: box auto-pull SCHEDULER MISSING ($SZ_BOX_SCHED not in $SZ_BOX_HOST crontab) — box will NOT self-converge to gh; restore the */15 line from $SZ_BOX_REPO/provision/n8n/spine-crontab.txt")
+    fi
   fi
 fi
 
