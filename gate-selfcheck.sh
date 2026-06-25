@@ -217,7 +217,7 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
   3. What ONE thing makes the next Opus's life easier than ours was — and did we ADD it THIS pass?
      a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
      nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
-  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-R).
+  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-T).
 TRIAD
   exit 0
 else
