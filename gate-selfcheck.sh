@@ -202,6 +202,26 @@ if [ -f "$CANON_GATE" ]; then
   fi
 fi
 
+# --- G-L#35b · gate range-ref drift (born 2026-06-25 P0 audit: "G-A..R/P" range statements rot in
+#     front doors after new steps (G-S/G-T) get added, because the range is COPIED not DERIVED.
+#     Derive the live max G-step from the canonical gate, WARN any stale front-door range ref.
+#     The gate's OWN changelog is excluded (it cites historical ranges by design). ---
+if [ -f "$CANON_GATE" ]; then
+  MAXG=$(grep -oE '^## G-[A-Z]' "$CANON_GATE" | sed 's/.*G-//' | sort | tail -1)
+  if [ -n "$MAXG" ]; then
+    for RF in "$CANON_GATE" "$HOME/repos/claude-blackbook/lessons.py" "$HOME/Desktop/downloads/CLAUDE.md" "$HOME/repos/strike-zone/docs/HANDOFF-PROMPT.md"; do
+      [ -f "$RF" ] || continue
+      if [ "$RF" = "$CANON_GATE" ]; then CONTENT=$(awk '/^## Changelog/{exit} {print}' "$RF"); else CONTENT=$(cat "$RF"); fi
+      while IFS= read -r m; do
+        endp=$(printf '%s' "$m" | grep -oE '[A-Z]' | tail -1)
+        if [ -n "$endp" ] && [[ "$endp" < "$MAXG" ]]; then
+          WARNS+=("gate range-ref drift: ${RF/#$HOME/~} cites 'G-A..$endp' but the gate documents through G-$MAXG — update the live range statement")
+        fi
+      done < <(printf '%s\n' "$CONTENT" | grep -hoE 'G-A *(\.\.|->|→|through)+ *(G-)?[A-Z]')
+    done
+  fi
+fi
+
 echo
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
 if [ "${#FAILS[@]}" -eq 0 ]; then
