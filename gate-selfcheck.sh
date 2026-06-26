@@ -223,6 +223,35 @@ if [ -f "$CANON_GATE" ]; then
 fi
 
 echo
+# --- G-U · learning-harvest challenge (born 2026-06-25, Jason ruling: across 500+ handoffs, ZERO
+#     ever truly found "nothing to add" -> a session that banks 0 lessons is almost certainly
+#     UN-harvested, not clean. The empirical prior FLIPS the POV: finding nothing is near-impossible
+#     and must be justified in writing. Deterministic nudge so the harvest stops depending on Jason
+#     remembering to ask -- failure-now is cheaper than failure in a real project; learnings compound.
+#     WARN-level (never blocks a hygiene-clean wrap); phone/web-safe skip if no blackbook.) ---
+BB="$HOME/repos/claude-blackbook"
+if [ -d "$BB/.git" ]; then
+  LCOUNT="$(git -C "$BB" log --since='6 hours ago' --oneline -- lessons/ 2>/dev/null | grep -c .)"
+  bold "=== G-U · learning-harvest challenge (lessons banked, last 6h: ${LCOUNT:-0}) ==="
+  if [ "${LCOUNT:-0}" -eq 0 ]; then
+    printf '  \033[1mZERO lessons banked this session.\033[0m Across 500+ handoffs, NOT ONE truly had nothing.\n'
+    printf '  A 0 here is almost always an UN-harvested session, not a clean one. Harvest BEFORE you wrap:\n'
+    WARNS+=("G-U: 0 lessons banked in the last 6h -- run the harvest; a genuine 'nothing' has never happened in 500+ handoffs and must be justified IN WRITING")
+  else
+    printf '  %s lesson(s) banked recently -- harvest evidence present. Push further before you call it:\n' "$LCOUNT"
+  fi
+  cat <<'HARVEST'
+    - >2 tool calls to learn a fact/trap/quirk?      -> a leaf NOW (atomic, verified, ground-truth).
+    - a FAILURE MODE surfaced (even a small one)?    -> a leaf (failure-now is the cheap kind).
+    - a META-lesson about the PROCESS or TOOLING?    -> the most valuable kind; bank it.
+    - did you ADD a force-function/script/gate THIS pass (not just NOTE it)? that is the JOB.
+    - CURATE: grep a unique phrase from EACH of today's leaves -- two adds with the same lead word
+      SILENTLY clobber via lessons.py id-collision (see global leaf lessonspy-slug-collision).
+HARVEST
+fi
+echo
+
+
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
