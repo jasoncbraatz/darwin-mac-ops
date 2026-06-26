@@ -191,6 +191,25 @@ if [ -d "$SZ_GH_LOCAL/.git" ] && command -v ssh >/dev/null 2>&1; then
   fi
 fi
 
+# --- G-T#44 · crontab-vault drift (born 2026-06-26: the n8n-spine crontab is box-LOCAL state a
+#     rebuild loses; provision/n8n/spine-crontab.txt is the gh ark, but it drifted 3x when refreshed
+#     by hand. sz-crontab-snapshot.sh --check is a READ-ONLY probe (exit 2 = drift, 0 = in sync, and
+#     it NEVER writes — so the gate can't dirty the vault) wired here so a wrap notices divergence
+#     automatically. WARN-level + graceful skip so an offline box or a phone/web session (no ssh)
+#     NEVER blocks a wrap. Closes the loop the vault opened (drift caught by tool, not by memory).) ---
+SZ_CRON_SNAP="${SZ_CRON_SNAP:-$SZ_GH_LOCAL/scripts/sz-crontab-snapshot.sh}"
+if [ -x "$SZ_CRON_SNAP" ] && command -v ssh >/dev/null 2>&1; then
+  if SZ_BOX_SSH="$SZ_BOX_HOST" timeout 20 bash "$SZ_CRON_SNAP" --check >/dev/null 2>&1; then
+    : # exit 0 = vault in sync — silent
+  else
+    rc=$?
+    if [ "$rc" -eq 2 ]; then
+      WARNS+=("G-T#44: n8n-spine crontab DRIFT — live box crontab != vaulted provision/n8n/spine-crontab.txt; refresh: (cd $SZ_GH_LOCAL && SZ_BOX_SSH=$SZ_BOX_HOST scripts/sz-crontab-snapshot.sh --commit)")
+    fi
+    # rc 3 (empty crontab) / 124 (timeout) / ssh-unreachable / any other -> skip silently (phone-safe, never a wrap blocker)
+  fi
+fi
+
 # --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
 CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
 MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
