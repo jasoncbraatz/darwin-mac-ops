@@ -250,12 +250,19 @@ echo
 #     WARN-level (never blocks a hygiene-clean wrap); phone/web-safe skip if no blackbook.) ---
 BB="$HOME/repos/claude-blackbook"
 if [ -d "$BB/.git" ]; then
-  LCOUNT="$(git -C "$BB" log --since='6 hours ago' --oneline -- lessons/ 2>/dev/null | grep -c .)"
-  bold "=== G-U · learning-harvest challenge (lessons banked, last 6h: ${LCOUNT:-0}) ==="
-  if [ "${LCOUNT:-0}" -eq 0 ]; then
+  # DJ-4.1 fix: the 6h window FALSE-0s a long (>6h) session whose lessons were committed early. Make
+  # the window configurable (export SZ_GATE_HARVEST_WINDOW='12 hours ago' or your session-start) and add
+  # a 24h secondary signal so a long, midnight-crossing session is not falsely told it harvested nothing.
+  WINDOW="${SZ_GATE_HARVEST_WINDOW:-6 hours ago}"
+  LCOUNT="$(git -C "$BB" log --since="$WINDOW" --oneline -- lessons/ 2>/dev/null | grep -c .)"
+  LWIDE="$(git -C "$BB" log --since='24 hours ago' --oneline -- lessons/ 2>/dev/null | grep -c .)"
+  bold "=== G-U · learning-harvest challenge (lessons banked: ${LCOUNT:-0} in [$WINDOW], ${LWIDE:-0} in 24h) ==="
+  if [ "${LCOUNT:-0}" -eq 0 ] && [ "${LWIDE:-0}" -eq 0 ]; then
     printf '  \033[1mZERO lessons banked this session.\033[0m Across 500+ handoffs, NOT ONE truly had nothing.\n'
     printf '  A 0 here is almost always an UN-harvested session, not a clean one. Harvest BEFORE you wrap:\n'
-    WARNS+=("G-U: 0 lessons banked in the last 6h -- run the harvest; a genuine 'nothing' has never happened in 500+ handoffs and must be justified IN WRITING")
+    WARNS+=("G-U: 0 lessons banked -- run the harvest; a genuine 'nothing' has never happened in 500+ handoffs and must be justified IN WRITING")
+  elif [ "${LCOUNT:-0}" -eq 0 ]; then
+    printf '  0 in [%s] but %s lesson(s) in the last 24h -- likely a LONG session (the 6h window false-0s). VERIFY the harvest landed (git -C ~/repos/claude-blackbook log -- lessons/); silence by exporting SZ_GATE_HARVEST_WINDOW to your session-start.\n' "$WINDOW" "$LWIDE"
   else
     printf '  %s lesson(s) banked recently -- harvest evidence present. Push further before you call it:\n' "$LCOUNT"
   fi
