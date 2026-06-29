@@ -293,6 +293,7 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
      a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
      nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
   Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-U).
+  COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE G-F v2.23. Autonomous DJ sessions: always hand off.
 TRIAD
   exit 0
 else
