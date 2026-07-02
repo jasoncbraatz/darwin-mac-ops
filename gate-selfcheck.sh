@@ -172,18 +172,30 @@ done
 SZ_BOX_HOST="${SZ_BOX_HOST:-n8n}"
 SZ_BOX_REPO="${SZ_BOX_REPO:-~/virtual-darwin/spine/repos/strike-zone}"
 SZ_GH_LOCAL="${SZ_GH_LOCAL:-$HOME/repos/strike-zone}"
+# v2.26 (G-T#43c): sz-box-pull v2 made the box a TWO-repo runtime (strike-zone + the
+# sz-exhaust-ledger sibling) — parity must name them both or a wedged ledger checkout
+# passes the gate silently while box jobs consume stale calibration/craft data.
+SZ_BOX_LEDGER_REPO="${SZ_BOX_LEDGER_REPO:-~/virtual-darwin/spine/repos/sz-exhaust-ledger}"
+SZ_GH_LEDGER_LOCAL="${SZ_GH_LEDGER_LOCAL:-$HOME/repos/sz-exhaust-ledger}"
 SZ_BOX_SCHED="${SZ_BOX_SCHED:-sz-box-pull.sh}"   # the cron line that keeps the box converged to gh
 if [ -d "$SZ_GH_LOCAL/.git" ] && command -v ssh >/dev/null 2>&1; then
   GH_HEAD="$(git -C "$SZ_GH_LOCAL" rev-parse HEAD 2>/dev/null)"
-  # ONE round-trip: line1 = box HEAD, line2 = count of the scheduler line in the box crontab.
-  BOX_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$SZ_BOX_HOST" "git -C $SZ_BOX_REPO rev-parse HEAD 2>/dev/null; crontab -l 2>/dev/null | grep -cF -- $SZ_BOX_SCHED" 2>/dev/null)"
+  GH_LEDGER_HEAD="$(git -C "$SZ_GH_LEDGER_LOCAL" rev-parse HEAD 2>/dev/null)"
+  # ONE round-trip: line1 = box strike-zone HEAD, line2 = box ledger HEAD, line3 = scheduler count.
+  # `|| echo MISSING` keeps line positions DETERMINISTIC (a failed rev-parse used to shift the
+  # scheduler count up a line and silently mis-parse).
+  BOX_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$SZ_BOX_HOST" "git -C $SZ_BOX_REPO rev-parse HEAD 2>/dev/null || echo MISSING; git -C $SZ_BOX_LEDGER_REPO rev-parse HEAD 2>/dev/null || echo MISSING; crontab -l 2>/dev/null | grep -cF -- $SZ_BOX_SCHED" 2>/dev/null)"
   BOX_HEAD="$(printf '%s\n' "$BOX_PROBE" | sed -n '1p' | tr -d '\r\n ')"
-  BOX_SCHED_N="$(printf '%s\n' "$BOX_PROBE" | sed -n '2p' | tr -d '\r\n ')"
+  BOX_LEDGER_HEAD="$(printf '%s\n' "$BOX_PROBE" | sed -n '2p' | tr -d '\r\n ')"
+  BOX_SCHED_N="$(printf '%s\n' "$BOX_PROBE" | sed -n '3p' | tr -d '\r\n ')"
   if [ -z "$BOX_HEAD" ]; then
     : # box unreachable (offline / no-ssh session) — skip silently, never a wrap blocker
   else
     if [ -n "$GH_HEAD" ] && [ "$BOX_HEAD" != "$GH_HEAD" ]; then
       WARNS+=("G-T#43: sz-tick runtime box ($SZ_BOX_HOST) HEAD ${BOX_HEAD:0:7} != gh ${GH_HEAD:0:7} — deploy: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_REPO pull --ff-only'")
+    fi
+    if [ -n "$GH_LEDGER_HEAD" ] && [ -n "$BOX_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "$GH_LEDGER_HEAD" ]; then
+      WARNS+=("G-T#43c: ledger runtime box ($SZ_BOX_HOST) HEAD ${BOX_LEDGER_HEAD:0:7} != gh ${GH_LEDGER_HEAD:0:7} — converge: ssh $SZ_BOX_HOST '$SZ_BOX_REPO/scripts/sz-box-pull.sh --quiet' (exit 8 = drift-orphan; see the DAY-1H leaf)")
     fi
     if [ "${BOX_SCHED_N:-0}" = "0" ]; then
       WARNS+=("G-T#43b: box auto-pull SCHEDULER MISSING ($SZ_BOX_SCHED not in $SZ_BOX_HOST crontab) — box will NOT self-converge to gh; restore the */15 line from $SZ_BOX_REPO/provision/n8n/spine-crontab.txt")
