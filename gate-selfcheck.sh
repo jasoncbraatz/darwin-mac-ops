@@ -222,6 +222,31 @@ if [ -x "$SZ_CRON_SNAP" ] && command -v ssh >/dev/null 2>&1; then
   fi
 fi
 
+# --- G-T#45 · n8n-provision box-repo parity (born 2026-07-04: /opt/n8n became a gh-backed repo
+#     (jasoncbraatz/n8n-provision) that the BOX authors + pushes via a deploy key. It lives on the
+#     n8n box, OUTSIDE darwin's ROOTS, so the G-H sweep can't see it — a live compose/Caddyfile edit
+#     left uncommitted/unpushed would drift invisibly (the exact "prod config on one uninsured SSD"
+#     risk this repo was created to kill). READ-ONLY probe: working tree clean AND HEAD pushed to
+#     origin. sudo because /opt/n8n is root-owned (claudeApp has NOPASSWD). WARN-level + graceful skip
+#     so an offline box / phone-web session never blocks a wrap. Override host/path via env.) ---
+N8N_PROV_HOST="${N8N_PROV_HOST:-n8n}"
+N8N_PROV_REPO="${N8N_PROV_REPO:-/opt/n8n}"
+if command -v ssh >/dev/null 2>&1; then
+  PROV_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$N8N_PROV_HOST" "sudo git -C $N8N_PROV_REPO status --porcelain 2>/dev/null | wc -l | tr -d ' '; sudo git -C $N8N_PROV_REPO rev-list --count @{u}..HEAD 2>/dev/null || echo MISSING" 2>/dev/null)"
+  PROV_DIRTY="$(printf '%s\n' "$PROV_PROBE" | sed -n '1p' | tr -d '\r\n ')"
+  PROV_AHEAD="$(printf '%s\n' "$PROV_PROBE" | sed -n '2p' | tr -d '\r\n ')"
+  if [ -z "$PROV_PROBE" ] || [ "$PROV_AHEAD" = "MISSING" ]; then
+    : # box unreachable OR no upstream set — skip silently (phone-safe, never a wrap blocker)
+  else
+    if [ "${PROV_DIRTY:-0}" != "0" ]; then
+      WARNS+=("G-T#45: n8n-provision box repo ($N8N_PROV_HOST:$N8N_PROV_REPO) has UNCOMMITTED change(s) [$PROV_DIRTY] — commit+push on the box (sudo git add -A && sudo git commit && sudo git push)")
+    fi
+    if [ -n "$PROV_AHEAD" ] && [ "$PROV_AHEAD" != "0" ]; then
+      WARNS+=("G-T#45b: n8n-provision box repo ($N8N_PROV_HOST:$N8N_PROV_REPO) has $PROV_AHEAD UNPUSHED commit(s) — ssh $N8N_PROV_HOST 'sudo git -C $N8N_PROV_REPO push'")
+    fi
+  fi
+fi
+
 # --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
 CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
 MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
