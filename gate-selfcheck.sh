@@ -158,7 +158,15 @@ for repo in "${REPOS[@]}"; do
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     [ "$SECCOUNT" -eq 0 ] && bold "=== G-E · secret sweep (tracked files) ==="
-    printf '    %s: %s\n' "${repo/#$HOME/~}" "$(echo "$line" | cut -c1-90)"; SECCOUNT=$((SECCOUNT+1))
+    # Show file:line + the ACTUAL matched token (prefix kept, high-entropy tail MASKED) — NOT
+    # cut -c1-90 of the raw line: that truncation can DISPLAY a leading jsCode // comment while
+    # HIDING the real secret deeper on the same line. On 2026-07-07 it disguised real hardcoded
+    # shpat_ tokens in COGS jsCode as benign "// 7:30" comments, and a teed-up "just skip jsCode
+    # comment lines" would have MASKED live secrets. Masking the tail keeps the sweep from leaking
+    # the credential into logs while still proving it IS a token, not a comment.
+    floc=$(printf '%s' "$line" | cut -d: -f1-2)
+    tok=$(printf '%s' "$line" | grep -oE "$SECRET_RE" | head -1 | sed -E 's/(.{10}).*/\1…MASKED/')
+    printf '    %s: %s  [match: %s]\n' "${repo/#$HOME/~}" "$floc" "$tok"; SECCOUNT=$((SECCOUNT+1))
   done < <(git grep -nIE "$SECRET_RE" 2>/dev/null)
 done
 [ "$SECCOUNT" -gt 0 ] && WARNS+=("G-E: $SECCOUNT possible SECRET(s) in tracked files (see list above) — if real, scrub from HEAD, ROTATE the credential, and never commit it")
