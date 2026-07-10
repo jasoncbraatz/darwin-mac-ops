@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.braatz.photo-sync-dropbox-fullsweep</string>
+
+  <!-- Same script, but PHOTO_SYNC_FULL=1 makes it sweep EVERY year folder so
+       stray photos dropped into an old year get backed up without manual effort. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jasoncbraatz/bin/sync-photos-to-dropbox.sh</string>
+  </array>
+
+  <!-- Weekly: Sunday 03:30 (off-hours). launchd runs a missed job at next wake. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>0</integer>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/photo-sync-dropbox-fullsweep.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/photo-sync-dropbox-fullsweep.stderr.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PHOTO_SYNC_FULL</key>
+    <string>1</string>
+  </dict>
+</dict>
+</plist>

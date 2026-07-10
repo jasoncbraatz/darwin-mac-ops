@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.braatz.photo-sync-dropbox</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jasoncbraatz/bin/sync-photos-to-dropbox.sh</string>
+  </array>
+
+  <!-- Check hourly -->
+  <key>StartInterval</key>
+  <integer>3600</integer>
+
+  <!-- Also run shortly after login/boot so it catches up after any downtime -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Keep it gentle on the Mac: background QoS + low-priority disk I/O + nice -->
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/photo-sync-dropbox.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/photo-sync-dropbox.stderr.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>
