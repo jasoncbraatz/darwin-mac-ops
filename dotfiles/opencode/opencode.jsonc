@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "shell": "zsh",
+  "disabled_providers": [],
+  // 2026-07-13: the "shellac" provider (http://10.10.10.5:11434, qwen2.5-coder:32b) was REMOVED —
+  // shellac + toolbelt are POWERED DOWN and the free rail is deprecated. OpenCode was still
+  // pointed at that dead endpoint. Backup of the old config: opencode.jsonc.bak.20260713-shellac.
+  // Rationale: claude-fleet/models.json -> tiers.free_worker. Cheap inference now = DeepInfra.
+  "provider": {
+    "deepinfra": {
+      "name": "deepinfra",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://api.deepinfra.com/v1/openai",
+        "apiKey": "{env:DEEPINFRA_API_KEY}"
+      },
+      "models": {
+        "Qwen/Qwen3-Coder-480B-A35B-Instruct": {
+          "name": "qwen3-coder-480b (cheap rail primary)"
+        },
+        "deepseek-ai/DeepSeek-V3.1": {
+          "name": "deepseek-v3.1 (cheap rail fallback)"
+        },
+        "google/gemma-3-27b-it": {
+          "name": "gemma-3-27b (best-of-cheap per Jason's 2026-07-11 bake-off)"
+        }
+      }
+    }
+  }
+}
