@@ -302,6 +302,25 @@ if [ -d "$BB/.git" ]; then
   LCOUNT="$(git -C "$BB" log --since="$WINDOW" --oneline -- lessons/ 2>/dev/null | grep -c .)"
   LWIDE="$(git -C "$BB" log --since='24 hours ago' --oneline -- lessons/ 2>/dev/null | grep -c .)"
   bold "=== G-U · learning-harvest challenge (lessons banked: ${LCOUNT:-0} in [$WINDOW], ${LWIDE:-0} in 24h) ==="
+
+  # --- G-U.2 · CONCURRENT-SESSION LEAF CHECK (born 2026-07-13, learned the hard way) ---
+  # Jason runs PARALLEL cowork sessions and they all bank into the SAME tree. On 2026-07-13 a
+  # session banked a leaf on "cheap models aren't worth it" while a CONCURRENT session had that
+  # same day banked a far better one (5-day live A/B with hard data) — a FORKED TWIN, the exact
+  # thing lessons.py warns against. Worse, the two DISAGREED on detail, and the wrong version had
+  # already leaked into a live config. Two overlapping leaves drift, and the next Claude believes
+  # whichever it greps first. So: SHOW today's leaves. If you didn't write one, READ IT before
+  # you add yours — then defer + cross-link, or curate the ONE leaf.
+  TODAY_LEAVES="$(ls -1 "$BB"/lessons/*/"$(date +%F)"-*.md 2>/dev/null)"
+  if [ -n "$TODAY_LEAVES" ]; then
+    printf '  \033[1mLeaves banked TODAY (yours AND any concurrent session'"'"'s):\033[0m\n'
+    printf '%s\n' "$TODAY_LEAVES" | while read -r L; do
+      CB=$(grep -m1 '^contributor:' "$L" 2>/dev/null | sed 's/contributor: *//')
+      printf '    • %s  [by %s]\n' "$(basename "$L")" "${CB:-unknown}"
+    done
+    printf '  \033[1m^ Did you WRITE all of those?\033[0m If not, a concurrent session banked it — READ it.\n'
+    printf '    Overlaps yours? DEFER to it + cross-link, or curate the ONE leaf. Never fork a twin.\n'
+  fi
   if [ "${LCOUNT:-0}" -eq 0 ] && [ "${LWIDE:-0}" -eq 0 ]; then
     printf '  \033[1mZERO lessons banked this session.\033[0m Across 500+ handoffs, NOT ONE truly had nothing.\n'
     printf '  A 0 here is almost always an UN-harvested session, not a clean one. Harvest BEFORE you wrap:\n'
