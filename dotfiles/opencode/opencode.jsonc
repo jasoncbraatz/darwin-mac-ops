@@ -21,8 +21,14 @@
         "deepseek-ai/DeepSeek-V3.1": {
           "name": "deepseek-v3.1 (cheap rail fallback)"
         },
-        "google/gemma-3-27b-it": {
-          "name": "gemma-3-27b (best-of-cheap per Jason's 2026-07-11 bake-off)"
+        // gemma-4-31B-it WON Jason's 6-model cheap bake-off — and STILL LOST to Sonnet-5 in a
+        // 5-day live A/B on the Morning Email Recon summarizer (2026-07-13 verdict). It MISSED
+        // real customer emails and an about-to-incur LATE-FEE notice that Sonnet caught. One
+        // surfaced past-due notice outweighs a YEAR of token savings. Listed here for code-grind
+        // errands ONLY — do NOT reach for it for triage/summarization of high-signal work.
+        // See blackbook: 2026-07-13-verdict-2026-07-13-jason-after.
+        "google/gemma-4-31B-it": {
+          "name": "gemma-4-31b (cheap bake-off winner — REJECTED for high-signal work)"
         }
       }
     }
