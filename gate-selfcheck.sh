@@ -385,6 +385,10 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
   Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-U).
   COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE G-F v2.23. Autonomous DJ sessions: always hand off.
 TRIAD
+  echo ""
+  echo "  ── handoff-lint (write-side, report-only — added 2026-07-14) ──"
+  "$HOME/Scripts/handoff-lint.sh" 2>/dev/null | sed 's/^/  /'
+  echo "  (public-reachability of any cloud-facing endpoint: ~/Scripts/probe-public.sh <url>)"
   exit 0
 else
   bold "GATE SELF-CHECK: FAIL ❌  (${#FAILS[@]} issue(s) — fix before writing the handoff)"
