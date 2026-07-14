@@ -255,6 +255,32 @@ if command -v ssh >/dev/null 2>&1; then
   fi
 fi
 
+# --- G-T#46 · flowers box-repo parity (born 2026-07-14, order-flow sentinel session: /var/www/flowers
+#     is a gh-backed repo (jasoncbraatz/flowers) that the BOX authors + pushes (root-owned; sudo git).
+#     It lives on the flowers Linode, OUTSIDE darwin's ROOTS, so the G-H sweep can't see it — live
+#     server.ts / health-module / OPUS-README edits left uncommitted or unpushed would drift invisibly
+#     (this exact repo silently drifted for weeks once, pre-gate). Same recipe as G-T#45: READ-ONLY
+#     probe, worktree clean AND HEAD pushed; WARN-level + graceful skip (offline box / phone-web never
+#     blocks a wrap). darwin's ~/.ssh/config has a direct `flowers` alias (public IP, key auth,
+#     claudeApp NOPASSWD sudo). Override host/path via env. ---
+FLOWERS_BOX_HOST="${FLOWERS_BOX_HOST:-flowers}"
+FLOWERS_BOX_REPO="${FLOWERS_BOX_REPO:-/var/www/flowers}"
+if command -v ssh >/dev/null 2>&1; then
+  FLW_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$FLOWERS_BOX_HOST" "sudo git -C $FLOWERS_BOX_REPO status --porcelain 2>/dev/null | wc -l | tr -d ' '; sudo git -C $FLOWERS_BOX_REPO rev-list --count @{u}..HEAD 2>/dev/null || echo MISSING" 2>/dev/null)"
+  FLW_DIRTY="$(printf '%s\n' "$FLW_PROBE" | sed -n '1p' | tr -d '\r\n ')"
+  FLW_AHEAD="$(printf '%s\n' "$FLW_PROBE" | sed -n '2p' | tr -d '\r\n ')"
+  if [ -z "$FLW_PROBE" ] || [ "$FLW_AHEAD" = "MISSING" ]; then
+    : # box unreachable OR no upstream set — skip silently (phone-safe, never a wrap blocker)
+  else
+    if [ "${FLW_DIRTY:-0}" != "0" ]; then
+      WARNS+=("G-T#46: flowers box repo ($FLOWERS_BOX_HOST:$FLOWERS_BOX_REPO) has UNCOMMITTED change(s) [$FLW_DIRTY] — commit+push on the box (sudo git add -A && sudo git commit && sudo git push)")
+    fi
+    if [ -n "$FLW_AHEAD" ] && [ "$FLW_AHEAD" != "0" ]; then
+      WARNS+=("G-T#46b: flowers box repo ($FLOWERS_BOX_HOST:$FLOWERS_BOX_REPO) has $FLW_AHEAD UNPUSHED commit(s) — ssh $FLOWERS_BOX_HOST 'sudo git -C $FLOWERS_BOX_REPO push'")
+    fi
+  fi
+fi
+
 # --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
 CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
 MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
