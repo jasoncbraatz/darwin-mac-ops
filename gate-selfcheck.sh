@@ -202,8 +202,21 @@ if [ -d "$SZ_GH_LOCAL/.git" ] && command -v ssh >/dev/null 2>&1; then
     if [ -n "$GH_HEAD" ] && [ "$BOX_HEAD" != "$GH_HEAD" ]; then
       WARNS+=("G-T#43: sz-tick runtime box ($SZ_BOX_HOST) HEAD ${BOX_HEAD:0:7} != gh ${GH_HEAD:0:7} — deploy: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_REPO pull --ff-only'")
     fi
-    if [ -n "$GH_LEDGER_HEAD" ] && [ -n "$BOX_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "$GH_LEDGER_HEAD" ]; then
-      WARNS+=("G-T#43c: ledger runtime box ($SZ_BOX_HOST) HEAD ${BOX_LEDGER_HEAD:0:7} != gh ${GH_LEDGER_HEAD:0:7} — converge: ssh $SZ_BOX_HOST '$SZ_BOX_REPO/scripts/sz-box-pull.sh --quiet' (exit 8 = drift-orphan; see the DAY-1H leaf)")
+    if [ -n "$GH_LEDGER_HEAD" ] && [ -n "$BOX_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "$GH_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "MISSING" ]; then
+      # v2.27 lag-aware (2026-07-24 root-cause of card 1216752373472909): the box ledger mirror is
+      # an eventually-consistent CONSUMER — darwin pushes the vault hourly (:0x), the box pulls
+      # */15 — so bare inequality has an inherent <=15-min false-positive window every single hour
+      # ("reconverged by timing" IS the mechanism working). Only two failure modes are real:
+      #   (a) DIVERGENCE — box HEAD is not an ancestor of gh HEAD (someone committed on the mirror);
+      #   (b) WEDGED PULL — box is >2 vault commits (~>2h) behind (pull cron dead or ff-only stuck).
+      if ! git -C "$SZ_GH_LEDGER_LOCAL" merge-base --is-ancestor "$BOX_LEDGER_HEAD" "$GH_LEDGER_HEAD" 2>/dev/null; then
+        WARNS+=("G-T#43c: ledger runtime box ($SZ_BOX_HOST) HEAD ${BOX_LEDGER_HEAD:0:7} DIVERGED from gh ${GH_LEDGER_HEAD:0:7} (not an ancestor — a commit landed on the read-only mirror) — inspect: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_LEDGER_REPO log --oneline -3; git -C $SZ_BOX_LEDGER_REPO status' then converge via sz-box-pull.sh (exit 8 = drift-orphan; see the DAY-1H leaf)")
+      else
+        LEDGER_BEHIND_N="$(git -C "$SZ_GH_LEDGER_LOCAL" rev-list --count "$BOX_LEDGER_HEAD".."$GH_LEDGER_HEAD" 2>/dev/null | tr -d '[:space:]')"
+        if [ "${LEDGER_BEHIND_N:-999}" -gt 2 ] 2>/dev/null; then
+          WARNS+=("G-T#43c: ledger runtime box ($SZ_BOX_HOST) WEDGED ${LEDGER_BEHIND_N} vault commits behind gh (>2 = pull not landing) — converge: ssh $SZ_BOX_HOST '$SZ_BOX_REPO/scripts/sz-box-pull.sh --quiet' (exit 8 = drift-orphan; see the DAY-1H leaf) and check the */15 cron log")
+        fi
+      fi
     fi
     if [ "${BOX_SCHED_N:-0}" = "0" ]; then
       WARNS+=("G-T#43b: box auto-pull SCHEDULER MISSING ($SZ_BOX_SCHED not in $SZ_BOX_HOST crontab) — box will NOT self-converge to gh; restore the */15 line from $SZ_BOX_REPO/provision/n8n/spine-crontab.txt")
