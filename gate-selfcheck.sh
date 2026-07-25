@@ -381,6 +381,23 @@ fi
 echo
 
 
+# ── G-V: bridge-rotation plaster (added 2026-07-25, Jason ruling — cost ~8-10h misdiagnosed) ──
+# The Cowork device bridge rotates its websocket ~every 27-33 min (anthropics/claude-code#81248);
+# sessions see "MCP server disconnected" and have QUIT over it. While the bug is alive (rotating
+# lines present in the app log), EVERY handoff must open with a step-0 BRIDGE-BUG ACK so no
+# future session can miss it. Self-retiring: the block goes silent once a fresh main.log has no
+# 'rotating' lines (bug fixed upstream) — then delete this section.
+CLAUDE_APP_LOG="$HOME/Library/Logs/Claude/main.log"
+if [ -f "$CLAUDE_APP_LOG" ] && grep -q '\[remote-tools-device\] rotating' "$CLAUDE_APP_LOG" 2>/dev/null; then
+  bold "G-V: BRIDGE-ROTATION BUG STILL ALIVE (claude-code#81248) — plaster the handoff:"
+  echo "  - the handoff prompt you emit MUST open with step-0 BRIDGE-BUG ACK: inheritor runs"
+  echo "    ~/Scripts/bridge-status.sh and says in chat it is briefed (tools vanish ~every 27-33 min,"
+  echo "    self-heals ~1s, NOT darwin, retry next turn; NEVER declare 'can't continue' over it)."
+  echo "  - template: ~/repos/flowers-sms-concierge/HANDOFF.md step 0 · doctrine: lessons.py doctrine"
+  echo "  - retire this check when 'rotating' vanishes from a fresh main.log."
+  echo ""
+fi
+
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
