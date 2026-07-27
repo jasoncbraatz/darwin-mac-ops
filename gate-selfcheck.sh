@@ -381,6 +381,20 @@ fi
 echo
 
 
+# ── G-W: toolchain canary (added 2026-07-27) ────────────────────────────────────
+# The lessons.py semantic ranker sat SILENTLY degraded to pure BM25 for weeks: it
+# still "worked", just dumber, so nobody noticed. Root cause was interpreter drift —
+# `python3 lessons.py` bypasses the shebang, and on darwin bash resolves python3 to
+# Xcode's 3.9 (a stub that follows `xcode-select -p`, so it moves whenever Xcode
+# updates) while zsh resolves it to Homebrew 3.14. lessons.py now re-execs into its
+# own pinned venv; this check makes any future regression LOUD instead of quiet.
+# A silent downgrade of a thinking tool is worse than a crash — you keep trusting it.
+if [ -f "$HOME/repos/claude-blackbook/lessons.py" ]; then
+  if ! python3 "$HOME/repos/claude-blackbook/lessons.py" --doctor >/dev/null 2>&1; then
+    WARNS+=("G-W: lessons.py ranker is DEGRADED to pure BM25 (semantic backend down) — run: python3 ~/repos/claude-blackbook/lessons.py --doctor  (it prints the venv rebuild recipe)")
+  fi
+fi
+
 # ── G-V: bridge-rotation plaster (added 2026-07-25, Jason ruling — cost ~8-10h misdiagnosed) ──
 # The Cowork device bridge rotates its websocket ~every 27-33 min (anthropics/claude-code#81248);
 # sessions see "MCP server disconnected" and have QUIT over it. While the bug is alive (rotating
