@@ -129,6 +129,43 @@ done
 [ "$ORPHANS" -eq 0 ] && { [ "$QUIET" -eq 1 ] || echo "  (no orphan code-islands — every gitignored code dir is its own backed repo)"; }
 echo
 
+# --- G-W · untracked-keeper sweep (born 2026-07-28: an audit found 105 of 117
+#     HANDOFF-*/SESSION-*/BUGREPORT-*/EVIDENCE-* docs in the everything folder were
+#     UNTRACKED -- a 90% miss rate on exactly the documents the suspension-bridge method
+#     depends on, spanning six weeks. FIVE lessons had already been banked about the trap
+#     and none stopped the sixth occurrence, because it fires at WRAP TIME when nobody is
+#     searching the corpus for git advice.
+#
+#     WHY NO EXISTING CHECK CATCHES IT: the dirty/unpushed sweep above reasons about
+#     TRACKED files. An IGNORED file is not "uncommitted work", so the gate says PASS --
+#     correctly, and uselessly. G-S covers the same blind spot for gitignored CODE dirs;
+#     this is its sibling for gitignored DOCS. A file that is gitignored is not a file
+#     that is safe. ---
+bold "=== G-W · untracked-keeper sweep (a keeper doc that git ignores is NOT backed) ==="
+KEEPER_MISS=0
+for repo in "${REPOS[@]}"; do
+  [ -d "$repo/.git" ] || continue
+  cd "$repo" 2>/dev/null || continue
+  while IFS= read -r f; do
+    [ -e "$f" ] || continue
+    git ls-files --error-unmatch "$f" >/dev/null 2>&1 && continue     # tracked -> fine
+    git check-ignore -q "$f" || continue                              # untracked+unignored -> the dirty sweep owns it
+    # Deliberately ignored keepers are legal, but they must SAY SO: an allowlist-style
+    # .gitignore should carry a comment naming the exclusion (e.g. a superseded chain).
+    base="$(basename "$f")"
+    if grep -qiE "superseded|deliberately|not vaulted|noise in a vault" .gitignore 2>/dev/null \
+       && git check-ignore -v "$f" 2>/dev/null | grep -q '\*'; then
+      [ "$QUIET" -eq 1 ] || printf '  ok     %-52s%s\n' "$base" "ignored by an explained glob"
+      continue
+    fi
+    printf '  MISS   %-52s%s\n' "$base" "keeper doc is GITIGNORED -> never reaches the vault"
+    FAILS+=("${repo/#$HOME/~}/$base: keeper doc is gitignored and unbacked -> allowlist it, then VERIFY with 'git ls-files --error-unmatch'")
+    KEEPER_MISS=$((KEEPER_MISS+1))
+  done < <(ls -1 HANDOFF-*.md SESSION-*.md BUGREPORT-*.md EVIDENCE-*.md 2>/dev/null)
+done
+[ "$KEEPER_MISS" -eq 0 ] && { [ "$QUIET" -eq 1 ] || echo "  (no unbacked keeper docs — every handoff/session note is in the vault)"; }
+echo
+
 # --- G-I optional dead-value sweep (report-only; human judges intent) ---
 if [ "${#DEAD_VALUES[@]}" -gt 0 ]; then
   echo
