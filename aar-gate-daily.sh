@@ -1,0 +1,99 @@
+#!/bin/bash
+# aar-gate-daily.sh — the daily AAR/RCA gate, run as a LOCAL launchd task on darwin.
+#
+# WHY LOCAL AND NOT A CLOUD SCHEDULED TASK: aar.py and the AAR markdown live on darwin.
+# A fresh-session Cowork cloud task has no device bridge and no ssh MCP, so every ~/ path
+# is dead on arrival. Scheduling this in the cloud would reproduce, exactly, the bug this
+# entire tier was built to prevent. See AAR 2026-07-29-geo-detector-blind-spot.
+#
+# WHY THIS WRAPPER EXISTS AT ALL: `aar.py gate` exiting 1 inside launchd is a tree falling
+# in an empty forest. A detector whose only output is an exit code nobody reads is a
+# silent-success detector — the precise failure mode being cured. So this script:
+#   * files the failure into Batter's Box (Jason's actual inbox), deduped, and
+#   * writes a POSITIVE DATED HEARTBEAT on every run, pass or fail, so "no output"
+#     is distinguishable from "never ran".
+set -uo pipefail
+
+BLACKBOOK="$HOME/repos/claude-blackbook"
+AAR_PY="$BLACKBOOK/aar.py"
+LOG="$HOME/Library/Logs/aar-gate.log"
+HEARTBEAT="$HOME/Library/Logs/aar-gate.heartbeat"
+BATTERS_BOX="1213050213165325"
+BBKEY="BBKEY aar-gate-violations"
+TOKEN_FILE="$HOME/.config/scan-pipeline/asana.token"
+TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+mkdir -p "$(dirname "$LOG")"
+log() { printf '%s %s\n' "$TS" "$*" >> "$LOG"; }
+
+if [ ! -x "$AAR_PY" ]; then
+  log "CANNOT VERIFY: $AAR_PY missing"; echo "missing $AAR_PY" >&2; exit 2
+fi
+
+# reconcile in — the corpus is on GitHub; darwin may be stale
+git -C "$BLACKBOOK" pull --ff-only --quiet 2>/dev/null || log "WARN: git pull failed (continuing on the local copy)"
+
+OUT="$(/usr/bin/python3 "$AAR_PY" gate --days 7 2>&1)"; RC=$?
+log "gate exit=$RC"
+
+# POSITIVE HEARTBEAT — always, pass or fail. Absence of this file being fresh is itself
+# the alarm; `aar.py heartbeat` reads the DB, this is the human/ops-readable twin.
+printf '%s exit=%s\n' "$TS" "$RC" > "$HEARTBEAT"
+
+[ "$RC" -eq 0 ] && { log "PASS"; exit 0; }
+
+# --- surface it, or it never happened -------------------------------------------------
+PAT=""
+[ -s "$TOKEN_FILE" ] && PAT="$(cat "$TOKEN_FILE")"
+if [ -z "$PAT" ]; then
+  log "FAIL rc=$RC but NO ASANA TOKEN — could not surface. This is the silent case; fix the token."
+  echo "$OUT" >&2; exit "$RC"
+fi
+
+# dedupe: if an INCOMPLETE card already carries our key, comment on it instead of piling up
+EXISTING="$(curl -s -H "Authorization: Bearer $PAT" \
+  "https://app.asana.com/api/1.0/tasks?project=$BATTERS_BOX&completed_since=now&opt_fields=name,notes" \
+  | /usr/bin/python3 -c "
+import sys,json
+try: d=json.load(sys.stdin).get('data') or []
+except Exception: sys.exit(0)
+for t in d:
+    if '$BBKEY' in (t.get('notes') or ''): print(t['gid']); break
+" 2>/dev/null)"
+
+TITLE="⚾ AAR gate: $( [ "$RC" -eq 2 ] && echo 'CANNOT VERIFY (not a pass)' || echo 'a card closed with no AAR and no logged reason' )"
+# NOTE the <!--AUTOFILED--> marker: this job is the FIRST adopter of the declaration
+# contract it enforces. Without it, the gate's own card would be gated by the gate.
+BODY="<!--AUTOFILED source=aar-gate-daily-->
+$BBKEY
+
+$OUT
+
+--
+Filed by ~/Scripts/aar-gate-daily.sh (local launchd task on darwin, com.braatz.aar-gate).
+Exit $RC. 0=pass 1=violations 2=CANNOT VERIFY (which is NOT a pass).
+To clear each violation: comment 'AAR: <slug>' on the card (after aar.py validate passes),
+or 'NO-AAR: <20+ chars of real reason>'. Gate doc: HANDOFF-GATE.md §G-V."
+
+if [ -n "$EXISTING" ]; then
+  /usr/bin/python3 - "$PAT" "$EXISTING" "$BODY" <<'PY'
+import json,sys,urllib.request
+pat,gid,body=sys.argv[1],sys.argv[2],sys.argv[3]
+r=urllib.request.Request(f"https://app.asana.com/api/1.0/tasks/{gid}/stories",
+    data=json.dumps({"data":{"text":body}}).encode(),
+    headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="POST")
+urllib.request.urlopen(r,timeout=30)
+PY
+  log "FAIL rc=$RC — commented on existing card $EXISTING"
+else
+  /usr/bin/python3 - "$PAT" "$BATTERS_BOX" "$TITLE" "$BODY" <<'PY'
+import json,sys,urllib.request
+pat,proj,title,body=sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4]
+r=urllib.request.Request("https://app.asana.com/api/1.0/tasks",
+    data=json.dumps({"data":{"projects":[proj],"name":title,"notes":body}}).encode(),
+    headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="POST")
+print(json.load(urllib.request.urlopen(r,timeout=30))["data"]["gid"])
+PY
+  log "FAIL rc=$RC — filed a new Batter's Box card"
+fi
+exit "$RC"
