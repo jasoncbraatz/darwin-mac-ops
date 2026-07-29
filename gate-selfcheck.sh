@@ -494,8 +494,12 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
      a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
      nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
   Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-V).
-  COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE G-F v2.23. Autonomous DJ sessions: always hand off.
+  COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE §G-F (version printed below). Autonomous DJ sessions: always hand off.
 TRIAD
+  # Version is DERIVED from the canonical doc header, never hardcoded -- see
+  # global lesson "a number copied into prose rots". Fourth instance was this very line.
+  _gate_ver="$(grep -m1 -oE 'Version [0-9]+\.[0-9]+' "$CANON_GATE" 2>/dev/null || true)"
+  echo "  gate version in force: ${_gate_ver:-UNKNOWN (could not read $CANON_GATE header)}"
   echo ""
   echo "  ── handoff-lint (write-side, report-only — added 2026-07-14) ──"
   "$HOME/Scripts/handoff-lint.sh" 2>/dev/null | sed 's/^/  /'
