@@ -432,7 +432,8 @@ if [ -f "$HOME/repos/claude-blackbook/lessons.py" ]; then
   fi
 fi
 
-# ── G-V: bridge-rotation plaster (added 2026-07-25, Jason ruling — cost ~8-10h misdiagnosed) ──
+# ── BRIDGE-BUG PLASTER (temporary, NOT a G-step — relabelled 2026-07-29 when the
+#    canonical G-V was assigned to the AAR/RCA obligation) (added 2026-07-25, Jason ruling — cost ~8-10h misdiagnosed) ──
 # The Cowork device bridge rotates its websocket ~every 27-33 min (anthropics/claude-code#81248);
 # sessions see "MCP server disconnected" and have QUIT over it. While the bug is alive (rotating
 # lines present in the app log), EVERY handoff must open with a step-0 BRIDGE-BUG ACK so no
@@ -440,13 +441,42 @@ fi
 # 'rotating' lines (bug fixed upstream) — then delete this section.
 CLAUDE_APP_LOG="$HOME/Library/Logs/Claude/main.log"
 if [ -f "$CLAUDE_APP_LOG" ] && grep -q '\[remote-tools-device\] rotating' "$CLAUDE_APP_LOG" 2>/dev/null; then
-  bold "G-V: BRIDGE-ROTATION BUG STILL ALIVE (claude-code#81248) — plaster the handoff:"
+  bold "BRIDGE-BUG PLASTER: BRIDGE-ROTATION BUG STILL ALIVE (claude-code#81248) — plaster the handoff:"
   echo "  - the handoff prompt you emit MUST open with step-0 BRIDGE-BUG ACK: inheritor runs"
   echo "    ~/Scripts/bridge-status.sh and says in chat it is briefed (tools vanish ~every 27-33 min,"
   echo "    self-heals ~1s, NOT darwin, retry next turn; NEVER declare 'can't continue' over it)."
   echo "  - template: ~/repos/flowers-sms-concierge/HANDOFF.md step 0 · doctrine: lessons.py doctrine"
   echo "  - retire this check when 'rotating' vanishes from a fresh main.log."
+  echo "  - (this block is NOT gate G-V; G-V is the AAR/RCA obligation below.)"
   echo ""
+fi
+
+
+# ── G-V · AAR/RCA obligation on completed Batter's Box cards (added 2026-07-29) ──
+# HANDOFF-GATE.md §G-V. No card completes carrying an unmet AAR obligation: either
+# "AAR: <slug>" (and it validates) or "NO-AAR: <20+ chars of reason>".
+# TRI-STATE — exit 2 is CANNOT VERIFY and is NOT a pass. A check that cannot fail out
+# loud is decoration; that is the entire lesson of the incident this gate commemorates.
+AAR_PY="$HOME/repos/claude-blackbook/aar.py"
+if [ ! -x "$AAR_PY" ]; then
+  FAILS+=("G-V CANNOT VERIFY: $AAR_PY missing or not executable -- NOT a pass")
+else
+  AAR_OUT="$(python3 "$AAR_PY" gate --days 7 2>&1)"; AAR_RC=$?
+  case "$AAR_RC" in
+    0) : ;;  # pass, stay quiet
+    1) bold "=== G-V · AAR/RCA obligation ==="
+       echo "$AAR_OUT" | sed 's/^/  /'
+       FAILS+=("G-V: a Batter's Box card was completed with no AAR link and no NO-AAR reason -- see above") ;;
+    2) bold "=== G-V · AAR/RCA obligation ==="
+       echo "$AAR_OUT" | sed 's/^/  /'
+       FAILS+=("G-V CANNOT VERIFY: the AAR gate could not run (token/network). Exit 2 is NOT a pass") ;;
+    *) FAILS+=("G-V: aar.py gate exited unexpectedly ($AAR_RC) -- treat as CANNOT VERIFY") ;;
+  esac
+  # anti-silence: the gate itself must have run recently. Only meaningful to report
+  # separately when the run above did not already fail -- otherwise it just echoes it.
+  if [ "$AAR_RC" -eq 0 ] && ! python3 "$AAR_PY" heartbeat --max-age-hours 36 >/dev/null 2>&1; then
+    FAILS+=("G-V heartbeat stale: the AAR gate stopped running and nobody noticed")
+  fi
 fi
 
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
@@ -463,7 +493,7 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
   3. What ONE thing makes the next Opus's life easier than ours was — and did we ADD it THIS pass?
      a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
      nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
-  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-U).
+  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-V).
   COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE G-F v2.23. Autonomous DJ sessions: always hand off.
 TRIAD
   echo ""
