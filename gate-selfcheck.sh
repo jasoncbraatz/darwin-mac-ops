@@ -418,7 +418,11 @@ fi
 echo
 
 
-# ── G-W: toolchain canary (added 2026-07-27) ────────────────────────────────────
+# ── G-W#2: toolchain canary (added 2026-07-27; RENAMED from G-W 2026-07-30) ─────
+# The label was a COLLISION: "G-W" already names the untracked-keeper sweep ~290 lines
+# above, so a failure message reading "G-W: ..." was ambiguous about which check fired --
+# in a script whose entire job is telling a human precisely what is wrong. Renamed rather
+# than renumbered so the untracked-keeper sweep keeps the label it has been printing.
 # The lessons.py semantic ranker sat SILENTLY degraded to pure BM25 for weeks: it
 # still "worked", just dumber, so nobody noticed. Root cause was interpreter drift —
 # `python3 lessons.py` bypasses the shebang, and on darwin bash resolves python3 to
@@ -428,7 +432,7 @@ echo
 # A silent downgrade of a thinking tool is worse than a crash — you keep trusting it.
 if [ -f "$HOME/repos/claude-blackbook/lessons.py" ]; then
   if ! python3 "$HOME/repos/claude-blackbook/lessons.py" --doctor >/dev/null 2>&1; then
-    WARNS+=("G-W: lessons.py ranker is DEGRADED to pure BM25 (semantic backend down) — run: python3 ~/repos/claude-blackbook/lessons.py --doctor  (it prints the venv rebuild recipe)")
+    WARNS+=("G-W#2: lessons.py ranker is DEGRADED to pure BM25 (semantic backend down) — run: python3 ~/repos/claude-blackbook/lessons.py --doctor  (it prints the venv rebuild recipe)")
   fi
 fi
 
@@ -477,6 +481,40 @@ else
   if [ "$AAR_RC" -eq 0 ] && ! python3 "$AAR_PY" heartbeat --max-age-hours 36 >/dev/null 2>&1; then
     FAILS+=("G-V heartbeat stale: the AAR gate stopped running and nobody noticed")
   fi
+fi
+
+# ── G-V#2 · Asana single-page collection-read ratchet (added 2026-07-30) ─────────
+# Enforces action A3 of AAR aar-gate-single-page-read (card 1217004329363570).
+#
+# WHY IT IS A GATE AND NOT JUST A LIBRARY: ~/Scripts/asana_client.py pages Asana to
+# exhaustion, but a library is an OFFER. Nothing about its existence stops the next
+# session from hand-rolling a fresh single-page urllib loop -- which is how this cause
+# class recurred FIVE times, twice in code written by sessions that had already fixed it
+# elsewhere. The AAR's actual complaint was "the readers that were right could not stop
+# the one that was wrong." This is the thing that can stop it.
+#
+# WHY A RATCHET: 15 single-page reads exist today (all strike-zone). Wiring a red check
+# over a debt nobody agreed to pay tonight would either fail every wrap or get the check
+# disabled -- and a disabled gate is indistinguishable from a passing one. So the baseline
+# pins what is known and the gate fails ONLY on a new offender. The baseline may only
+# shrink; --update-baseline locks in each win.
+#
+# TRI-STATE, same contract as G-V above: a missing tool is CANNOT VERIFY, never a pass.
+ASANA_LINT="$HOME/Scripts/asana-read-lint.py"
+if [ ! -x "$ASANA_LINT" ]; then
+  FAILS+=("G-V#2 CANNOT VERIFY: $ASANA_LINT missing or not executable -- NOT a pass")
+else
+  AL_OUT="$(/usr/bin/python3 "$ASANA_LINT" --ratchet 2>&1)"; AL_RC=$?
+  case "$AL_RC" in
+    0) : ;;  # no NEW single-page reads. Stay quiet; success is silent.
+    1) bold "=== G-V#2 · Asana single-page collection-read ratchet ==="
+       echo "$AL_OUT" | sed 's/^/  /'
+       FAILS+=("G-V#2: a NEW single-page Asana collection read was added -- route it through ~/Scripts/asana_client.py or declare it '# ASANA-READ-OK: <reason>'") ;;
+    2) bold "=== G-V#2 · Asana single-page collection-read ratchet ==="
+       echo "$AL_OUT" | sed 's/^/  /'
+       FAILS+=("G-V#2 CANNOT VERIFY: the read-lint walked ZERO files. Exit 2 is NOT a pass") ;;
+    *) FAILS+=("G-V#2: asana-read-lint exited unexpectedly ($AL_RC) -- treat as CANNOT VERIFY") ;;
+  esac
 fi
 
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
