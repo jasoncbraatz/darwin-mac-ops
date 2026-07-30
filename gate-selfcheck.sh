@@ -517,6 +517,45 @@ else
   esac
 fi
 
+# ── G-V#3 · card-lint stale-summary ratchet (added 2026-07-30, S27) ─────────────
+# Builds step (b) of card 1216983787594801.
+#
+# THE RULE, AS A COMPUTATION: if artifact A references card B and B.completed_at is
+# later than A's last modification, A has not been reconciled since B closed. A is
+# describing a world that no longer exists and says so nowhere.
+#
+# WHY IT IS A GATE: FOUR consecutive sessions were handed a stale artifact (S23 sent
+# after its work finished; S24 told to redo a card done the day before; S25 given a
+# wrong seed.ts claim; S26 given a call-site count that hid a second fetch and shipped
+# a live regression behind it). Every one was two timestamps nobody compared. It lints
+# the HANDOFF DOCUMENTS as well as the cards, because the handoff is the artifact every
+# session reads FIRST and its mtime is a stat(2) rather than an API call.
+#
+# WHY A RATCHET: 10 offenders existed the day it was written. A checker that goes red on
+# day one gets disabled, and a disabled gate is indistinguishable from a passing one --
+# this card said so itself. The baseline pins what is known and may only SHRINK; it also
+# fails when a baseline entry is NO LONGER an offender, so a fix cannot quietly leave its
+# excuse behind.
+#
+# TRI-STATE, same contract as G-V and G-V#2: a missing tool, an empty corpus, or a
+# resolver that resolved nothing is CANNOT VERIFY -- never a pass.
+CARD_LINT="$HOME/Scripts/card-lint.py"
+if [ ! -x "$CARD_LINT" ]; then
+  FAILS+=("G-V#3 CANNOT VERIFY: $CARD_LINT missing or not executable -- NOT a pass")
+else
+  CL_OUT="$(/usr/bin/python3 "$CARD_LINT" --ratchet 2>&1)"; CL_RC=$?
+  case "$CL_RC" in
+    0) : ;;  # no NEW stale references, nothing to retire. Success is silent.
+    1) bold "=== G-V#3 · card-lint stale-summary ratchet ==="
+       echo "$CL_OUT" | sed 's/^/  /'
+       FAILS+=("G-V#3: a NEW stale reference appeared, or a baselined one is fixed and must be retired -- reconcile the artifact, or run card-lint.py --update-baseline") ;;
+    2) bold "=== G-V#3 · card-lint stale-summary ratchet ==="
+       echo "$CL_OUT" | sed 's/^/  /'
+       FAILS+=("G-V#3 CANNOT VERIFY: card-lint inspected an empty corpus or resolved zero gids (no Asana token?). Exit 2 is NOT a pass") ;;
+    *) FAILS+=("G-V#3: card-lint exited unexpectedly ($CL_RC) -- treat as CANNOT VERIFY") ;;
+  esac
+fi
+
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
