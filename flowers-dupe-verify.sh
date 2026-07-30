@@ -159,16 +159,13 @@ PY
     log "FAIL rc=1 but NO ASANA TOKEN — could not surface. This is the silent case; fix the token."
     printf '%s\n' "$OUT" >&2; exit 1
   fi
+  # Dedupe via the SHARED paginating client (card 1217004329363570, action A3). The inline
+  # curl this replaces read ONE page of up to 100 open cards; Batter's Box measured 85 of
+  # 100 on 2026-07-30. Past that boundary this verifier silently stops finding its own card
+  # and files a duplicate -- while reporting on duplicate SMS. Fitting, but not funny.
   EXISTING=""
-  [ -z "$DRYRUN" ] && EXISTING="$(curl -s -H "Authorization: Bearer $PAT" \
-    "https://app.asana.com/api/1.0/tasks?project=$BATTERS_BOX&completed_since=now&opt_fields=name,notes" \
-    | /usr/bin/python3 -c "
-import sys,json
-try: d=json.load(sys.stdin).get('data') or []
-except Exception: sys.exit(0)
-for t in d:
-    if '$BBKEY' in (t.get('notes') or ''): print(t['gid']); break
-" 2>/dev/null)"
+  [ -z "$DRYRUN" ] && EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
+    --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null || true)"
   BODY="<!--AUTOFILED source=flowers-dupe-verify-->
 $BBKEY
 

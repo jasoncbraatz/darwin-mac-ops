@@ -142,15 +142,12 @@ if [ -n "$DRYRUN" ]; then
   printf '\n--- DRYRUN: would file/append this Batter'"'"'s Box card ---\n%s\n--- end ---\n' "$BODY"
   exit 1
 fi
-EXISTING="$(curl -s -H "Authorization: Bearer $PAT" \
-  "https://app.asana.com/api/1.0/tasks?project=$BATTERS_BOX&completed_since=now&opt_fields=name,notes" \
-  | /usr/bin/python3 -c "
-import sys,json
-try: d=json.load(sys.stdin).get('data') or []
-except Exception: sys.exit(0)
-for t in d:
-    if 'BBKEY detector-heartbeat-stale' in (t.get('notes') or ''): print(t['gid']); break
-" 2>/dev/null)"
+# Dedupe via the SHARED paginating client (card 1217004329363570, action A3). The inline
+# curl this replaces read ONE page of up to 100 open cards; Batter's Box measured 85 of 100
+# on 2026-07-30. Past that boundary this watcher silently stops finding its own card and
+# files a fresh duplicate on every run.
+EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
+  --project "$BATTERS_BOX" --needle 'BBKEY detector-heartbeat-stale' 2>/dev/null || true)"
 
 if [ -n "$EXISTING" ]; then
   /usr/bin/python3 - "$PAT" "$EXISTING" "$BODY" <<'PY'

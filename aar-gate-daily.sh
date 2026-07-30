@@ -50,16 +50,17 @@ if [ -z "$PAT" ]; then
   echo "$OUT" >&2; exit "$RC"
 fi
 
-# dedupe: if an INCOMPLETE card already carries our key, comment on it instead of piling up
-EXISTING="$(curl -s -H "Authorization: Bearer $PAT" \
-  "https://app.asana.com/api/1.0/tasks?project=$BATTERS_BOX&completed_since=now&opt_fields=name,notes" \
-  | /usr/bin/python3 -c "
-import sys,json
-try: d=json.load(sys.stdin).get('data') or []
-except Exception: sys.exit(0)
-for t in d:
-    if '$BBKEY' in (t.get('notes') or ''): print(t['gid']); break
-" 2>/dev/null)"
+# dedupe: if an INCOMPLETE card already carries our key, comment on it instead of piling up.
+#
+# ROUTED THROUGH THE SHARED CLIENT (card 1217004329363570, action A3). What used to be here
+# was an inline curl that read ONE page of open cards -- up to 100 -- and searched it. On
+# 2026-07-30 Batter's Box was measured at 85 open cards against that cap of 100. Past the
+# boundary the lookup silently stops finding the existing card, and this job starts filing a
+# DUPLICATE every single day: precisely the outcome the dedupe exists to prevent, and
+# invisible because a short page is indistinguishable from a complete one.
+# Eight copies of this block existed. asana_client.py pages to exhaustion or raises.
+EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
+  --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null || true)"
 
 TITLE="⚾ AAR gate: $( [ "$RC" -eq 2 ] && echo 'CANNOT VERIFY (not a pass)' || echo 'a card closed with no AAR and no logged reason' )"
 # NOTE the <!--AUTOFILED--> marker: this job is the FIRST adopter of the declaration
