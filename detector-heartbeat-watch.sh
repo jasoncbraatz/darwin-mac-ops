@@ -20,6 +20,7 @@ set -uo pipefail
 
 WATCHED=(
   "geo-buypath-watch|1217003763638321|36"   # daily 12:15Z cloud task; 36h = one missed run + slack
+  "metafield-detector|1217034598173934|26"   # hourly darwin launchd; 26h tolerates a night of laptop sleep
 )
 
 BATTERS_BOX="1213050213165325"
