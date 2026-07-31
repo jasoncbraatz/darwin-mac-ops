@@ -557,6 +557,28 @@ else
 fi
 
 [ "${#WARNS[@]}" -gt 0 ] && { bold "WARNINGS (${#WARNS[@]}) — not blocking, but worth a glance:"; printf '  - %s\n' "${WARNS[@]}"; }
+# ── G-X · FDA grant canary (added 2026-07-31) ───────────────────────────────────
+# A LaunchAgent wrapped in a scoped .app holds its Full Disk Access grant against the
+# binary's CODE HASH. Rebuild/re-sign/move that app and macOS drops the grant with NO
+# error: reads under ~/Desktop start returning "Operation not permitted", and because
+# stat() still succeeds an `ls` prints a bare "total 0" -- indistinguishable from an
+# EMPTY FOLDER. On 2026-07-31 a session nearly reported the Shopify statements as
+# missing on exactly this. Silent-failure class -> it gets a gate.
+FDA_CANARY="$HOME/Scripts/fda-canary.sh"
+if [ -x "$FDA_CANARY" ]; then
+  bold "=== G-X · FDA grant canary (scoped .app wrappers still hold their grant) ==="
+  FDA_OUT="$("$FDA_CANARY" 2>&1)"; FDA_RC=$?
+  printf '%s\n' "$FDA_OUT"
+  case "$FDA_RC" in
+    0) : ;;
+    1) FAILS+=("G-X: an FDA-scoped app wrapper drifted from its baseline -- macOS has SILENTLY dropped Full Disk Access. Re-tick it in System Settings -> Privacy & Security -> Full Disk Access, then run ~/Scripts/fda-canary.sh --update-baseline") ;;
+    2) FAILS+=("G-X CANNOT VERIFY: the FDA canary could not run (missing or empty registry). Exit 2 is NOT a pass") ;;
+    *) FAILS+=("G-X: fda-canary.sh exited unexpectedly ($FDA_RC) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  FAILS+=("G-X CANNOT VERIFY: $FDA_CANARY missing or not executable -- NOT a pass")
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   cat >&2 <<'TRIAD'
