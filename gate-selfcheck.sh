@@ -579,6 +579,29 @@ else
   FAILS+=("G-X CANNOT VERIFY: $FDA_CANARY missing or not executable -- NOT a pass")
 fi
 
+# ── G-Y · relay bootstrap freshness (added 2026-08-01) ──────────────────────────
+# Every handoff tells the next cloud session to bootstrap its off-bridge kit with
+#   curl -s https://system.europeanflorist.com/dsh/dsh-fire -o /tmp/dsh-fire
+# which serves a HAND-PLACED copy under /var/www/dsh-relay on the flowers box. Nothing
+# kept it in step with ~/Scripts. On 2026-08-01 the `dsh -C` fix landed on darwin and
+# the relay went on serving the OLD script -- so a fresh session would have bootstrapped
+# the very bug we had just fixed, with no way to know. Same silent-drift class as G-X:
+# the thing keeps answering, it just answers with yesterday.
+DSH_PUBLISH="$HOME/Scripts/dsh-publish"
+if [ -x "$DSH_PUBLISH" ]; then
+  bold "=== G-Y · relay bootstrap freshness (the cloud curl serves what darwin has) ==="
+  DP_OUT="$("$DSH_PUBLISH" --check 2>&1)"; DP_RC=$?
+  printf '%s\n' "$DP_OUT"
+  case "$DP_RC" in
+    0) : ;;
+    1) FAILS+=("G-Y: the dsh relay is STALE -- a fresh cloud session would bootstrap an OLD dsh-fire/dwait. Fix with ~/Scripts/dsh-publish") ;;
+    2) FAILS+=("G-Y CANNOT VERIFY: the relay was unreachable or a local script is missing. Exit 2 is NOT a pass") ;;
+    *) FAILS+=("G-Y: dsh-publish --check exited unexpectedly ($DP_RC) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  FAILS+=("G-Y CANNOT VERIFY: $DSH_PUBLISH missing or not executable -- NOT a pass")
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   cat >&2 <<'TRIAD'
