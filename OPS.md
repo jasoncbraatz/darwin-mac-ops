@@ -159,3 +159,23 @@ chmod 600 ~/.config/github/pat
 
 Kick: `bash ~/bin/sync-photos-to-dropbox.sh` · Watch: `tail -f ~/Library/Logs/photo-sync-dropbox.log`
 NAS addressed by `voyager.local` (mDNS), not a hardcoded IP — drift-proof. See `photo-sync/README.md`.
+
+## ttyd — web terminal (hardened 2026-08-02)
+
+`ttyd` runs under `~/Library/LaunchAgents/com.user.ttyd.plist` (label `com.user.ttyd`,
+`RunAtLoad` + `KeepAlive`), serving a zsh on `*:7681`.
+
+**It shipped with NO authentication** — `ttyd -W zsh`, writable, bound to every interface,
+i.e. an unauthenticated shell to any LAN host (192.168.86.0/24) or WireGuard peer. Fixed by
+adding `-c <user>:<pass>`; the credential lives in `~/.config/strike-zone/ttyd.cred` (0600),
+which also carries the rollback. See `launchagents/com.user.ttyd.plist.template`.
+
+**Rule: never run ttyd anywhere without `-c`.**
+
+## darlish-authorize (2026-08-02)
+
+`~/Scripts/darlish-authorize` enrolls an ephemeral Cowork-cloud pubkey into
+`authorized_keys` with `expiry-time="+24h"`, and prunes expired darlish entries on each
+call. It is invoked from a cloud session through `dsh-fire` (zero bridge calls) by
+`darlish-up`, so no long-lived private key ever lives in the cloud.
+Full pipe runbook: `~/Code/n8n-stack/DARLISH.md`.

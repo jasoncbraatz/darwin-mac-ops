@@ -1,0 +1,38 @@
+#!/bin/bash
+# darlish-authorize — enroll an ephemeral cloud pubkey for Darlish SSH, 24h expiry.
+#
+# WHY EPHEMERAL: a Cowork cloud container is thrown away every session, so shipping a
+# long-lived private key into one is both unnecessary and a standing liability. Instead
+# each container mints its OWN keypair and asks darwin to authorize it for 24h. Nothing
+# sensitive is ever at rest in the cloud, and stale entries prune themselves.
+#
+# USAGE:  echo "<ssh-ed25519 AAAA... comment>" | darlish-authorize
+# Called from a cloud session via dsh-fire, so it needs ZERO bridge calls.
+set -uo pipefail
+AK=~/.ssh/authorized_keys
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+touch "$AK" && chmod 600 "$AK"
+[ -f "$AK.bak-darlish-orig" ] || cp -p "$AK" "$AK.bak-darlish-orig"
+
+PUB="$(cat)"
+case "$PUB" in
+  ssh-ed25519\ *|ecdsa-*|ssh-rsa\ *) : ;;
+  *) echo "darlish-authorize: that does not look like a public key; refusing" >&2; exit 2 ;;
+esac
+case "$PUB" in *$'\n'*) echo "darlish-authorize: multi-line input refused" >&2; exit 2 ;; esac
+
+# prune every darlish entry whose expiry-time has passed (and any exact duplicate)
+NOW=$(date -u +%Y%m%d%H%M)
+awk -v now="$NOW" '
+  /darlish-cloud/ {
+    if (match($0, /expiry-time="[0-9]+"/)) {
+      e = substr($0, RSTART+14, RLENGTH-15)
+      if (e+0 <= now+0) next        # expired -> drop
+    }
+  }
+  { print }
+' "$AK" > "$AK.tmp" && mv "$AK.tmp" "$AK" && chmod 600 "$AK"
+
+EXP=$(date -u -v+24H +%Y%m%d%H%M 2>/dev/null || date -u -d '+24 hours' +%Y%m%d%H%M)
+printf 'expiry-time="%s" %s\n' "$EXP" "$PUB" >> "$AK"
+echo "AUTHORIZED until ${EXP} UTC ($(grep -c darlish-cloud "$AK") darlish key(s) live, $(wc -l < "$AK") total)"

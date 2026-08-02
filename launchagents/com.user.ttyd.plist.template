@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.ttyd</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/ttyd</string>
+        <string>-W</string>
+        <string>-c</string>
+        <string>REDACTED:see ~/.config/strike-zone/ttyd.cred</string>
+        <string>zsh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
