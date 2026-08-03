@@ -638,6 +638,34 @@ else
   FAILS+=("G-Y CANNOT VERIFY: $DSH_PUBLISH missing or not executable -- NOT a pass")
 fi
 
+# ── G-AA · session corroboration blocker (born 2026-08-03, backstop ADR-002 / WS-B) ────
+# S32/S33 skipped record-outcome for two days because nothing forced it — six darlish
+# leaves sat uncorroborated and the trust tiers starved. session-in mints a task-tag and
+# an APPEND-ONLY ledger (~/.local/state/claude-session/<tag>.log); every `session-in
+# --use <leaf>` appends a USED line. A ledger with USED lines and no RESOLVED/ABANDONED
+# line means the session took wisdom off the shelf and never told the corpus whether it
+# WORKED -> BLOCKER. Scans ALL ledgers, not just `current`, so a crashed session's debt
+# survives (ADR-002: the state file outlives the session). The escape hatch is
+# mechanical + self-documenting, same shape as G-Z's: --abandon requires a written WHY.
+# (Single letters are exhausted — G-W names four things, the ADR-004 scar — so the
+# double-letter era begins here. G-L#35b's max-letter derivation only reads single
+# letters and is unaffected.)
+SESSION_STATE="${CLAUDE_SESSION_STATE:-$HOME/.local/state/claude-session}"
+if [ -d "$SESSION_STATE" ]; then
+  GAA_OPEN=0
+  for _led in "$SESSION_STATE"/*.log; do
+    [ -e "$_led" ] || continue
+    grep -q '^USED ' "$_led" || continue
+    grep -qE '^(RESOLVED|ABANDONED) ' "$_led" && continue
+    _tag="$(basename "$_led" .log)"
+    _n="$(grep -c '^USED ' "$_led")"
+    [ "$GAA_OPEN" -eq 0 ] && bold "=== G-AA · session corroboration (used leaves must be resolved — ADR-002) ==="
+    printf '  OPEN   %-40s%s\n' "$_tag" "$_n used leaf/leaves, record-outcome never ran"
+    FAILS+=("G-AA: task-tag '$_tag' has $_n used-but-unresolved leaf/leaves — assert the outcome: 'session-out --record pass' (or fail), or 'session-out --abandon \"<why>\"' if that session died. An unasserted outcome teaches the corpus NOTHING.")
+    GAA_OPEN=$((GAA_OPEN+1))
+  done
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   cat >&2 <<'TRIAD'
