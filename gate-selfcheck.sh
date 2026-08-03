@@ -166,6 +166,42 @@ done
 [ "$KEEPER_MISS" -eq 0 ] && { [ "$QUIET" -eq 1 ] || echo "  (no unbacked keeper docs — every handoff/session note is in the vault)"; }
 echo
 
+# --- G-Z · TODO-rider sweep (born 2026-08-03, backstop ADR-004, RATIFIED by Jason: the
+#     darlish deployment-shape item rode THREE handoffs; TODO-drift-check.md rode two.
+#     Every ride re-derives context and defers again — pure carrying cost. THE RULE:
+#     a TODO may ride at most ONE handoff.
+#
+#     THE COMPUTATION: this gate runs at wrap time, i.e. just before handoff N. The most
+#     recent commit touching a HANDOFF* doc in the repo IS handoff N-1. A tracked
+#     TODO-*.md whose last commit predates that has already ridden once and is about to
+#     ride AGAIN -> BLOCKER. Untracked TODOs are the dirty sweep's problem; repos with no
+#     handoff tradition are out of scope.
+#
+#     THE ESCAPE HATCH is mechanical and self-documenting: to legitimately ride again,
+#     write WHY into the TODO file and commit it — the touch resets its ride clock, and
+#     the justification lives in the file where the next session reads it. (Ratified as
+#     "G-W" in ADR-004; ships as G-Z because G-W already names FOUR other things — see
+#     the G-W#2 rename scar above. Fifth collision declined.) ---
+bold "=== G-Z · TODO-rider sweep (a TODO may ride at most ONE handoff — ADR-004) ==="
+RIDERS=0
+for repo in "${REPOS[@]}"; do
+  cd "$repo" 2>/dev/null || continue
+  HOFF_TS="$(git log -1 --format=%ct -- 'HANDOFF*.md' '*/HANDOFF*.md' 2>/dev/null)"
+  [ -n "$HOFF_TS" ] || continue
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    TODO_TS="$(git log -1 --format=%ct -- "$f" 2>/dev/null)"
+    [ -n "$TODO_TS" ] || continue                                   # tracked-but-never-committed: dirty sweep owns it
+    if [ "$TODO_TS" -lt "$HOFF_TS" ]; then
+      printf '  RIDER  %-52s%s\n' "${repo/#$HOME/~}/$f" "untouched since before the last handoff"
+      FAILS+=("G-Z: ${repo/#$HOME/~}/$f is RIDING — resolve as (a) DONE (delete it), (b) scheduled work (n8n / Batter's Box card, then delete it), or (c) a RULING that kills it; to ride ONE more time, write WHY into the file and commit (the touch resets its clock)")
+      RIDERS=$((RIDERS+1))
+    fi
+  done < <(git ls-files 'TODO-*.md' '*/TODO-*.md' 2>/dev/null)
+done
+[ "$RIDERS" -eq 0 ] && { [ "$QUIET" -eq 1 ] || echo "  (no riding TODOs — every TODO-*.md is younger than its repo's last handoff)"; }
+echo
+
 # --- G-I optional dead-value sweep (report-only; human judges intent) ---
 if [ "${#DEAD_VALUES[@]}" -gt 0 ]; then
   echo
@@ -615,7 +651,7 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
   3. What ONE thing makes the next Opus's life easier than ours was — and did we ADD it THIS pass?
      a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
      nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
-  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-V).
+  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-Z).
   COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE §G-F (version printed below). Autonomous DJ sessions: always hand off.
 TRIAD
   # Version is DERIVED from the canonical doc header, never hardcoded -- see
