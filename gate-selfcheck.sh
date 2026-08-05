@@ -382,18 +382,42 @@ fi
 #     front doors after new steps (G-S/G-T) get added, because the range is COPIED not DERIVED.
 #     Derive the live max G-step from the canonical gate, WARN any stale front-door range ref.
 #     The gate's OWN changelog is excluded (it cites historical ranges by design). ---
+# TWO-LETTER STEPS BROKE THIS BOTH WAYS (fixed 2026-08-05, S2 wealth-tensor). When G-AA and
+# G-AB were added in v2.38/v2.40 the detector kept comparing SINGLE letters: `^## G-[A-Z]`
+# matched "G-AB" as "G-A", so MAXG came out Z instead of AB and the gate's true ceiling was
+# understated; and `endp` took the last uppercase letter of a range string, so a CORRECT
+# reference to "G-A→G-AA" scored endp=A and fired a warning reading "cites 'G-A..A'". The
+# check that exists to stop range statements rotting was itself rotting, and crying wolf while
+# it did -- and a warning that cries wolf is a warning everyone learns to scroll past.
+# Both ends now use gstep_rank(): letters -> a number, so AB(28) > Z(26) orders correctly.
+gstep_rank() {  # G-step id (A..Z, AA..ZZ) -> ordinal. Empty input -> 0.
+  local id="$1" n=0 i c
+  [ -n "$id" ] || { echo 0; return; }
+  for (( i=0; i<${#id}; i++ )); do
+    c="${id:$i:1}"
+    n=$(( n * 26 + $(LC_ALL=C printf '%d' "'$c") - 64 ))
+  done
+  echo "$n"
+}
 if [ -f "$CANON_GATE" ]; then
-  MAXG=$(grep -oE '^## G-[A-Z]' "$CANON_GATE" | sed 's/.*G-//' | sort | tail -1)
+  MAXG=""; MAXR=0
+  while IFS= read -r g; do
+    r=$(gstep_rank "$g"); [ "$r" -gt "$MAXR" ] && { MAXR=$r; MAXG=$g; }
+  done < <(grep -oE '^## G-[A-Z]{1,2}\b' "$CANON_GATE" | sed 's/.*G-//')
   if [ -n "$MAXG" ]; then
     for RF in "$CANON_GATE" "$HOME/repos/claude-blackbook/lessons.py" "$HOME/Desktop/downloads/CLAUDE.md" "$HOME/repos/strike-zone/docs/HANDOFF-PROMPT.md"; do
       [ -f "$RF" ] || continue
       if [ "$RF" = "$CANON_GATE" ]; then CONTENT=$(awk '/^## Changelog/{exit} {print}' "$RF"); else CONTENT=$(cat "$RF"); fi
       while IFS= read -r m; do
-        endp=$(printf '%s' "$m" | grep -oE '[A-Z]' | tail -1)
-        if [ -n "$endp" ] && [[ "$endp" < "$MAXG" ]]; then
+        # The END of the range is whatever follows the SEPARATOR -- not the last letter (which
+        # broke on two-letter steps) and not the last "G-xx" token either, because the common
+        # written form "G-A..Z" leaves the endpoint unprefixed, so a G--anchored search finds
+        # "G-A" and reports the START as the end. Strip through the separator instead.
+        endp=$(printf '%s' "$m" | sed -E 's/.*(\.\.|->|→|through)+ *(G-)?//' | tr -d ' ')
+        if [ -n "$endp" ] && [ "$(gstep_rank "$endp")" -lt "$MAXR" ]; then
           WARNS+=("gate range-ref drift: ${RF/#$HOME/~} cites 'G-A..$endp' but the gate documents through G-$MAXG — update the live range statement")
         fi
-      done < <(printf '%s\n' "$CONTENT" | grep -hoE 'G-A *(\.\.|->|→|through)+ *(G-)?[A-Z]')
+      done < <(printf '%s\n' "$CONTENT" | grep -hoE 'G-A *(\.\.|->|→|through)+ *(G-)?[A-Z]{1,2}')
     done
   fi
 fi
