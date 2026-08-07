@@ -118,7 +118,7 @@ done
 [ -z "$PROBLEMS" ] && { log "all heartbeats fresh"; exit 0; }
 
 BODY="<!--AUTOFILED source=detector-heartbeat-watch-->
-<!--BBKEY:detector-heartbeat-stale-->
+BBKEY detector-heartbeat-stale
 
 **A detector has gone quiet, and quiet is not the same as fine.**
 $PROBLEMS
@@ -148,7 +148,7 @@ fi
 # on 2026-07-30. Past that boundary this watcher silently stops finding its own card and
 # files a fresh duplicate on every run.
 EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
-  --project "$BATTERS_BOX" --needle '<!--BBKEY:detector-heartbeat-stale-->' 2>/dev/null || true)"
+  --project "$BATTERS_BOX" --needle 'BBKEY detector-heartbeat-stale' 2>/dev/null || true)"
 
 if [ -n "$EXISTING" ]; then
   /usr/bin/python3 - "$PAT" "$EXISTING" "$BODY" <<'PY'
