@@ -415,7 +415,16 @@ if [ -f "$CANON_GATE" ]; then
         # "G-A" and reports the START as the end. Strip through the separator instead.
         endp=$(printf '%s' "$m" | sed -E 's/.*(\.\.|->|→|through)+ *(G-)?//' | tr -d ' ')
         if [ -n "$endp" ] && [ "$(gstep_rank "$endp")" -lt "$MAXR" ]; then
-          WARNS+=("gate range-ref drift: ${RF/#$HOME/~} cites 'G-A..$endp' but the gate documents through G-$MAXG — update the live range statement")
+          # BLOCKER, not a warning (S42, 2026-08-07). This check was born in v2.19 for exactly
+          # this rot, it WARNed correctly when v2.41 added G-AC, and the session that added
+          # G-AC shipped past it anyway — leaving five front doors telling the next session to
+          # walk a gate that ends one letter short. That is this file's own N>2 rule turned on
+          # its own instrument: a warning nobody is REQUIRED to clear is a warning that
+          # accumulates, and this one had accumulated across a version bump whose whole point
+          # was a new letter. The remedy is one perl -pi -e per front door, so blocking costs
+          # minutes while not blocking costs a front door that lies to a zero-memory session.
+          # Scope unchanged: the four named front doors only, gate changelog still excluded.
+          FAILS+=("gate range-ref drift: ${RF/#$HOME/~} cites 'G-A..$endp' but the gate documents through G-$MAXG — update the live range statement (one perl -pi -e per front door; BLOCKER since S42)")
         fi
       done < <(printf '%s\n' "$CONTENT" | grep -hoE 'G-A *(\.\.|->|→|through)+ *(G-)?[A-Z]{1,2}')
     done
