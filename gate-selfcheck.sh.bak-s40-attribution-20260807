@@ -93,26 +93,6 @@ for repo in "${REPOS[@]}"; do
     WARN) printf '  warn  %-45s%s\n' "$name" "$flags" ;;
     FAIL) printf '  FAIL  %-45s%s\n' "$name" "$flags" ;;
   esac
-
-  # G-H #22b (S40) - ATTRIBUTION, not absolution. A dirty repo is still a BLOCKER; this
-  # only says WHOSE. Since S35 several sessions routinely share darwin, and "1 uncommitted
-  # change" reads identically whether you left it or a sibling is mid-edit -- and the right
-  # response is opposite (commit it / hands off, never commit someone's untested WIP).
-  if [ -n "$dirty" ]; then
-    _now="$(date +%s)"
-    while IFS= read -r _line; do
-      [ -n "$_line" ] || continue
-      _st="${_line:0:2}"; _p="${_line:3}"
-      _p="${_p##* -> }"                       # renames: report the destination
-      _p="${_p%\"}"; _p="${_p#\"}"             # git quotes paths with odd characters
-      _mt="$(stat -f %m "$_p" 2>/dev/null || echo 0)"
-      _when="$(stat -f '%Sm' -t '%H:%M' "$_p" 2>/dev/null || echo '--:--')"
-      _tag=""
-      [ "$_mt" -gt 0 ] && [ $((_now - _mt)) -lt 1200 ] \
-        && _tag="   <-- touched <20min ago: a SIBLING session may own this (~/Scripts/roster who)"
-      printf '          %s %s  (mtime %s)%s\n' "$_st" "$_p" "$_when" "$_tag"
-    done < <(printf '%s\n' "$dirty")
-  fi
 done
 
 # --- G-S · orphan code-island sweep (born 2026-06-22: cogs-mover was gitignored in
