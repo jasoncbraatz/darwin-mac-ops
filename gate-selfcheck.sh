@@ -699,6 +699,25 @@ if [ -d "$SESSION_STATE" ]; then
   done
 fi
 
+
+# ── G-AD · bb-writers ratchet (born 2026-08-07 S37/BB-cleanup, card 1217284335878756) ──
+# Batter's Box gid 1213050213165325 is HITL-ONLY (Jason ruling 2026-08-07, third routing
+# recurrence — aar.py was the unguarded door). Models forget contours; this check makes
+# the contour deterministic: every file in the estate that can WRITE a card to the BB gid
+# must be ratified WITH A REASON in claude-blackbook/scripts/bb-writers-allowlist.json.
+# Fail-closed: UNKNOWN classification counts as a writer. A new unratified writer = FAIL;
+# the fix is either a conscious ratification or rerouting the card to State Machine.
+BB_AUDIT="$HOME/repos/claude-blackbook/scripts/bb-writers-audit.py"
+if [ -f "$BB_AUDIT" ]; then
+  bold "=== G-AD · bb-writers ratchet (every BB-gid writer ratified — HITL-only doctrine) ==="
+  if _bb_line="$(python3 "$BB_AUDIT" --card-line 2>/dev/null)"; then
+    printf '  ok     %s\n' "$_bb_line"
+  else
+    printf '  FAIL   %s\n' "$_bb_line"
+    FAILS+=("G-AD: $_bb_line -> ratify it (allowlist entry + reason) or reroute its cards to State Machine (1215913700958709). Auditor: python3 ~/repos/claude-blackbook/scripts/bb-writers-audit.py")
+  fi
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   cat >&2 <<'TRIAD'
