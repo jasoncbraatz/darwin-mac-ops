@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.bb-close-on-clear — the READ side of the Batter's Box contract.
+  Daily 08:15 local: closes machine-filed cards whose own findings have cleared.
+  Contract + rationale: ~/repos/claude-blackbook/scripts/CLOSE-ON-CLEAR.md
+  Repo-backed here per the S38 launchd-census rule (a schedule that lives only on
+  darwin dies with the SSD, and a job that never runs looks exactly like a job with
+  nothing to say). Registered in ~/Scripts/darwin-heartbeats.py so the n8n Workflow
+  Staleness Sentinel notices if it stops.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.braatz.bb-close-on-clear</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/jasoncbraatz/repos/claude-blackbook/scripts/bb-close-on-clear.py</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>15</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/bb-close-on-clear.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/bb-close-on-clear.err</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/jasoncbraatz/repos/claude-blackbook</string>
+</dict>
+</plist>
