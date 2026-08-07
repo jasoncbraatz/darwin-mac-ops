@@ -718,6 +718,28 @@ if [ -f "$BB_AUDIT" ]; then
   fi
 fi
 
+# -- G-AE . launchd schedule backing (born 2026-08-07 S38, wired S39) ------------------
+# darwin is the WORKSHOP, not the vault. A launchd plist that exists only in
+# ~/Library/LaunchAgents dies with the SSD, and the loss is SILENT: a job that never
+# runs looks exactly like a job with nothing to say. S38 found 7 unbacked schedules --
+# including the AAR gate itself and, with a straight face, the spine-backup job whose
+# own schedule was not backed up. launchd-census.sh proves every LOADED com.braatz.* /
+# com.strikezone.* job has its plist in a git repo. Read-only; exit 1 on drift.
+CENSUS="$HOME/Scripts/launchd-census.sh"
+if [ -x "$CENSUS" ]; then
+  bold "=== G-AE . launchd schedule backing (every loaded job's plist is repo-backed) ==="
+  _census_out="$(bash "$CENSUS" 2>&1)"; _census_rc=$?
+  _census_line="$(printf '%s\n' "$_census_out" | grep -E '^launchd-census:' | tail -1)"
+  [ -z "$_census_line" ] && _census_line="launchd-census produced no summary line (rc=$_census_rc)"
+  if [ "$_census_rc" -eq 0 ]; then
+    printf '  ok     %s\n' "$_census_line"
+  else
+    printf '  FAIL   %s\n' "$_census_line"
+    printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
+    FAILS+=("G-AE: $_census_line -> commit the plist into a repo (~/code/darwin-mac-ops/launchagents/ is the usual home) and re-run, or bootout+disable the job if it is dead. Census: bash ~/Scripts/launchd-census.sh")
+  fi
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   cat >&2 <<'TRIAD'
