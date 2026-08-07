@@ -19,9 +19,21 @@ AAR_PY="$BLACKBOOK/aar.py"
 LOG="$HOME/Library/Logs/aar-gate.log"
 HEARTBEAT="$HOME/Library/Logs/aar-gate.heartbeat"
 BATTERS_BOX="1213050213165325"
-BBKEY="BBKEY aar-gate-violations"
+# HTML-comment form is REQUIRED: bb-close-on-clear.py matches <!--BBKEY:([^>]*)-->,
+# and the plain-line form this used to carry was invisible to it (BBKEY backlog,
+# card 1217015004006698). The card body and the dedupe --needle below are THE SAME
+# STRING; if you change one without the other this job stops finding its own card
+# and files a duplicate every single day.
+BBKEY="<!--BBKEY:aar-gate-violations-->"
 TOKEN_FILE="$HOME/.config/scan-pipeline/asana.token"
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# AGD_DRYRUN=1 -> print the card body instead of filing it, and do not touch the
+# heartbeat (a dry run must not look like a real run to the staleness sentinel).
+# This exists so the body this job WOULD file can be captured for the close-on-clear
+# ratification drill (CLOSE-ON-CLEAR.md 6, --sample-file) without a card reaching
+# Jason's board. Force a violation to exercise it, read-only:
+#   AGD_DRYRUN=1 AAR_SWEEP_BASELINE=2026-07-01 ~/Scripts/aar-gate-daily.sh
+DRYRUN="${AGD_DRYRUN:-}"
 
 mkdir -p "$(dirname "$LOG")"
 log() { printf '%s %s\n' "$TS" "$*" >> "$LOG"; }
@@ -38,7 +50,7 @@ log "gate exit=$RC"
 
 # POSITIVE HEARTBEAT — always, pass or fail. Absence of this file being fresh is itself
 # the alarm; `aar.py heartbeat` reads the DB, this is the human/ops-readable twin.
-printf '%s exit=%s\n' "$TS" "$RC" > "$HEARTBEAT"
+[ -z "$DRYRUN" ] && printf '%s exit=%s\n' "$TS" "$RC" > "$HEARTBEAT"
 
 [ "$RC" -eq 0 ] && { log "PASS"; exit 0; }
 
@@ -59,10 +71,14 @@ fi
 # DUPLICATE every single day: precisely the outcome the dedupe exists to prevent, and
 # invisible because a short page is indistinguishable from a complete one.
 # Eight copies of this block existed. asana_client.py pages to exhaustion or raises.
-EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
+EXISTING=""
+[ -z "$DRYRUN" ] && EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
   --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null || true)"
 
-TITLE="⚾ AAR gate: $( [ "$RC" -eq 2 ] && echo 'CANNOT VERIFY (not a pass)' || echo 'a card closed with no AAR and no logged reason' )"
+# rc=1 covers BOTH halves of the gate -- a completed card owing an AAR, AND the sweep
+# finding uncarded incident signal. The old title named only the first, so a sweep-only
+# failure arrived under a headline that was simply false. Say what is true for both.
+TITLE="⚾ AAR gate: $( [ "$RC" -eq 2 ] && echo 'CANNOT VERIFY (not a pass)' || echo 'an AAR obligation is outstanding' )"
 # NOTE the <!--AUTOFILED--> marker: this job is the FIRST adopter of the declaration
 # contract it enforces. Without it, the gate's own card would be gated by the gate.
 BODY="<!--AUTOFILED source=aar-gate-daily-->
@@ -76,6 +92,11 @@ Exit $RC. 0=pass 1=violations 2=CANNOT VERIFY (which is NOT a pass).
 To clear each violation: comment 'AAR: <slug>' on the card (after aar.py validate passes),
 or 'NO-AAR: <20+ chars of real reason>'. Gate doc: HANDOFF-GATE.md §G-V."
 
+if [ -n "$DRYRUN" ]; then
+  printf '\n--- DRYRUN: would file/comment this Batter\x27s Box card ---\n%s\n%s\n--- end ---\n' "$TITLE" "$BODY"
+  log "DRYRUN rc=$RC — printed, filed nothing"
+  exit "$RC"
+fi
 if [ -n "$EXISTING" ]; then
   /usr/bin/python3 - "$PAT" "$EXISTING" "$BODY" <<'PY'
 import json,sys,urllib.request
