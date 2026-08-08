@@ -28,7 +28,8 @@
 # =============================================================================
 set -uo pipefail
 
-ROOTS=("$HOME/repos" "$HOME/code" "$HOME/Desktop/downloads" "$HOME/Scripts")
+ROOTS=("$HOME/repos" "$HOME/code" "$HOME/Desktop/downloads" "$HOME/Scripts" \
+       "$HOME/Desktop/downloads/model-name-recon/repos")   # nest at depth 3 — past the maxdepth-2 walk (S44)
 DEAD_VALUES=()
 DO_FETCH=0
 QUIET=0
@@ -246,10 +247,46 @@ fi
 # NOTE: only sweeps maxdepth-2 repos (same as the hygiene sweep); deeply-nested vendored clones are not covered.
 SECRET_RE='shpat_[a-f0-9]{32}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|xox[baprs]-[0-9A-Za-z-]{20,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
 SECCOUNT=0
+# --- G-E allowlist (S44 2026-08-08) --------------------------------------------------
+# The sweep's first full-corpus run found 43 hits: 2 real (scrubbed) and 41 upstream
+# test fixtures / vendored minified build output in public forks. A WARN that is 95%
+# noise trains its reader to skip it — which is exactly how hit #44 gets missed. So
+# known-benign shapes are suppressed BY NAME, with a MANDATORY written reason, and the
+# suppressed COUNT is always printed. Silent suppression would be the worse bug.
+# Format, one per line:  <repo-basename>/<path-glob>  # why this is not a credential
+GE_ALLOW="${GE_ALLOW:-$HOME/code/darwin-mac-ops/gate-secret-sweep.allow}"   # repo-backed home. A ~/Scripts copy is SILENTLY swallowed by that repo's '*secret*'
+# ignore rule — a control file that git ignores is not backed, and it took a `git status`
+# that showed nothing to notice (S44 2026-08-08). ~/Scripts/gate-secret-sweep.allow is a symlink here.
+declare -a GE_PATS=(); GE_NOREASON=0; GE_SUPPRESSED=0
+if [ -f "$GE_ALLOW" ]; then
+  while IFS= read -r al; do
+    al="${al%%$'\r'}"
+    case "$al" in ''|'#'*) continue ;; esac
+    pat="${al%%#*}"; reason="${al#*#}"
+    pat="$(printf '%s' "$pat" | sed -E 's/[[:space:]]+$//')"
+    [ -z "$pat" ] && continue
+    if [ "$reason" = "$al" ] || [ -z "$(printf '%s' "$reason" | tr -d '[:space:]')" ]; then
+      GE_NOREASON=$((GE_NOREASON+1))
+      WARNS+=("G-E: ALLOW-NOREASON '$pat' in $GE_ALLOW — an exemption nobody justified is indistinguishable from an oversight; add '# why' or delete the line")
+    fi
+    GE_PATS+=("$pat")
+  done < "$GE_ALLOW"
+fi
+ge_allowed() {  # $1 = <repo-basename>/<path>
+  local k="$1" p
+  for p in "${GE_PATS[@]}"; do
+    case "$k" in $p) return 0 ;; esac
+  done
+  return 1
+}
+# --------------------------------------------------------------------------------------
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
   while IFS= read -r line; do
     [ -z "$line" ] && continue
+    if ge_allowed "$(basename "$repo")/$(printf '%s' "$line" | cut -d: -f1)"; then
+      GE_SUPPRESSED=$((GE_SUPPRESSED+1)); continue
+    fi
     [ "$SECCOUNT" -eq 0 ] && bold "=== G-E · secret sweep (tracked files) ==="
     # Show file:line + the ACTUAL matched token (prefix kept, high-entropy tail MASKED) — NOT
     # cut -c1-90 of the raw line: that truncation can DISPLAY a leading jsCode // comment while
@@ -263,6 +300,8 @@ for repo in "${REPOS[@]}"; do
   done < <(git grep -nIE "$SECRET_RE" 2>/dev/null)
 done
 [ "$SECCOUNT" -gt 0 ] && WARNS+=("G-E: $SECCOUNT possible SECRET(s) in tracked files (see list above) — if real, scrub from HEAD, ROTATE the credential, and never commit it")
+# Suppression is never silent — a reader has to be able to see what the allowlist ate.
+[ "$GE_SUPPRESSED" -gt 0 ] && printf '    G-E: %s hit(s) suppressed by %s allowlist rule(s) in %s (review it when a repo changes hands)\n' "$GE_SUPPRESSED" "${#GE_PATS[@]}" "${GE_ALLOW/#$HOME/~}"
 
 # --- G-T#43 remote-runtime parity + scheduler presence (parity v2.13; scheduler-presence v2.16 2026-06-23) ---
 # The box self-reconciles via a read-only gh deploy key AND a */15 cron (sz-box-pull.sh). We check BOTH: that
