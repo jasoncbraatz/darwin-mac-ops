@@ -26,10 +26,30 @@ Estimated phase times:
 ## 1. Clone the repo
 
 ```bash
-mkdir -p ~/Code && cd ~/Code
+mkdir -p ~/code && cd ~/code
 git clone git@github.com:jasoncbraatz/darwin-mac-ops.git
 cd darwin-mac-ops
 ```
+
+(Lowercase `~/code` — that is the spelling every script and the gate's ROOTS use. macOS is
+case-insensitive so `~/Code` *works*, which is exactly why it silently produced a second name
+for one directory and cost S45 a round of "why does the gate say 106 repos are unwired".)
+
+## 1b. Arm the commit-time secret refusal (do this before your first commit)
+
+```bash
+bash hooks/install-estate-hooks.sh --dry-run    # look first
+bash hooks/install-estate-hooks.sh              # arm it
+bash hooks/hooks-drill.sh                       # prove it, offline, on scratch repos
+```
+
+This sets a **global** `core.hooksPath`, so every repo on the machine — including every repo you
+clone from here on — refuses credential-shaped strings at `git commit`. It chains to whatever
+hooks a repo already had rather than replacing them. Undo is one command:
+`bash hooks/install-estate-hooks.sh --uninstall`. Full rationale: `HANDOFF-GATE.md` § G-AF.
+
+On a fresh Mac this is cheap and it is the one step whose absence is invisible: nothing fails,
+you simply have no net. `gate-selfcheck.sh` (G-AF) will tell you the truth either way.
 
 ## 2. Install Python deps to the user site
 

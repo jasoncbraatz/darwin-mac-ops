@@ -784,39 +784,80 @@ if [ -x "$CENSUS" ]; then
   fi
 fi
 
-# -- G-AF · pre-commit hook coverage (born 2026-08-08 S45) ----------------------------
+# -- G-AF · pre-commit hook coverage (born 2026-08-08 S45, two-layer since S46) -------------
 # S44 found the estate's commit-time protection was per-repo and uneven: ~/Desktop/downloads
 # BLOCKED a credential-shaped literal at commit, while ~/code/darwin-mac-ops -- the repo that
 # holds this very file -- accepted the same literal an hour earlier. Worse, .git/hooks is not
 # tracked by git, so no gate could even SEE which repos were protected: the coverage question
 # was unanswerable, which is a strictly worse failure than a known gap.
-# This check makes it answerable. Every repo under the SAME roots this script walks must point
-# core.hooksPath at the estate hooks dir. WARN, not FAIL, to keep momentum on a fresh clone --
-# but it names every uncovered repo and prints the one command that fixes all of them.
+#
+# S45 made it answerable by wiring core.hooksPath per repo. S46 found the hole in that: local
+# git config lives in .git/config, which is neither tracked nor cloned, so every fresh clone
+# landed UNPROTECTED until somebody remembered to run the installer. The fix is a GLOBAL
+# core.hooksPath -- one key, covering every repo on the machine that does not override it,
+# including every repo cloned from now on, with nothing copied that could drift.
+#
+# So a repo is covered TWO ways now, and this check has to know both or it cries wolf about
+# itself -- the S45 failure mode, one layer up:
+#   (a) local  core.hooksPath -> the estate hooks   (repos that had their own hooksPath)
+#   (b) NO local core.hooksPath, and the GLOBAL one points at the estate hooks (everyone else)
+# Git config is most-specific-wins, so (a) is not redundant: a repo pointing its own
+# core.hooksPath somewhere else ignores the global default entirely. Those are the only repos
+# that still need explicit wiring, and they are what this check now hunts for.
 ESTATE_HOOKS="${ESTATE_HOOKS:-$HOME/code/darwin-mac-ops/hooks}"
 if [ -d "$ESTATE_HOOKS" ]; then
   bold "=== G-AF · pre-commit hook coverage (every repo refuses secrets at COMMIT, not just at wrap) ==="
-  _hk_ok=0; _hk_miss=0; declare -a _hk_missing=()
+
+  # A0 — the control's own vitals. Since S46 the global default routes EVERY commit on this
+  # Mac through these files, so a missing/non-executable one is not "not installed yet" (a
+  # WARN) -- it is the control DOWN, and pre-commit fails CLOSED, i.e. every commit on the
+  # machine is about to be refused. That earns a FAIL, and the fix is one git checkout.
+  _hk_broken=""
+  [ -x "$ESTATE_HOOKS/pre-commit" ] || _hk_broken="$_hk_broken pre-commit(not executable)"
+  [ -x "$ESTATE_HOOKS/_chain.sh" ]  || _hk_broken="$_hk_broken _chain.sh(not executable)"
+  [ -r "$ESTATE_HOOKS/secret-re.sh" ] || _hk_broken="$_hk_broken secret-re.sh(missing)"
+  if [ -n "$_hk_broken" ]; then
+    printf '  FAIL   estate hooks dir is BROKEN:%s\n' "$_hk_broken"
+    FAILS+=("G-AF: estate hooks are broken ($_hk_broken) -- pre-commit fails CLOSED, so EVERY commit on this Mac is blocked. Fix: git -C ~/code/darwin-mac-ops checkout -- hooks/")
+  fi
+
+  # A1 — the global default itself.
+  _hk_g="$(git config --global --get core.hooksPath 2>/dev/null)" || _hk_g=""
+  if [ -n "$_hk_g" ] && [ -d "$_hk_g" ] && [ "$_hk_g" -ef "$ESTATE_HOOKS" ]; then
+    _hk_gset=1
+    printf '  ok     global default SET -> %s  (covers every repo on this Mac, incl. future clones)\n' "${ESTATE_HOOKS/#$HOME/~}"
+  else
+    _hk_gset=0
+    printf '  WARN   global default NOT set%s -- a fresh clone commits unprotected\n' "${_hk_g:+ (points at $_hk_g)}"
+    WARNS+=("G-AF: global core.hooksPath is not set -> bash ~/code/darwin-mac-ops/hooks/install-estate-hooks.sh   (this is the layer that makes a FRESH CLONE protected; without it, protection lives only in untracked .git/config)")
+  fi
+
+  # A2 — per repo: local wiring, or the global default, or nothing.
+  _hk_ok=0; _hk_glob=0; _hk_miss=0; declare -a _hk_missing=()
   for repo in "${REPOS[@]}"; do
-    _hp="$(git -C "$repo" config --get core.hooksPath 2>/dev/null)" || _hp=""
+    # --local, NOT plain --get: with a global default set, a plain --get returns the GLOBAL
+    # value for every repo and this loop would report 100% local wiring that does not exist.
+    _hp="$(git -C "$repo" config --local --get core.hooksPath 2>/dev/null)" || _hp=""
     # -ef, not =: $HOME/code and $HOME/Code are the same dir on a case-insensitive volume,
     # so a string compare would report all 106 repos "unwired" the moment the installer was
     # run via the other spelling — a control that cries wolf about itself.
     if [ -n "$_hp" ] && [ -d "$_hp" ] && [ "$_hp" -ef "$ESTATE_HOOKS" ]; then
       _hk_ok=$((_hk_ok+1))
+    elif [ -z "$_hp" ] && [ "$_hk_gset" -eq 1 ]; then
+      _hk_glob=$((_hk_glob+1))
     else
-      _hk_miss=$((_hk_miss+1)); _hk_missing[${#_hk_missing[@]}]="${repo/#$HOME/~}${_hp:+ (points at $_hp)}"
+      _hk_miss=$((_hk_miss+1)); _hk_missing[${#_hk_missing[@]}]="${repo/#$HOME/~}${_hp:+ (overrides global, points at $_hp)}"
     fi
   done
   if [ "$_hk_miss" -eq 0 ]; then
-    printf '  ok     %s/%s repos wired to %s\n' "$_hk_ok" "${#REPOS[@]}" "${ESTATE_HOOKS/#$HOME/~}"
+    printf '  ok     %s/%s repos covered (%s wired locally, %s by the global default)\n' \
+      "$((_hk_ok+_hk_glob))" "${#REPOS[@]}" "$_hk_ok" "$_hk_glob"
   else
-    printf '  WARN   %s of %s repo(s) NOT wired:\n' "$_hk_miss" "${#REPOS[@]}"
+    printf '  WARN   %s of %s repo(s) NOT covered:\n' "$_hk_miss" "${#REPOS[@]}"
     printf '         %s\n' "${_hk_missing[@]}"
-    WARNS+=("G-AF: $_hk_miss repo(s) have no estate pre-commit hook -> bash ~/code/darwin-mac-ops/hooks/install-estate-hooks.sh   (--dry-run first; --uninstall reverses it; prior repo hooks are chained, never replaced)")
+    WARNS+=("G-AF: $_hk_miss repo(s) have no estate pre-commit hook -> bash ~/code/darwin-mac-ops/hooks/install-estate-hooks.sh   (--dry-run first; --uninstall reverses BOTH layers; prior repo hooks are chained, never replaced)")
   fi
 fi
-
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate

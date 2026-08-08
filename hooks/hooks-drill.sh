@@ -7,7 +7,14 @@
 # core.hooksPath can SILENTLY disable a repo's existing hooks -- so #5, #6 and #7
 # are not nice-to-haves, they are the reason this file exists.
 #
-#   bash hooks-drill.sh          # 10 assertions, scratch dirs, zero live repos touched
+#   bash hooks-drill.sh          # scratch dirs, scratch ~/.gitconfig, zero live repos touched
+#
+# ⚠ HERMETIC OR IT IS NOT A DRILL. Until S46 this file exported GIT_CONFIG_NOSYSTEM
+# but NOT GIT_CONFIG_GLOBAL, so every `git` below read Jason's real ~/.gitconfig.
+# That was invisible while the estate had no global git settings — and the instant
+# S46 set a global core.hooksPath the drill went 16 passed / 1 FAILED on a change
+# that was working perfectly. A test that only passes because the machine happens
+# to be configured a certain way is not testing the thing it claims to test.
 #
 # ⚠ The needle is SYNTHESIZED AT RUNTIME, never written literally in this file.
 # A test for a secret scanner that spells its own needle becomes a permanent
@@ -28,6 +35,14 @@ NEEDLE="shp""at_$HEX32"                      # split literal: this file never ma
 SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/hooks-drill.XXXXXX")"
 trap 'rm -rf "$SCRATCH"' EXIT
 export GIT_CONFIG_NOSYSTEM=1
+# The other half of hermetic: a scratch global config, so the drill neither reads
+# nor writes the real ~/.gitconfig. Assertions #13-#16 SET a global core.hooksPath
+# on purpose; without this line they would rewrite Jason's.
+export GIT_CONFIG_GLOBAL="$SCRATCH/gitconfig"
+: > "$GIT_CONFIG_GLOBAL"
+git config --global user.email drill@local
+git config --global user.name  drill
+git config --global commit.gpgsign false
 
 newrepo() {  # newrepo <name> -> prints path
   local d="$SCRATCH/$1"
@@ -132,6 +147,75 @@ case "$out" in *"/.git/hooks/pre-commit"*) ok "#12 dry-run reports the chain tar
                 *) bad "#12 dry-run output wrong: $out" ;; esac
 [ -f "$SCRATCH/should-not-run" ] && bad "#12b dry-run EXECUTED the chained hook" \
                                  || ok "#12b dry-run does not execute the chained hook"
+
+# -----------------------------------------------------------------------------
+# #13-#18 — THE GLOBAL DEFAULT (S46). This is the layer that makes a FRESH CLONE
+# protected, so it is the layer that has to be drilled hardest: S45's protection
+# lived entirely in .git/config, which is untracked and never cloned.
+# -----------------------------------------------------------------------------
+git config --global core.hooksPath "$HOOKS_DIR"
+
+# 13 — a repo with NO local config at all is protected by the global default.
+# This is literally the fresh-clone case: nobody ran anything in this repo.
+r="$(newrepo globalonly)"
+printf 'token = "%s"\n' "$NEEDLE" > "$r/seed.ts"; git -C "$r" add seed.ts
+rc="$(commit_rc "$r" globalsecret)"
+[ "$rc" -ne 0 ] && ok "#13 global default protects a repo with ZERO local config (fresh-clone case)" \
+                || bad "#13 global default did NOT protect an unwired repo"
+[ -z "$(git -C "$r" config --local --get core.hooksPath)" ] \
+  && ok "#13b ...and it did so with no per-repo state written" \
+  || bad "#13b unexpected local core.hooksPath appeared"
+
+# 14 — under the global default, a repo's OWN .git/hooks/pre-commit still runs.
+# estatehooks.prev is unset here, so this exercises _chain.sh's fallback branch —
+# the one that stops the global setting from silently disarming every repo hook
+# on the machine, including ones outside the gate roots entirely.
+r="$(newrepo globalchain)"
+printf '#!/bin/bash\ntouch "%s/gchain-ran"\nexit 0\n' "$SCRATCH" > "$r/.git/hooks/pre-commit"
+chmod +x "$r/.git/hooks/pre-commit"
+echo hi > "$r/a.txt"; git -C "$r" add a.txt; commit_rc "$r" gchain >/dev/null
+[ -f "$SCRATCH/gchain-ran" ] && ok "#14 own .git/hooks/pre-commit still runs under the GLOBAL default" \
+                             || bad "#14 global default silently disabled the repo's own hook"
+
+# 15 — a repo with its OWN local core.hooksPath IGNORES the global default.
+# Not a bug: git config is most-specific-wins. It is the whole reason the per-repo
+# installer still exists, and the reason G-AF still has to walk every repo.
+r="$(newrepo localwins)"; mkdir -p "$r/.githooks"
+printf '#!/bin/bash\nexit 0\n' > "$r/.githooks/pre-commit"; chmod +x "$r/.githooks/pre-commit"
+git -C "$r" config core.hooksPath .githooks
+printf 'token = "%s"\n' "$NEEDLE" > "$r/seed.ts"; git -C "$r" add seed.ts
+chk 0 "$(commit_rc "$r" localwins)" "#15 a local core.hooksPath OVERRIDES the global default (documents the residual gap)"
+
+git config --global --unset core.hooksPath 2>/dev/null || true
+
+# 16 — a full-estate run SETS the global key, and --uninstall REMOVES it.
+# ESTATE_HOOK_ROOTS keeps this hermetic: a real full-estate run would walk ~/repos.
+mkdir -p "$SCRATCH/fakeroot"; r16="$(newrepo ../fakeroot/r16)"
+ESTATE_HOOK_ROOTS="$SCRATCH/fakeroot" bash "$HOOKS_DIR/install-estate-hooks.sh" --quiet >/dev/null 2>&1
+g="$(git config --global --get core.hooksPath 2>/dev/null)"
+[ -n "$g" ] && [ "$g" -ef "$HOOKS_DIR" ] && ok "#16 full-estate install sets the global default" \
+                                         || bad "#16 full-estate install did NOT set the global default (got: ${g:-empty})"
+ESTATE_HOOK_ROOTS="$SCRATCH/fakeroot" bash "$HOOKS_DIR/install-estate-hooks.sh" --uninstall --quiet >/dev/null 2>&1
+git config --global --get core.hooksPath >/dev/null 2>&1 \
+  && bad "#16b --uninstall left the global default behind (the documented one-command undo would be a lie)" \
+  || ok "#16b --uninstall removes the global default too"
+
+# 17 — --repo is SURGICAL and must never reach into ~/.gitconfig. hooks-drill.sh
+# itself depends on this: install_into() runs on every scratch repo above.
+r="$(newrepo surgical)"; install_into "$r"
+git config --global --get core.hooksPath >/dev/null 2>&1 \
+  && bad "#17 --repo wrote a GLOBAL key" || ok "#17 --repo never touches the global config"
+
+# 18 — a global core.hooksPath owned by SOMEONE ELSE is not clobbered, and not
+# silently removed by --uninstall either. Destroying a setting we did not create
+# is the fastest way to make a security control something people rip out.
+mkdir -p "$SCRATCH/foreign-hooks"
+git config --global core.hooksPath "$SCRATCH/foreign-hooks"
+ESTATE_HOOK_ROOTS="$SCRATCH/fakeroot" bash "$HOOKS_DIR/install-estate-hooks.sh" --quiet >/dev/null 2>&1
+chk "$SCRATCH/foreign-hooks" "$(git config --global --get core.hooksPath)" "#18 a foreign global core.hooksPath is not overwritten"
+ESTATE_HOOK_ROOTS="$SCRATCH/fakeroot" bash "$HOOKS_DIR/install-estate-hooks.sh" --uninstall --quiet >/dev/null 2>&1
+chk "$SCRATCH/foreign-hooks" "$(git config --global --get core.hooksPath)" "#18b ...and --uninstall leaves it alone"
+git config --global --unset core.hooksPath 2>/dev/null || true
 
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
