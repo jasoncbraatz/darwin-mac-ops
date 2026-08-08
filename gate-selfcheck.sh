@@ -61,6 +61,35 @@ for r in "${ROOTS[@]}"; do
   done < <(find "$r" -maxdepth 2 -name .git -type d 2>/dev/null)
 done
 
+# -- G-H concurrency: a sibling session's work-in-flight is not YOUR dirty repo ---------
+# Multi-session on darwin has been supported since S35, and G-H was written before it: it FAILs
+# on ANY dirty repo under the roots, including one a CONCURRENT session claimed ten minutes ago
+# and is still editing. That is a blocker a wrapping session cannot legitimately clear -- and the
+# only ways to clear it are to commit somebody else's half-finished work or to lie. A control
+# whose only exits are vandalism or dishonesty gets ignored, which costs more than it saves.
+#
+# So: a DIRTY repo covered by a LIVE roster claim belonging to SOMEONE ELSE becomes a WARN that
+# names the claimant. UNPUSHED stays a FAIL -- pushing a sibling's finished commit is safe (git
+# refuses non-ff), and unpushed work sitting for weeks is the failure Jason actually got bitten by.
+#
+# Fail-closed by design: without GATE_ROSTER_WHO naming who YOU are, nothing is ever downgraded,
+# so the default behaviour is byte-identical to before. And a claim by your OWN name never
+# downgrades anything -- otherwise a session could exempt itself by claiming its own repo.
+# ROSTER_DB is honoured (same env var roster itself uses) so this is drillable, not production-only.
+_ROSTER_DB="${ROSTER_DB:-$HOME/.local/state/darlish/roster.sqlite3}"
+_roster_other_claimant() {   # <repo-path> -> claimant name, or empty
+  [ -n "${GATE_ROSTER_WHO:-}" ] || return 0
+  [ -f "$_ROSTER_DB" ] || return 0
+  command -v sqlite3 >/dev/null 2>&1 || return 0
+  _rc_base="$(basename "$1")"
+  sqlite3 "$_ROSTER_DB" \
+    "SELECT who FROM roster WHERE kind='claim' AND expires > strftime('%s','now')
+       AND who <> '$(printf '%s' "$GATE_ROSTER_WHO" | sed "s/'/''/g")'
+       AND (resource='$(printf '%s' "$_rc_base" | sed "s/'/''/g")'
+            OR resource='$(printf '%s' "$1" | sed "s/'/''/g")')
+     LIMIT 1;" 2>/dev/null
+}
+
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
@@ -78,7 +107,14 @@ for repo in "${REPOS[@]}"; do
   flags=""; level="ok"
   if [ -n "$dirty" ]; then
     nd="$(printf '%s\n' "$dirty" | grep -c .)"
-    flags="$flags DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); level="FAIL"
+    _claimant="$(_roster_other_claimant "$repo")"
+    if [ -n "$_claimant" ]; then
+      flags="$flags DIRTY($nd,claimed:$_claimant)"
+      WARNS+=("$name: $nd uncommitted change(s) — LIVE roster claim by '$_claimant', i.e. ANOTHER session's work in flight. Do NOT commit it. Verify: ~/Scripts/roster who")
+      [ "$level" = ok ] && level="WARN"
+    else
+      flags="$flags DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); level="FAIL"
+    fi
   fi
   if [ "$ahead" -gt 0 ]; then
     flags="$flags UNPUSHED($ahead)"; FAILS+=("$name: $ahead unpushed commit(s) on $branch"); level="FAIL"

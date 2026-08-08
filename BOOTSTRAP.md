@@ -26,14 +26,19 @@ Estimated phase times:
 ## 1. Clone the repo
 
 ```bash
-mkdir -p ~/code && cd ~/code
+mkdir -p ~/Code && cd ~/Code
 git clone git@github.com:jasoncbraatz/darwin-mac-ops.git
 cd darwin-mac-ops
 ```
 
-(Lowercase `~/code` — that is the spelling every script and the gate's ROOTS use. macOS is
-case-insensitive so `~/Code` *works*, which is exactly why it silently produced a second name
-for one directory and cost S45 a round of "why does the gate say 106 repos are unwired".)
+**The directory is `Code` on disk, and every script spells it `code`.** Both work, because APFS
+is case-insensitive — which is exactly why one directory quietly has two names here: `ls ~` shows
+`Code`, `git rev-parse --show-toplevel` returns `.../Code/...`, and the gate's ROOTS and every
+script say `$HOME/code`. That mismatch is why path comparisons in this estate use `[ a -ef b ]`
+(inode) and never `=` (string): a string compare reported all 106 repos unwired in S45.
+
+If you ever rebuild on a **case-sensitive** volume, this stops being harmless — pick the
+lowercase `code` spelling the scripts use, and fix this line.
 
 ## 1b. Arm the commit-time secret refusal (do this before your first commit)
 
