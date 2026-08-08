@@ -819,7 +819,14 @@ fi
 
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
-  cat >&2 <<'TRIAD'
+  # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate
+  # documented through G-AE — six letters stale, in the one paragraph a wrapping session actually
+  # reads. G-L#35b exists to catch exactly this, but it never looked here: gate-selfcheck.sh is
+  # not one of the four front doors it scans, and adding it would cry wolf on this file's own
+  # historical comments ("G-A..R/P rot..."). So DERIVE it, same as _gate_ver below. Eighth
+  # instance of the COPIED-not-DERIVED family, and the second one found inside its own detector.
+  if [ -n "${MAXG:-}" ]; then _grange="G-A->G-$MAXG"; else _grange="G-A->? (could not read $CANON_GATE)"; fi
+  cat <<'TRIAD' | sed "s/@@GRANGE@@/$_grange/" >&2
 
   ── The self-review triad — answer IN WRITING before any handoff (even if Jason never asked) ──
   The trigger is the work winding down, not Jason's reminder. He is human and will forget; you won't.
@@ -830,7 +837,7 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
   3. What ONE thing makes the next Opus's life easier than ours was — and did we ADD it THIS pass?
      a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
      nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
-  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (G-A->G-Z).
+  Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (@@GRANGE@@).
   COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE §G-F (version printed below). Autonomous DJ sessions: always hand off.
 TRIAD
   # Version is DERIVED from the canonical doc header, never hardcoded -- see
