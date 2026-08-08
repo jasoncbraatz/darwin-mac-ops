@@ -72,8 +72,17 @@ fi
 # invisible because a short page is indistinguishable from a complete one.
 # Eight copies of this block existed. asana_client.py pages to exhaustion or raises.
 EXISTING=""
-[ -z "$DRYRUN" ] && EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
-  --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null || true)"
+if [ -z "$DRYRUN" ]; then
+  EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
+    --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null)"; DEDUPE_RC=$?
+  if [ "$DEDUPE_RC" -ge 2 ]; then
+    # The lookup BROKE (rc=$DEDUPE_RC: network/token/client), which is NOT "no card
+    # exists". Filing now duplicates the card the moment Asana comes back — measured
+    # on aar-gate 2026-08-06. Skip filing; next run retries with the world healthy.
+    log "FAIL rc=$RC but dedupe lookup BROKE (find-open rc=$DEDUPE_RC) — NOT filing, to avoid a duplicate; next run retries"
+    echo "$OUT" >&2; exit "$RC"
+  fi
+fi
 
 # rc=1 covers BOTH halves of the gate -- a completed card owing an AAR, AND the sweep
 # finding uncarded incident signal. The old title named only the first, so a sweep-only

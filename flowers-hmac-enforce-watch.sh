@@ -247,8 +247,16 @@ itself (sentinel: ~/Library/Logs/flowers-hmac-enforce-watch.RETIRED)."
   ;;
 1)
   EXISTING=""
-  [ -z "$DRYRUN" ] && EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
-    --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null || true)"
+  if [ -z "$DRYRUN" ]; then
+    EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
+      --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null)"; DEDUPE_RC=$?
+    if [ "$DEDUPE_RC" -ge 2 ]; then
+      # Lookup BROKE (not "no card exists"): filing now duplicates the card when Asana
+      # recovers (measured on aar-gate 2026-08-06). Skip filing; next run retries.
+      log "FAIL but dedupe lookup BROKE (find-open rc=$DEDUPE_RC) — NOT filing, to avoid a duplicate; next run retries"
+      exit 1
+    fi
+  fi
   BODY="<!--AUTOFILED source=flowers-hmac-enforce-watch-->
 $BBKEY
 

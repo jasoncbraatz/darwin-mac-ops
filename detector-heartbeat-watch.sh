@@ -148,7 +148,13 @@ fi
 # on 2026-07-30. Past that boundary this watcher silently stops finding its own card and
 # files a fresh duplicate on every run.
 EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
-  --project "$BATTERS_BOX" --needle '<!--BBKEY:detector-heartbeat-stale-->' 2>/dev/null || true)"
+  --project "$BATTERS_BOX" --needle '<!--BBKEY:detector-heartbeat-stale-->' 2>/dev/null)"; DEDUPE_RC=$?
+if [ "$DEDUPE_RC" -ge 2 ]; then
+  # Lookup BROKE (not "no card exists"): filing now would duplicate the card the moment
+  # Asana recovers (measured on aar-gate 2026-08-06). Skip filing; the next firing retries.
+  log "dedupe lookup BROKE (find-open rc=$DEDUPE_RC) — NOT filing, to avoid a duplicate"
+  exit 1
+fi
 
 if [ -n "$EXISTING" ]; then
   /usr/bin/python3 - "$PAT" "$EXISTING" "$BODY" <<'PY'

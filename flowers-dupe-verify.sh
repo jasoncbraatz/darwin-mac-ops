@@ -164,8 +164,17 @@ PY
   # 100 on 2026-07-30. Past that boundary this verifier silently stops finding its own card
   # and files a duplicate -- while reporting on duplicate SMS. Fitting, but not funny.
   EXISTING=""
-  [ -z "$DRYRUN" ] && EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
-    --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null || true)"
+  if [ -z "$DRYRUN" ]; then
+    EXISTING="$(/usr/bin/python3 "$HOME/Scripts/asana_client.py" find-open \
+      --project "$BATTERS_BOX" --needle "$BBKEY" 2>/dev/null)"; DEDUPE_RC=$?
+    if [ "$DEDUPE_RC" -ge 2 ]; then
+    # The lookup BROKE (rc=$DEDUPE_RC: network/token/client), which is NOT "no card
+    # exists". Filing now duplicates the card the moment Asana comes back — measured
+    # on aar-gate 2026-08-06. Skip filing; next run retries with the world healthy.
+      log "FAIL rc=1 but dedupe lookup BROKE (find-open rc=$DEDUPE_RC) — NOT filing, to avoid a duplicate; retrying tomorrow (no sentinel written)"
+      exit 1
+    fi
+  fi
   BODY="<!--AUTOFILED source=flowers-dupe-verify-->
 $BBKEY
 
