@@ -858,7 +858,14 @@ if [ -d "$ESTATE_HOOKS" ]; then
   fi
 
   # A1 — the global default itself.
-  _hk_g="$(git config --global --get core.hooksPath 2>/dev/null)" || _hk_g=""
+  # --includes, NOT a bare --global --get. Git turns include-following OFF by
+  # default whenever a specific file is named (--global, --file, ...), so if this
+  # key ever moves into an include.path fragment, the bare read returns EMPTY and
+  # this check reports "global default NOT set" on a fully protected Mac -- the
+  # exact cry-wolf failure S45 shipped and S46 fixed, arriving by a third door.
+  # Measured S47 (probe: bare read empty, --includes read correct, and note that
+  # `--global --unset` CANNOT remove an included key -- see install-estate-hooks.sh).
+  _hk_g="$(git config --global --includes --get core.hooksPath 2>/dev/null)" || _hk_g=""
   if [ -n "$_hk_g" ] && [ -d "$_hk_g" ] && [ "$_hk_g" -ef "$ESTATE_HOOKS" ]; then
     _hk_gset=1
     printf '  ok     global default SET -> %s  (covers every repo on this Mac, incl. future clones)\n' "${ESTATE_HOOKS/#$HOME/~}"
@@ -894,6 +901,68 @@ if [ -d "$ESTATE_HOOKS" ]; then
     WARNS+=("G-AF: $_hk_miss repo(s) have no estate pre-commit hook -> bash ~/code/darwin-mac-ops/hooks/install-estate-hooks.sh   (--dry-run first; --uninstall reverses BOTH layers; prior repo hooks are chained, never replaced)")
   fi
 fi
+
+# -- G-AG · dotfiles installed and DERIVED (born 2026-08-08 S47) --------------------------
+# S47 went looking for the rebuild hole S46 named (the global core.hooksPath living in an
+# untracked ~/.gitconfig) and found a bigger one next to it: BOOTSTRAP.md walked a fresh Mac
+# from bare metal to both pipelines running and NEVER MENTIONED DOTFILES. No script installed
+# them, no check looked. A rebuild that followed the runbook perfectly came up without:
+#
+#   ~/.zshenv          -- load-bearing, not cosmetic. It is why /opt/homebrew/bin is on PATH
+#                         for NON-INTERACTIVE zsh (ssh, MCP, launchd), i.e. why `gh` resolves
+#                         in automation at all; and it sets no_nomatch for those shells so an
+#                         unmatched glob passes through instead of ABORTING THE LINE.
+#   ~/.gitignore_global -- the *.bak / *.bak.* rules, whose absence has bitten twice.
+#
+# Neither absence announces itself. Scripts just start failing in ways that look like other
+# bugs -- which is precisely the shape G-AF exists to refuse ("the one step whose absence is
+# invisible"), so it gets the same treatment: a check that makes the truth cheap either way.
+#
+# The manifest is EXTRACTED from install-dotfiles.sh at run time, never copied here. A check
+# carrying its own copy of the file list passes forever while the installer grows a third
+# dotfile it never hears about (S46's drill lesson, applied before it could bite).
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/darwin-mac-ops/dotfiles}"
+if [ -r "$DOTFILES_DIR/install-dotfiles.sh" ]; then
+  bold "=== G-AG · dotfiles installed and derived (a rebuild inherits them, not just this Mac) ==="
+  _df_ok=0; _df_bad=0; declare -a _df_notes=()
+  while IFS= read -r _row; do
+    [ -n "$_row" ] || continue
+    case "$_row" in \#*) continue ;; esac
+    _src_rel="${_row%%|*}"; _dst="${_row##*|}"
+    _dst="${_dst/\$HOME/$HOME}"                  # manifest stores it unexpanded
+    _src="$DOTFILES_DIR/$_src_rel"
+    _name="${_dst/#$HOME/~}"
+    if [ ! -r "$_src" ]; then
+      _df_bad=$((_df_bad+1)); _df_notes[${#_df_notes[@]}]="$_name -- SOURCE MISSING in repo ($_src_rel)"
+    elif [ -e "$_dst" ] && [ "$_dst" -ef "$_src" ]; then
+      _df_ok=$((_df_ok+1))                        # -ef: symlink or same inode, either is derived
+    elif [ ! -e "$_dst" ] && [ ! -L "$_dst" ]; then
+      _df_bad=$((_df_bad+1)); _df_notes[${#_df_notes[@]}]="$_name -- NOT INSTALLED (this is what a fresh Mac looks like)"
+    elif [ -L "$_dst" ]; then
+      _df_bad=$((_df_bad+1)); _df_notes[${#_df_notes[@]}]="$_name -- DANGLING symlink -> $(readlink "$_dst" 2>/dev/null)"
+    elif cmp -s "$_dst" "$_src"; then
+      _df_bad=$((_df_bad+1)); _df_notes[${#_df_notes[@]}]="$_name -- a COPY, not a link (identical today; it will drift silently)"
+    else
+      _df_bad=$((_df_bad+1)); _df_notes[${#_df_notes[@]}]="$_name -- a copy that has ALREADY DRIFTED from the repo version"
+    fi
+  done <<< "$(awk '/^MANIFEST="/{f=1;next} f&&/^"/{exit} f' "$DOTFILES_DIR/install-dotfiles.sh")"
+
+  _df_ex="$(git config --global --includes --get core.excludesfile 2>/dev/null)" || _df_ex=""
+  if [ -n "$_df_ex" ] && [ -e "$_df_ex" ]; then
+    printf '  ok     core.excludesfile -> %s\n' "${_df_ex/#$HOME/~}"
+  else
+    _df_bad=$((_df_bad+1)); _df_notes[${#_df_notes[@]}]="core.excludesfile is ${_df_ex:-unset}${_df_ex:+ but that file is missing} -- *.bak junk is not ignored anywhere"
+  fi
+
+  if [ "$_df_bad" -eq 0 ]; then
+    printf '  ok     %s/%s dotfiles installed and derived from the repo (edit the repo = deployed)\n' "$_df_ok" "$((_df_ok+_df_bad))"
+  else
+    printf '  WARN   %s dotfile issue(s):\n' "$_df_bad"
+    printf '         %s\n' "${_df_notes[@]}"
+    WARNS+=("G-AG: $_df_bad dotfile issue(s) -> bash ~/code/darwin-mac-ops/dotfiles/install-dotfiles.sh   (--dry-run first; --uninstall restores the prior file, never leaves you bare; proof: dotfiles/dotfiles-drill.sh)")
+  fi
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate

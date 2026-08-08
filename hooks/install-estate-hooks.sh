@@ -88,11 +88,28 @@ TOUCH_GLOBAL=1
 # -----------------------------------------------------------------------------
 g_state="untouched"
 if [ "$TOUCH_GLOBAL" -eq 1 ]; then
-  gcur="$(git config --global --get core.hooksPath 2>/dev/null)" || gcur=""
+  # TWO reads, because they answer different questions (measured S47):
+  #   gcur_lit — the key literally in ~/.gitconfig. This is the ONLY form
+  #              `git config --global --unset` can remove.
+  #   gcur     — the key as git will actually USE it, following include.path.
+  # Git turns include-following OFF whenever a specific file is named (--global),
+  # so a bare read returns EMPTY for a key that lives in an included fragment.
+  # Reading only the bare form would make this installer re-set a key that is
+  # already live; reading only the --includes form would make --uninstall claim
+  # to have removed something `--unset` cannot touch, and "reversibility you never
+  # verified is not reversibility" is how that lie gets found -- in a year.
+  gcur_lit="$(git config --global --get core.hooksPath 2>/dev/null)" || gcur_lit=""
+  gcur="$(git config --global --includes --get core.hooksPath 2>/dev/null)" || gcur=""
   if [ "$UNINSTALL" -eq 1 ]; then
     # Only ever unset OUR value. If Jason (or some other tool) pointed the global
     # key somewhere else, that is not ours to remove.
-    if [ -n "$gcur" ] && [ -d "$gcur" ] && [ "$gcur" -ef "$HOOKS_DIR" ]; then
+    if [ -z "$gcur_lit" ] && [ -n "$gcur" ] && [ -d "$gcur" ] && [ "$gcur" -ef "$HOOKS_DIR" ]; then
+      # Live via an include. git cannot --unset it; say so instead of reporting a
+      # removal that did not happen.
+      g_state="left-alone (lives in an include.path fragment -- git cannot --unset it; remove the include line by hand)"
+      say "  ⚠ global core.hooksPath is active via an include, not a literal key."
+      say "    Remove the include.path line from ~/.gitconfig by hand to finish the undo."
+    elif [ -n "$gcur_lit" ] && [ -d "$gcur_lit" ] && [ "$gcur_lit" -ef "$HOOKS_DIR" ]; then
       if [ "$DRY" -eq 1 ]; then g_state="would-unset"
       else git config --global --unset core.hooksPath 2>/dev/null && g_state="unset" || g_state="unset-FAILED"; fi
     elif [ -n "$gcur" ]; then g_state="left-alone (points at $gcur, not ours)"

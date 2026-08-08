@@ -40,6 +40,32 @@ script say `$HOME/code`. That mismatch is why path comparisons in this estate us
 If you ever rebuild on a **case-sensitive** volume, this stops being harmless — pick the
 lowercase `code` spelling the scripts use, and fix this line.
 
+## 1a. Install the dotfiles (do this before anything that shells out)
+
+```bash
+bash dotfiles/install-dotfiles.sh --dry-run    # look first
+bash dotfiles/install-dotfiles.sh              # install
+bash dotfiles/dotfiles-drill.sh                # prove it, offline, on a scratch $HOME
+```
+
+Symlinks `~/.zshenv` and `~/.gitignore_global` to the repo copies and points git's
+`core.excludesfile` at the latter. Undo is one command:
+`bash dotfiles/install-dotfiles.sh --uninstall` (it restores the prior file, never leaves you
+bare).
+
+**Do this before step 1b and before any `install.sh` below**, because `.zshenv` is what puts
+`/opt/homebrew/bin` on `PATH` for **non-interactive** zsh — ssh sessions, MCP, launchd jobs — and
+that is the only reason `gh` resolves in automation. It also sets `no_nomatch` for those shells,
+so an unmatched glob passes through like bash instead of **aborting the line**. And
+`~/.gitignore_global` carries the `*.bak` / `*.bak.*` rules whose absence has twice produced a
+dirty repo that tripped the handoff gate.
+
+Until 2026-08-08 this step did not exist: nothing in this runbook mentioned dotfiles, no script
+installed them, and no check looked — so a rebuild that followed these pages perfectly came up
+without them, and nothing said so. Like §1b, this is the kind of absence that never announces
+itself; `gate-selfcheck.sh` (G-AG) now reports the truth either way. Rationale:
+[`dotfiles/README.md`](dotfiles/README.md), `HANDOFF-GATE.md` § G-AG.
+
 ## 1b. Arm the commit-time secret refusal (do this before your first commit)
 
 ```bash
