@@ -245,41 +245,26 @@ fi
 # Tight patterns (require the real high-entropy tail) so doc mentions of "shpat_"/regex literals don't trip it.
 # Loud WARN (not FAIL) to keep momentum; if a hit is a REAL secret, treat it as a blocker + rotate.
 # NOTE: only sweeps maxdepth-2 repos (same as the hygiene sweep); deeply-nested vendored clones are not covered.
-SECRET_RE='shpat_[a-f0-9]{32}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|xox[baprs]-[0-9A-Za-z-]{20,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
-SECCOUNT=0
-# --- G-E allowlist (S44 2026-08-08) --------------------------------------------------
-# The sweep's first full-corpus run found 43 hits: 2 real (scrubbed) and 41 upstream
-# test fixtures / vendored minified build output in public forks. A WARN that is 95%
-# noise trains its reader to skip it — which is exactly how hit #44 gets missed. So
-# known-benign shapes are suppressed BY NAME, with a MANDATORY written reason, and the
-# suppressed COUNT is always printed. Silent suppression would be the worse bug.
-# Format, one per line:  <repo-basename>/<path-glob>  # why this is not a credential
-GE_ALLOW="${GE_ALLOW:-$HOME/code/darwin-mac-ops/gate-secret-sweep.allow}"   # repo-backed home. A ~/Scripts copy is SILENTLY swallowed by that repo's '*secret*'
-# ignore rule — a control file that git ignores is not backed, and it took a `git status`
-# that showed nothing to notice (S44 2026-08-08). ~/Scripts/gate-secret-sweep.allow is a symlink here.
-declare -a GE_PATS=(); GE_NOREASON=0; GE_SUPPRESSED=0
-if [ -f "$GE_ALLOW" ]; then
-  while IFS= read -r al; do
-    al="${al%%$'\r'}"
-    case "$al" in ''|'#'*) continue ;; esac
-    pat="${al%%#*}"; reason="${al#*#}"
-    pat="$(printf '%s' "$pat" | sed -E 's/[[:space:]]+$//')"
-    [ -z "$pat" ] && continue
-    if [ "$reason" = "$al" ] || [ -z "$(printf '%s' "$reason" | tr -d '[:space:]')" ]; then
-      GE_NOREASON=$((GE_NOREASON+1))
-      WARNS+=("G-E: ALLOW-NOREASON '$pat' in $GE_ALLOW — an exemption nobody justified is indistinguishable from an oversight; add '# why' or delete the line")
-    fi
-    GE_PATS+=("$pat")
-  done < "$GE_ALLOW"
+# The needle itself now lives in ONE place, shared with the pre-commit hook that
+# REFUSES these strings at commit time (S45 2026-08-08). Before the split, G-E was
+# the estate's only secret control and it ran at WRAP -- by which point the object
+# is already in the repo, and in every clone of it. Two readers, one regex, so
+# detect-at-wrap and refuse-at-commit can never disagree about what a secret is.
+SECRET_LIB="${ESTATE_SECRET_LIB:-$HOME/code/darwin-mac-ops/hooks/secret-re.sh}"
+if [ ! -f "$SECRET_LIB" ]; then
+  echo "gate-selfcheck: FATAL — secret regex SSOT missing: $SECRET_LIB" >&2
+  echo "  Failing CLOSED: a gate that cannot load its own needle must not report PASS." >&2
+  echo "  Fix: git -C ~/code/darwin-mac-ops checkout -- hooks/secret-re.sh" >&2
+  exit 2
 fi
-ge_allowed() {  # $1 = <repo-basename>/<path>
-  local k="$1" p
-  for p in "${GE_PATS[@]}"; do
-    case "$k" in $p) return 0 ;; esac
-  done
-  return 1
-}
-# --------------------------------------------------------------------------------------
+. "$SECRET_LIB"          # -> SECRET_RE, GE_ALLOW, ge_load_allow, ge_allowed, ge_mask
+ge_load_allow
+SECCOUNT=0
+i=0
+while [ "$i" -lt "$GE_NOREASON" ]; do
+  WARNS+=("G-E: ALLOW-NOREASON '${GE_NOREASON_PATS[$i]}' in $GE_ALLOW — an exemption nobody justified is indistinguishable from an oversight; add '# why' or delete the line")
+  i=$((i+1))
+done
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
   while IFS= read -r line; do
@@ -295,7 +280,7 @@ for repo in "${REPOS[@]}"; do
     # comment lines" would have MASKED live secrets. Masking the tail keeps the sweep from leaking
     # the credential into logs while still proving it IS a token, not a comment.
     floc=$(printf '%s' "$line" | cut -d: -f1-2)
-    tok=$(printf '%s' "$line" | grep -oE "$SECRET_RE" | head -1 | sed -E 's/(.{10}).*/\1…MASKED/')
+    tok="$(ge_mask "$line")"
     printf '    %s: %s  [match: %s]\n' "${repo/#$HOME/~}" "$floc" "$tok"; SECCOUNT=$((SECCOUNT+1))
   done < <(git grep -nIE "$SECRET_RE" 2>/dev/null)
 done
@@ -796,6 +781,39 @@ if [ -x "$CENSUS" ]; then
     printf '  FAIL   %s\n' "$_census_line"
     printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
     FAILS+=("G-AE: $_census_line -> commit the plist into a repo (~/code/darwin-mac-ops/launchagents/ is the usual home) and re-run, or bootout+disable the job if it is dead. Census: bash ~/Scripts/launchd-census.sh")
+  fi
+fi
+
+# -- G-AF · pre-commit hook coverage (born 2026-08-08 S45) ----------------------------
+# S44 found the estate's commit-time protection was per-repo and uneven: ~/Desktop/downloads
+# BLOCKED a credential-shaped literal at commit, while ~/code/darwin-mac-ops -- the repo that
+# holds this very file -- accepted the same literal an hour earlier. Worse, .git/hooks is not
+# tracked by git, so no gate could even SEE which repos were protected: the coverage question
+# was unanswerable, which is a strictly worse failure than a known gap.
+# This check makes it answerable. Every repo under the SAME roots this script walks must point
+# core.hooksPath at the estate hooks dir. WARN, not FAIL, to keep momentum on a fresh clone --
+# but it names every uncovered repo and prints the one command that fixes all of them.
+ESTATE_HOOKS="${ESTATE_HOOKS:-$HOME/code/darwin-mac-ops/hooks}"
+if [ -d "$ESTATE_HOOKS" ]; then
+  bold "=== G-AF · pre-commit hook coverage (every repo refuses secrets at COMMIT, not just at wrap) ==="
+  _hk_ok=0; _hk_miss=0; declare -a _hk_missing=()
+  for repo in "${REPOS[@]}"; do
+    _hp="$(git -C "$repo" config --get core.hooksPath 2>/dev/null)" || _hp=""
+    # -ef, not =: $HOME/code and $HOME/Code are the same dir on a case-insensitive volume,
+    # so a string compare would report all 106 repos "unwired" the moment the installer was
+    # run via the other spelling — a control that cries wolf about itself.
+    if [ -n "$_hp" ] && [ -d "$_hp" ] && [ "$_hp" -ef "$ESTATE_HOOKS" ]; then
+      _hk_ok=$((_hk_ok+1))
+    else
+      _hk_miss=$((_hk_miss+1)); _hk_missing[${#_hk_missing[@]}]="${repo/#$HOME/~}${_hp:+ (points at $_hp)}"
+    fi
+  done
+  if [ "$_hk_miss" -eq 0 ]; then
+    printf '  ok     %s/%s repos wired to %s\n' "$_hk_ok" "${#REPOS[@]}" "${ESTATE_HOOKS/#$HOME/~}"
+  else
+    printf '  WARN   %s of %s repo(s) NOT wired:\n' "$_hk_miss" "${#REPOS[@]}"
+    printf '         %s\n' "${_hk_missing[@]}"
+    WARNS+=("G-AF: $_hk_miss repo(s) have no estate pre-commit hook -> bash ~/code/darwin-mac-ops/hooks/install-estate-hooks.sh   (--dry-run first; --uninstall reverses it; prior repo hooks are chained, never replaced)")
   fi
 fi
 

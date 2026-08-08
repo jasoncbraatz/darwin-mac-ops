@@ -1,0 +1,94 @@
+#!/bin/bash
+# =============================================================================
+# pre-commit — refuse at COMMIT what G-E would only detect at WRAP.
+#
+# Born 2026-08-08 (S45), from the S44 finding: the estate's pre-commit protection
+# was per-repo and uneven, and .git/hooks is untracked so no gate could even SEE
+# which repos were protected. This hook + install-estate-hooks.sh + G-AF close
+# that: one needle (secret-re.sh), every repo, and the gate proves the wiring.
+#
+# Scans the STAGED INDEX, never the working tree. `git grep --cached` reads the
+# index, which is exactly what the commit will contain. Working-tree scanning is
+# wrong twice over (global lesson 2026-07-08): it MISSES a staged secret whose
+# file was since edited, and in a CONCURRENT Cowork session sharing darwin's tree
+# it FAILS on another session's unstaged edit that this commit never touches.
+#
+# Fails CLOSED. Escape hatches, in order of preference:
+#   1. the hit is real  -> scrub it, and ROTATE the credential (it is burned)
+#   2. the hit is noise -> name it, WITH A REASON, in gate-secret-sweep.allow
+#   3. you are certain  -> git commit --no-verify   (deliberate, one commit only)
+# =============================================================================
+set -uo pipefail
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+LIB="${ESTATE_SECRET_LIB:-$HOOK_DIR/secret-re.sh}"
+
+if [ ! -f "$LIB" ]; then
+  echo "estate pre-commit: FATAL — secret regex SSOT missing: $LIB" >&2
+  echo "  Failing CLOSED (a security control that cannot load must not pass)." >&2
+  echo "  Fix: restore ~/code/darwin-mac-ops/hooks/secret-re.sh (git checkout), or" >&2
+  echo "       bypass this ONE commit with: git commit --no-verify" >&2
+  exit 1
+fi
+. "$LIB"
+ge_load_allow
+
+TOP="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+BASE="$(basename "$TOP")"
+
+# Added / Copied / Modified only. A DELETED file cannot introduce a secret, and a
+# rename's source is not in the post-commit tree.
+declare -a PATHS=()
+while IFS= read -r -d '' p; do
+  PATHS[${#PATHS[@]}]="$p"
+done < <(git diff --cached -z --name-only --diff-filter=ACM 2>/dev/null)
+
+if [ "${#PATHS[@]}" -eq 0 ]; then
+  ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
+fi
+
+hits=0
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  f="$(printf '%s' "$line" | cut -d: -f1)"
+  if ge_allowed "$BASE/$f"; then
+    GE_SUPPRESSED=$((GE_SUPPRESSED+1)); continue
+  fi
+  if [ "$hits" -eq 0 ]; then
+    echo "" >&2
+    echo "estate pre-commit: BLOCKED — credential-shaped string(s) in the staged index" >&2
+  fi
+  floc="$(printf '%s' "$line" | cut -d: -f1-2)"
+  printf '    %s: %s  [match: %s]\n' "$BASE" "$floc" "$(ge_mask "$line")" >&2
+  hits=$((hits+1))
+done < <(git grep --cached -nIE "$SECRET_RE" -- "${PATHS[@]}" 2>/dev/null)
+
+# Suppression is NEVER silent — a reader has to be able to see what the allowlist ate.
+# A silent cap reads as "covered everything" when it did not (S44).
+if [ "$GE_SUPPRESSED" -gt 0 ]; then
+  printf 'estate pre-commit: %s hit(s) suppressed by %s allowlist rule(s) in %s\n' \
+    "$GE_SUPPRESSED" "${#GE_PATS[@]}" "${GE_ALLOW/#$HOME/~}" >&2
+fi
+if [ "$GE_NOREASON" -gt 0 ]; then
+  printf 'estate pre-commit: ⚠ %s allowlist entry/entries have NO REASON (%s) — add "# why" or delete\n' \
+    "$GE_NOREASON" "$(printf '%s ' "${GE_NOREASON_PATS[@]}")" >&2
+fi
+
+if [ "$hits" -gt 0 ]; then
+  cat >&2 <<'WHY'
+
+  This is a HARD block, on purpose: a credential that reaches a commit is burned even
+  if you amend it away one second later — the object stays in the repo, and in every
+  clone and fork of it. Cheaper to stop here.
+
+  If it is REAL:   scrub it from the staged file AND rotate the credential.
+                   Test it first if you can — the answer changes the action:
+                   a 401 means this is a commit, a 200 means it is an incident.
+  If it is NOISE:  add "<repo>/<path-glob>   # why this cannot be a live credential"
+                   to ~/code/darwin-mac-ops/gate-secret-sweep.allow. The reason is
+                   mandatory. "It's in a fork" is not a reason.
+  If you are sure: git commit --no-verify   (deliberate, this commit only)
+WHY
+  exit 1
+fi
+
+ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
