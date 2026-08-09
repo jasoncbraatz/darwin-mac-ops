@@ -13,10 +13,20 @@ Thumbs.db
 *.swp
 *~
 
-# --- backups: BOTH the plain glob AND timestamped variants (foo.py.bak.20260623-031053) ---
-# The timestamped form does NOT end in ".bak", so it SLIPS a bare "*.bak" — this bit strike-zone
-# twice (a dirty repo tripping the HANDOFF-GATE + junk rsync'd to the runtime box). Belt-and-suspenders:
-# ignore both forms everywhere. See lesson 2026-06-23-trap-timestamped-backup-foo-py-bak.
-*.bak
-*.bak.*
+# --- backups: the plain glob AND every suffixed variant (foo.py.bak.20260623-031053) ---
+# A suffixed backup does NOT end in ".bak", so it SLIPS a bare "*.bak" — this bit strike-zone
+# twice (a dirty repo tripping the HANDOFF-GATE + junk rsync'd to the runtime box). Belt-and-
+# suspenders: ignore every form everywhere. See lesson 2026-06-23-trap-timestamped-backup-foo-py-bak.
+#
+# S48 (2026-08-09): these rules used to be `*.bak` + `*.bak.*` — the DOT separator only. The
+# convention this estate actually WRITES is the hyphen one, `foo.sh.bak-<tag>-<date>` (S47's own
+# ~/.zshenv.bak-predotfiles-20260808T191929Z, plus 285 more across ~/Scripts, ~/code, ~/repos
+# and ~/Desktop/downloads). None of them matched. The comment directly above celebrates fixing
+# this exact bug — one separator over. And it was not hypothetical: EIGHT backup files were
+# committed into darwin-mac-ops, claude-blackbook and flowers-sms-relay and pushed to the SSOT.
+# ~/Scripts had been quietly papering over it with a repo-local `*.bak*`, which is why the gap
+# was invisible from the directory that produces the most backups.
+# S45's lesson, one floor down: fix the control UPSTREAM of the mistake, not in the one repo
+# where it bit. `*.bak*` is the rule ~/Scripts had already proven in production; it is now global.
+*.bak*
 *.orig

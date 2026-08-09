@@ -48,6 +48,24 @@ DRYRUN="${FDV_DRYRUN:-}"
 mkdir -p "$(dirname "$LOG")"
 log() { printf '%s %s\n' "$TS" "$*" >> "$LOG"; }
 
+# S48: the TEST HOOKS block above said "(see --self-test)" since the day it was written, and
+# --self-test did not exist here — only in flowers-hmac-enforce-watch.sh, the script MODELLED ON
+# this one. The harness flowed downstream and never came back. A comment promising a test that
+# cannot be run is worse than no comment: it reads like coverage. Ported from the sibling.
+if [ "${1:-}" = "--self-test" ]; then
+  echo "=== self-test: exercising every branch with FDV_DRYRUN=1 (no Asana writes) ==="
+  rc_seen=""
+  for f in 2 1 0; do
+    echo "--- forcing rc=$f ---"
+    FDV_FORCE_RC=$f FDV_DRYRUN=1 bash "$0"; got=$?
+    echo "--- branch rc=$f exited $got ---"
+    [ "$got" = "$f" ] || { echo "SELF-TEST FAIL: forced $f, got $got"; exit 1; }
+    rc_seen="$rc_seen $got"
+  done
+  echo "SELF-TEST PASS — branches$rc_seen each reached and returned their own code."
+  exit 0
+fi
+
 # --- already decided? then this job is done and must stop spending Twilio API calls ---------
 if [ -f "$SENTINEL" ] && [ -z "${FDV_DRYRUN:-}" ]; then
   log "retired already ($(head -1 "$SENTINEL")) — no-op"; exit 0
@@ -136,21 +154,48 @@ in a container with no device bridge and could not have reached darwin's repos o
 See AAR 2026-07-29-geo-detector-blind-spot §5, action A1.
 
 This job has now RETIRED itself (sentinel: ~/Library/Logs/flowers-dupe-verify.RETIRED)."
+  # S48: the completion, the log line and the sentinel are now all downstream of a CHECKED exit
+  # code. They used to be siblings separated by newlines under `set -uo pipefail` (no `-e`), so
+  # a failed PUT still logged "PASS — commented and COMPLETED" and still wrote the sentinel that
+  # retires this job forever. Its sibling flowers-hmac-enforce-watch.sh — which this script is
+  # the model for — was caught doing exactly that on 2026-08-09, "completing" a card that did
+  # not exist. Exit 44 means the card is GONE (404), which needs no closing and is therefore
+  # accounted-for; any other nonzero means we do not know, so the sentinel is WITHHELD and this
+  # job runs again tomorrow. See flowers-hmac-enforce-watch.sh for the full write-up.
+  COMPLETED_OK=0
   if [ -n "$DRYRUN" ]; then
-    printf '\n--- DRYRUN: would COMPLETE card %s ---\n' "$CARD"
+    printf '\n--- DRYRUN: would COMPLETE card %s ---\n' "$CARD"; COMPLETED_OK=1
   elif [ -n "$PAT" ]; then
     /usr/bin/python3 - "$PAT" "$CARD" <<'PY'
-import json,sys,urllib.request
+import json,sys,urllib.request,urllib.error
 pat,gid=sys.argv[1],sys.argv[2]
 r=urllib.request.Request(f"https://app.asana.com/api/1.0/tasks/{gid}",
     data=json.dumps({"data":{"completed":True}}).encode(),
     headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="PUT")
-urllib.request.urlopen(r,timeout=30)
+try:
+    urllib.request.urlopen(r,timeout=30)
+except urllib.error.HTTPError as e:
+    sys.stderr.write("asana PUT -> HTTP %s for card %s\n" % (e.code,gid))
+    sys.exit(44 if e.code == 404 else 1)
+except Exception as e:
+    sys.stderr.write("asana PUT -> %s for card %s\n" % (e,gid)); sys.exit(1)
 PY
-    log "PASS — commented and COMPLETED card $CARD"
+    XRC=$?
+    if [ "$XRC" = 0 ]; then
+      COMPLETED_OK=1; log "PASS — commented and COMPLETED card $CARD"
+    elif [ "$XRC" = 44 ]; then
+      COMPLETED_OK=1; log "PASS — card $CARD is GONE (HTTP 404); nothing to close. Accounted for."
+    else
+      log "ASANA WRITE UNCONFIRMED for card $CARD (rc=$XRC) — sentinel withheld, NOT retiring."
+    fi
   fi
-  [ -z "$DRYRUN" ] && printf '%s VERIFIED PASS — card %s completed\n' "$TS" "$CARD" > "$SENTINEL"
-  [ -z "$DRYRUN" ] && [ -f "$PLIST" ] && launchctl unload "$PLIST" 2>/dev/null && log "unloaded $PLIST"
+
+  if [ "$COMPLETED_OK" = 1 ]; then
+    [ -z "$DRYRUN" ] && printf '%s VERIFIED PASS — card %s accounted for\n' "$TS" "$CARD" > "$SENTINEL"
+    [ -z "$DRYRUN" ] && [ -f "$PLIST" ] && launchctl unload "$PLIST" 2>/dev/null && log "unloaded $PLIST"
+  else
+    log "measurement PASSed but the card write was unconfirmed — will retry tomorrow."
+  fi
   exit 0
   ;;
 1)
@@ -197,24 +242,45 @@ Rollback tag if needed: pre-dupe-guard-20260728.\"
 --
 Filed by ~/Scripts/flowers-dupe-verify.sh (local launchd com.braatz.flowers-dupe-verify).
 Exit $RC. 0=verified 1=guard failed 2=insufficient data (NOT a pass)."
+  # S48: same rule as the PASS branch, and it matters more here — this branch means customers
+  # may be getting double-texted. The sentinel permanently silences this job, so it may only be
+  # written once Asana has ACCEPTED the news. It used to be written unconditionally.
+  SURFACED=0
   if [ -n "$EXISTING" ]; then
-    asana_comment "$EXISTING" "$BODY"; log "FAIL — commented on existing card $EXISTING"
+    if asana_comment "$EXISTING" "$BODY"; then
+      SURFACED=1; log "FAIL — commented on existing card $EXISTING"
+    else
+      log "FAIL — could NOT comment on existing card $EXISTING — not surfaced."
+    fi
   elif [ -n "$DRYRUN" ]; then
     printf '\n--- DRYRUN: would CREATE a Batter'"'"'s Box card ---\n%s\n--- end ---\n' "$BODY"
+    SURFACED=1
   else
-    /usr/bin/python3 - "$PAT" "$BATTERS_BOX" "$BODY" <<'PY'
-import json,sys,urllib.request
+    if NEWGID=$(/usr/bin/python3 - "$PAT" "$BATTERS_BOX" "$BODY" <<'PY'
+import json,sys,urllib.request,urllib.error
 pat,proj,body=sys.argv[1],sys.argv[2],sys.argv[3]
 r=urllib.request.Request("https://app.asana.com/api/1.0/tasks",
     data=json.dumps({"data":{"projects":[proj],
       "name":"🔴 Flowers: the duplicate-SMS guard did NOT hold — customers may be double-texted again",
       "notes":body}}).encode(),
     headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="POST")
-print(json.load(urllib.request.urlopen(r,timeout=30))["data"]["gid"])
+try:
+    print(json.load(urllib.request.urlopen(r,timeout=30))["data"]["gid"])
+except Exception as e:
+    sys.stderr.write("asana create failed: %s\n" % e); sys.exit(1)
 PY
-    log "FAIL — filed a new Batter's Box card"
+    ); then
+      SURFACED=1; log "FAIL — filed a new Batter's Box card $NEWGID"
+    else
+      log "FAIL — could NOT file a Batter's Box card — the failure is NOT surfaced anywhere but this log."
+    fi
   fi
-  [ -z "$DRYRUN" ] && printf '%s FAILED — guard did not hold; see Batter\x27s Box\n' "$TS" > "$SENTINEL"
+
+  if [ "$SURFACED" = 1 ]; then
+    [ -z "$DRYRUN" ] && printf '%s FAILED — guard did not hold; see Batter\x27s Box\n' "$TS" > "$SENTINEL"
+  else
+    log "sentinel withheld — the incident was never surfaced, so this job must NOT go quiet."
+  fi
   exit 1
   ;;
 *)

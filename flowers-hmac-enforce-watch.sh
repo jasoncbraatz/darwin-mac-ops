@@ -182,32 +182,66 @@ fi
 PAT=""
 [ -s "$TOKEN_FILE" ] && PAT="$(cat "$TOKEN_FILE")"
 
-asana_comment() { # $1=gid $2=text
-  if [ -n "$DRYRUN" ]; then
-    printf '\n--- DRYRUN: would COMMENT on %s ---\n%s\n--- end ---\n' "$1" "$2"; return 0
-  fi
-  /usr/bin/python3 - "$PAT" "$1" "$2" <<'PY'
-import json,sys,urllib.request
-pat,gid,text=sys.argv[1],sys.argv[2],sys.argv[3]
-r=urllib.request.Request(f"https://app.asana.com/api/1.0/tasks/{gid}/stories",
-    data=json.dumps({"data":{"text":text}}).encode(),
-    headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="POST")
-urllib.request.urlopen(r,timeout=30)
+# --- ASANA WRITES: THE EXIT CODES ARE LOAD-BEARING ------------------------------------------
+# Read this before "simplifying" these three functions.
+#
+#   0  = the write HAPPENED.
+#   44 = the card is GONE (HTTP 404). Benign — a card that no longer exists needs no closing —
+#        so it must NOT block retirement, but it must NEVER be logged as a completion.
+#   1  = anything else (auth, 5xx, network). The write did NOT happen and we do not know when
+#        it will, so the caller must refuse to retire and try again tomorrow.
+#
+# WHY THIS EXISTS (S48, 2026-08-09). Before today these functions returned an exit code that
+# nobody read, because the PASS branch was written with SEMICOLONS under `set -uo pipefail`
+# (no `-e`):
+#
+#     asana_comment "$c" "$BODY"; asana_complete "$c"; log "PASS — commented + completed $c"
+#
+# so a write that raised still logged PASS. The 02:15Z 2026-08-09 run did exactly that: it
+# logged `PASS — commented + completed 1216968620841480` for a card that DOES NOT EXIST, then
+# wrote `VERIFIED PASS — 3 cards completed` into the sentinel and unloaded its own launchd job.
+# It retired on a claim it never checked. That is precisely the false-green this entire tier of
+# scripts was built to catch, committed by the catcher — so the log line and the retirement
+# decision are now both downstream of a checked exit code, and never the other way around.
+#
+# The general rule, banked as a lesson: A LOG LINE IS NOT EVIDENCE. If the success message can
+# be printed on a path where the work failed, the message is decoration, not instrumentation.
+_asana_write() { # $1=url-suffix $2=method $3=json-payload $4=gid(for messages)
+  /usr/bin/python3 - "$PAT" "$1" "$2" "$3" "$4" <<'PY'
+import sys,urllib.request,urllib.error
+pat,suffix,method,payload,gid = sys.argv[1:6]
+r=urllib.request.Request(f"https://app.asana.com/api/1.0/tasks/{suffix}",
+    data=payload.encode(),
+    headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method=method)
+try:
+    urllib.request.urlopen(r,timeout=30)
+except urllib.error.HTTPError as e:
+    sys.stderr.write("asana %s %s -> HTTP %s for card %s\n" % (method,suffix,e.code,gid))
+    sys.exit(44 if e.code == 404 else 1)
+except Exception as e:
+    sys.stderr.write("asana %s %s -> %s for card %s\n" % (method,suffix,e,gid))
+    sys.exit(1)
 PY
 }
 
+asana_comment() { # $1=gid $2=text
+  # FHW_FORCE_ASANA_RC returns BEFORE any network call, so a drill can exercise the failure
+  # branches (1 = unconfirmed, 44 = card gone) without a bogus token ever leaving the machine.
+  # Without this the fix shipped here would itself be untested — which is the whole complaint.
+  [ -n "${FHW_FORCE_ASANA_RC:-}" ] && return "$FHW_FORCE_ASANA_RC"
+  if [ -n "$DRYRUN" ]; then
+    printf '\n--- DRYRUN: would COMMENT on %s ---\n%s\n--- end ---\n' "$1" "$2"; return 0
+  fi
+  _asana_write "$1/stories" POST \
+    "$(/usr/bin/python3 -c 'import json,sys; print(json.dumps({"data":{"text":sys.argv[1]}}))' "$2")" "$1"
+}
+
 asana_complete() { # $1=gid
+  [ -n "${FHW_FORCE_ASANA_RC:-}" ] && return "$FHW_FORCE_ASANA_RC"
   if [ -n "$DRYRUN" ]; then
     printf '\n--- DRYRUN: would COMPLETE card %s ---\n' "$1"; return 0
   fi
-  /usr/bin/python3 - "$PAT" "$1" <<'PY'
-import json,sys,urllib.request
-pat,gid=sys.argv[1],sys.argv[2]
-r=urllib.request.Request(f"https://app.asana.com/api/1.0/tasks/{gid}",
-    data=json.dumps({"data":{"completed":True}}).encode(),
-    headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="PUT")
-urllib.request.urlopen(r,timeout=30)
-PY
+  _asana_write "$1" PUT '{"data":{"completed":true}}' "$1"
 }
 
 if [ -z "$PAT" ] && [ -z "$DRYRUN" ]; then
@@ -238,11 +272,35 @@ Verified by ~/Scripts/flowers-hmac-enforce-watch.sh, the LOCAL launchd job
 (com.braatz.flowers-hmac-enforce-watch) — local because a cloud scheduled task has no device
 bridge and could not have reached darwin or the flowers box at all. This job has now RETIRED
 itself (sentinel: ~/Library/Logs/flowers-hmac-enforce-watch.RETIRED)."
+  # Every card must be ACCOUNTED FOR before this job is allowed to retire. "Accounted for"
+  # means either the write succeeded, or the card is provably gone (404) and so needs nothing.
+  # An unconfirmed write leaves ALL_OK=0, which withholds the sentinel — and withholding the
+  # sentinel is what makes tomorrow's run retry instead of no-op. Self-healing by omission.
+  ALL_OK=1
   for c in $DRIVER_CARD $COMPANION_CARDS; do
-    asana_comment "$c" "$BODY"; asana_complete "$c"; log "PASS — commented + completed $c"
+    asana_comment "$c" "$BODY"; CRC=$?
+    asana_complete "$c";        XRC=$?
+    if [ "$CRC" = 0 ] && [ "$XRC" = 0 ]; then
+      log "PASS — commented + completed $c"
+    elif [ "$CRC" = 44 ] || [ "$XRC" = 44 ]; then
+      log "PASS — card $c is GONE (HTTP 404); nothing to close. Not a failure, not a completion."
+    else
+      ALL_OK=0
+      log "ASANA WRITE UNCONFIRMED for card $c (comment rc=$CRC, complete rc=$XRC) — NOT retiring."
+    fi
   done
-  [ -z "$DRYRUN" ] && printf '%s VERIFIED PASS — 3 cards completed\n' "$TS" > "$SENTINEL"
-  [ -z "$DRYRUN" ] && [ -f "$PLIST" ] && launchctl unload "$PLIST" 2>/dev/null && log "unloaded $PLIST"
+
+  if [ "$ALL_OK" = 1 ]; then
+    [ -z "$DRYRUN" ] && printf '%s VERIFIED PASS — every card accounted for\n' "$TS" > "$SENTINEL"
+    [ -z "$DRYRUN" ] && [ -f "$PLIST" ] && launchctl unload "$PLIST" 2>/dev/null && log "unloaded $PLIST"
+    exit 0
+  fi
+
+  # The MEASUREMENT passed; only the bookkeeping is unconfirmed. Say so in the heartbeat rather
+  # than in a fresh Batter's Box card — filing a card requires the very API that just failed.
+  log "measurement PASSed but at least one Asana write was unconfirmed — sentinel withheld, job NOT retired, will retry tomorrow."
+  [ -z "$DRYRUN" ] && printf '%s exit=%s valid=%s bad=%s mode=%s asana=UNCONFIRMED\n' \
+    "$TS" "$RC" "${VALID_ORDERS:-?}" "${BAD_N:-?}" "${MODE:-?}" > "$HEARTBEAT"
   exit 0
   ;;
 1)
@@ -286,24 +344,50 @@ client secret shown in the blip app's Shopify admin — a rotated secret is the 
 --
 Filed by ~/Scripts/flowers-hmac-enforce-watch.sh (local launchd com.braatz.flowers-hmac-enforce-watch).
 Exit $RC. 0=verified 1=webhooks being dropped 2=insufficient data (NOT a pass)."
+  # SURFACED=1 only once Asana has actually accepted the news. This branch means real webhooks
+  # are being DROPPED, so the sentinel — which permanently silences this job — must not be
+  # written on the strength of an unverified write. Before S48 it was written unconditionally:
+  # if the filing failed, the job recorded "see Batter's Box", retired itself, and pointed at a
+  # card that was never created. A dropped-orders incident would have died in a log file.
+  SURFACED=0
   if [ -n "$EXISTING" ]; then
-    asana_comment "$EXISTING" "$BODY"; log "FAIL — commented on existing card $EXISTING"
+    if asana_comment "$EXISTING" "$BODY"; then
+      SURFACED=1; log "FAIL — commented on existing card $EXISTING"
+    else
+      log "FAIL — could NOT comment on existing card $EXISTING (rc=$?) — not surfaced."
+    fi
   elif [ -n "$DRYRUN" ]; then
     printf '\n--- DRYRUN: would CREATE a Batter'"'"'s Box card ---\n%s\n--- end ---\n' "$BODY"
+    SURFACED=1
   else
-    /usr/bin/python3 - "$PAT" "$BATTERS_BOX" "$BODY" <<'PY'
-import json,sys,urllib.request
+    if NEWGID=$(/usr/bin/python3 - "$PAT" "$BATTERS_BOX" "$BODY" <<'PY'
+import json,sys,urllib.request,urllib.error
 pat,proj,body=sys.argv[1],sys.argv[2],sys.argv[3]
 r=urllib.request.Request("https://app.asana.com/api/1.0/tasks",
     data=json.dumps({"data":{"projects":[proj],
       "name":"\U0001F534 Flowers: HMAC enforce is REJECTING real Shopify webhooks — orders are being dropped",
       "notes":body}}).encode(),
     headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="POST")
-print(json.load(urllib.request.urlopen(r,timeout=30))["data"]["gid"])
+try:
+    print(json.load(urllib.request.urlopen(r,timeout=30))["data"]["gid"])
+except Exception as e:
+    sys.stderr.write("asana create failed: %s\n" % e); sys.exit(1)
 PY
-    log "FAIL — filed a new Batter's Box card"
+    ); then
+      SURFACED=1; log "FAIL — filed a new Batter's Box card $NEWGID"
+    else
+      log "FAIL — could NOT file a Batter's Box card — the failure is NOT surfaced anywhere but this log."
+    fi
   fi
-  [ -z "$DRYRUN" ] && printf '%s FAILED — webhooks dropped under enforce; see Batter\x27s Box\n' "$TS" > "$SENTINEL"
+
+  if [ "$SURFACED" = 1 ]; then
+    [ -z "$DRYRUN" ] && printf '%s FAILED — webhooks dropped under enforce; see Batter\x27s Box\n' "$TS" > "$SENTINEL"
+  else
+    # No sentinel => this job runs again tomorrow and tries to surface the incident again.
+    log "sentinel withheld — the incident was never surfaced, so this job must NOT go quiet."
+    [ -z "$DRYRUN" ] && printf '%s exit=%s valid=%s bad=%s mode=%s asana=UNCONFIRMED\n' \
+      "$TS" "$RC" "${VALID_ORDERS:-?}" "${BAD_N:-?}" "${MODE:-?}" > "$HEARTBEAT"
+  fi
   exit 1
   ;;
 *)
