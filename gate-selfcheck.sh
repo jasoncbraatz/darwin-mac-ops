@@ -967,6 +967,36 @@ if [ -r "$DOTFILES_DIR/install-dotfiles.sh" ]; then
   fi
 fi
 
+# -- G-AH · a log line is not evidence (born 2026-08-09 S49) ------------------------------
+# S48: the filers logged "PASS — commented + completed <gid>" for a card that did not exist,
+# because the write and its success log were `asana_write; log "PASS"` under set -uo pipefail
+# (no -e) — the write raised, the log fired anyway, and a self-retiring job unloaded itself on
+# the strength of it. S49's sweep found the same defect in NEWLINE form three more times
+# (aar-gate-daily, detector-heartbeat-watch, sz_closer.py — the closer counting a failed close
+# as "resolved"). The defect is template-level: scripts are modelled on scripts, so it breeds.
+# Two prongs. Prong 1 is S48's proven same-line grep. Prong 2 catches the estate's python-
+# heredoc template form: a `log "` line immediately after a `^PY$` terminator with no rc
+# capture between. Neither prong reads python bodies — that sweep is carded, not claimed.
+bold "=== G-AH · a log line is not evidence (no filer logs a success it did not confirm) ==="
+_ah_bad=0; declare -a _ah_notes=()
+while IFS= read -r _hit; do
+  [ -n "$_hit" ] || continue
+  _ah_bad=$((_ah_bad+1)); _ah_notes[${#_ah_notes[@]}]="same-line: $_hit"
+done <<< "$(grep -rnE '^[^#]*(asana_|curl |urlopen)[^;]*;[[:space:]]*log "(PASS|OK|FAIL|STALE|CARDED)' \
+  "$HOME/Scripts" "$HOME/code" "$HOME/repos" --include='*.sh' 2>/dev/null | grep -v '\.bak' )"
+while IFS= read -r _hit; do
+  [ -n "$_hit" ] || continue
+  _ah_bad=$((_ah_bad+1)); _ah_notes[${#_ah_notes[@]}]="after-heredoc: $_hit"
+done <<< "$(grep -rn -A1 '^PY$' "$HOME/Scripts" "$HOME/code" "$HOME/repos" --include='*.sh' 2>/dev/null \
+  | grep -E '^[^:]+-[0-9]+-[[:space:]]*log "' | grep -v '\.bak' )"
+if [ "$_ah_bad" -eq 0 ]; then
+  printf '  ok     no unchecked write-then-log-success pattern in any estate shell script\n'
+else
+  printf '  WARN   %s dishonest log line(s) — a success logged on a path where the work can fail:\n' "$_ah_bad"
+  printf '         %s\n' "${_ah_notes[@]}"
+  WARNS+=("G-AH: $_ah_bad write-then-log hit(s) -> capture the rc (WRC=\$?) and branch the log; on failure log UNCONFIRMED and let the next firing retry. Pattern + proof: HANDOFF-GATE.md §G-AH, filer-honesty-drill.sh")
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate

@@ -115,7 +115,13 @@ r=urllib.request.Request(f"https://app.asana.com/api/1.0/tasks/{gid}/stories",
     headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="POST")
 urllib.request.urlopen(r,timeout=30)
 PY
-  log "FAIL rc=$RC — commented on existing card $EXISTING"
+  WRC=$?
+  # S49: the log line is DOWNSTREAM of a checked write code (a log line is not evidence).
+  if [ "$WRC" -eq 0 ]; then
+    log "FAIL rc=$RC — commented on existing card $EXISTING"
+  else
+    log "FAIL rc=$RC — comment on card $EXISTING UNCONFIRMED (asana write rc=$WRC); next firing retries"
+  fi
 else
   /usr/bin/python3 - "$PAT" "$BATTERS_BOX" "$TITLE" "$BODY" <<'PY'
 import json,sys,urllib.request
@@ -125,6 +131,11 @@ r=urllib.request.Request("https://app.asana.com/api/1.0/tasks",
     headers={"Authorization":"Bearer "+pat,"Content-Type":"application/json"},method="POST")
 print(json.load(urllib.request.urlopen(r,timeout=30))["data"]["gid"])
 PY
-  log "FAIL rc=$RC — filed a new Batter's Box card"
+  WRC=$?
+  if [ "$WRC" -eq 0 ]; then
+    log "FAIL rc=$RC — filed a new Batter's Box card"
+  else
+    log "FAIL rc=$RC — card filing UNCONFIRMED (asana write rc=$WRC); NOT filed, next firing retries via dedupe"
+  fi
 fi
 exit "$RC"
