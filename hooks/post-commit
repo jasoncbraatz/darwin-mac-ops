@@ -1,1 +1,27 @@
-_chain.sh
+#!/bin/bash
+# =============================================================================
+# post-commit — populate the roster automatically, at the write.
+#
+# Born 2026-08-12. The roster auto-JOINS every session (darlish-authorize:83) but
+# enrichment and claims were left to the worker, asked for at STEP 0 -- before a
+# session knows what it will touch. Measured: 10 sessions, 0 claims, 0 tasks noted,
+# 22+ hours. 0% compliance is a TIMING defect, not a discipline defect, so the ask
+# moved to the moment a session provably knows which repo it means: its commit.
+#
+# DELIBERATELY post-commit, not pre-commit. The commit has already landed and git
+# ignores this hook's exit code, so nothing here can wedge a commit or cost anyone
+# work -- which matters when one hook governs 107 repos and 2-3 concurrent sessions.
+# The roster is advisory by its own docstring; correctness lives in locks at the
+# resource. This only ever adds a map.
+#
+# Silent and inert for a human at darwin's own terminal (no DARLISH_SESSION).
+# =============================================================================
+set -uo pipefail
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+
+# Best-effort, always. Never let advisory plumbing surface an error on a good commit.
+if [ -n "${DARLISH_SESSION:-}" ] && [ -x "$HOME/Scripts/roster-oncommit.py" ]; then
+  python3 "$HOME/Scripts/roster-oncommit.py" 2>&1 >/dev/null || true
+fi
+
+ESTATE_HOOK_NAME=post-commit exec "$HOOK_DIR/_chain.sh" "$@"
