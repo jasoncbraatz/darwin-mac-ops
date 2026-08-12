@@ -78,13 +78,30 @@ done
 # ROSTER_DB is honoured (same env var roster itself uses) so this is drillable, not production-only.
 _ROSTER_DB="${ROSTER_DB:-$HOME/.local/state/darlish/roster.sqlite3}"
 _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
-  [ -n "${GATE_ROSTER_WHO:-}" ] || return 0
+  # FAIL SAFE, NOT OPEN (fixed 2026-08-12, floristAlix-1).
+  #
+  # This used to begin `[ -n "${GATE_ROSTER_WHO:-}" ] || return 0` -- i.e. the entire
+  # sibling-protection silently DISABLED itself whenever the caller had not exported
+  # GATE_ROSTER_WHO. Which is exactly the session that needs it: one that has not been
+  # careful about roster hygiene. Hit live on 2026-08-12 -- wealth-tensor came back a
+  # hard FAIL while big-wealthTensor-12 held a live claim and had written the file 60
+  # SECONDS earlier. The remedy a FAIL prescribes is "commit it before writing the
+  # handoff", so the gate was one obedient step away from committing another session's
+  # half-written paragraph.
+  #
+  # Now: an UNKNOWN identity makes this MORE cautious, never less. With no identity we
+  # cannot prove a claim is someone else's -- so we report every live claim and let the
+  # human decide, rather than pretending there are none.
   [ -f "$_ROSTER_DB" ] || return 0
   command -v sqlite3 >/dev/null 2>&1 || return 0
   _rc_base="$(basename "$1")"
+  _rc_selfclause=""
+  if [ -n "${GATE_ROSTER_WHO:-}" ]; then
+    _rc_selfclause="AND who <> '$(printf '%s' "$GATE_ROSTER_WHO" | sed "s/'/''/g")'"
+  fi
   sqlite3 "$_ROSTER_DB" \
     "SELECT who FROM roster WHERE kind='claim' AND expires > strftime('%s','now')
-       AND who <> '$(printf '%s' "$GATE_ROSTER_WHO" | sed "s/'/''/g")'
+       $_rc_selfclause
        AND (resource='$(printf '%s' "$_rc_base" | sed "s/'/''/g")'
             OR resource='$(printf '%s' "$1" | sed "s/'/''/g")')
      LIMIT 1;" 2>/dev/null
@@ -110,7 +127,11 @@ for repo in "${REPOS[@]}"; do
     _claimant="$(_roster_other_claimant "$repo")"
     if [ -n "$_claimant" ]; then
       flags="$flags DIRTY($nd,claimed:$_claimant)"
-      WARNS+=("$name: $nd uncommitted change(s) — LIVE roster claim by '$_claimant', i.e. ANOTHER session's work in flight. Do NOT commit it. Verify: ~/Scripts/roster who")
+      if [ -n "${GATE_ROSTER_WHO:-}" ]; then
+        WARNS+=("$name: $nd uncommitted change(s) — LIVE roster claim by '$_claimant', i.e. ANOTHER session's work in flight. Do NOT commit it. Verify: ~/Scripts/roster who")
+      else
+        WARNS+=("$name: $nd uncommitted change(s) — LIVE roster claim by '$_claimant', and THIS session did not export GATE_ROSTER_WHO so I cannot tell whether that is you. If it is you, commit it; if it is not, DO NOT — it is another session's work in flight. Verify: ~/Scripts/roster who")
+      fi
       [ "$level" = ok ] && level="WARN"
     else
       flags="$flags DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); level="FAIL"
