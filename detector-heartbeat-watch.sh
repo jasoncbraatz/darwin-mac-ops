@@ -130,10 +130,16 @@ what is definitely broken is our ability to know.
 PASTE-TO-CLAUDE:
 \"A detector heartbeat went stale. Read ~/Code/darwin-mac-ops/detector-heartbeat-watch.sh for the
 registry of watched machines and their Asana state cards. For geo-buypath-watch: the detector is the
-cloud scheduled task 'Daily buy-path geo check — SF + ATX' (trig_01NFe9etvXZwgEVNTayL5xbH, cron
-15 12 * * *); check whether it fired and whether it wrote its <!--STATE--> marker back to Asana card
-1217003763638321. You can run the probe yourself right now from anywhere:
+n8n workflow 'Daily Buy-Path Geo Check (SF + ATX)' (GeoBuyPathWtch01, daily 7AM CT on the n8n
+Linode). MIGRATED 2026-08-13 off the Claude App scheduled task trig_01NFe9etvXZwgEVNTayL5xbH, which
+is now DISABLED — do not go looking for it. Check the n8n execution first:
+  ssh claudeApp@10.10.10.1 'sudo docker exec n8n-postgres-1 psql -U n8n -d n8n -c \"SELECT id,status,\\\"startedAt\\\" FROM execution_entity WHERE \\\"workflowId\\\"=$'"'"'GeoBuyPathWtch01'"'"' ORDER BY id DESC LIMIT 5\"'
+then whether it wrote its <!--STATE--> marker back to Asana card 1217003763638321.
+NOTE: a BROKEN detector deliberately does NOT write the heartbeat (so this alarm fires as well as a
+Batter's Box card) — check the box for a 'detector is BROKEN' card before assuming n8n never ran.
+You can run the probe yourself right now from anywhere:
 python3 ~/repos/shopify-theme-corpus/scripts/geo_buypath_watch.py  (stdlib only, no credentials).
+Fire-drill the whole alarm any time: n8n-stack/GEO-BUYPATH-WATCH.md §Fire drill.
 Context: AAR 2026-07-29-geo-detector-blind-spot, action A4.\"
 
 --
