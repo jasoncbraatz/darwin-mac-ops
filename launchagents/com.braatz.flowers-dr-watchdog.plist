@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.flowers-dr-watchdog — notice when the flowers DR lane stops working.
+
+  TIMELINE the schedule has to respect:
+    03:35 UTC (22:35 local CDT)  flowers writes the encrypted bundle + MANIFEST
+    04:15 LOCAL                  com.braatz.flowers-backup-pull pulls it to darwin + NAS
+    05:15 LOCAL                  THIS — an hour after the pull, so a slow 19 MB fetch
+                                 over a tired SMB mount can never be mistaken for a
+                                 dead lane. Judging a producer before it has finished
+                                 producing is how monitors earn their reputation.
+
+  Healthy = SILENT. On a bad day it files ONE State Machine card (deduped by
+  bb-card.py, so a week-long outage is still one card) — never the Batter's Box:
+  a stale backup is Claude-fixable and does not belong in Jason's inbox.
+
+  Repo-backed at ~/code/darwin-mac-ops/launchagents/ per handoff gate G-AE. A
+  launchd job that exists only on darwin's disk is one SSD failure from being
+  forgotten — a particularly ironic way to lose a backup monitor.
+
+  Install:   ~/repos/flowers/scripts/flowers-dr-watchdog.sh --install
+  Disarm:    ~/repos/flowers/scripts/flowers-dr-watchdog.sh --uninstall
+  Run now:   launchctl kickstart -k gui/$(id -u)/com.braatz.flowers-dr-watchdog
+  Safe test: ~/repos/flowers/scripts/flowers-dr-watchdog.sh --dryrun
+  Log:       ~/Library/Logs/flowers-dr-watchdog.log
+             /tmp/flowers-dr-watchdog.err   (stderr safety net)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.braatz.flowers-dr-watchdog</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jasoncbraatz/repos/flowers/scripts/flowers-dr-watchdog.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>5</integer>
+        <key>Minute</key><integer>15</integer>
+    </dict>
+
+    <!-- Do NOT run at load. Arming or reloading the agent is not evidence about the
+         backup, and a watchdog that fires on every launchctl bootstrap trains you to
+         ignore it. launchd still catches up a 05:15 missed to sleep on wake. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/flowers-dr-watchdog.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/flowers-dr-watchdog.err</string>
+
+    <!-- launchd hands jobs a minimal PATH; ssh, shasum, python3 and mount are spread
+         across all of these. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
