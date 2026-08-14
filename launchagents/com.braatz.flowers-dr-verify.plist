@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.flowers-dr-verify — actually restore the flowers backup, monthly.
+
+  The daily watchdog proves the bundle is fresh, sized right and structurally
+  plausible. Only a restore proves it RESTORES. "Reversibility you never verified
+  is not reversibility" — this is the file that stops that from being a slogan.
+
+  SCHEDULE: the 9th of each month at 06:30 local.
+    * monthly, not weekly — the drill costs ~180 MB of scratch disk and ~30 s of IO
+      on the same cluster that takes live orders. Cheap, but not free.
+    * 06:30 local lands well before the shop's day whatever weekday the 9th happens
+      to be, so it can never collide with an order rush. The on-box half is
+      deliberately not scheduled into a Friday afternoon, and a fixed early hour
+      keeps that true without needing calendar arithmetic launchd cannot express.
+    * the watchdog flags a heartbeat that has not PASSED in 40 days — monthly plus
+      grace, so one missed run (darwin asleep, NAS wedged) is tolerated and two
+      are not.
+
+  It files no cards of its own. It writes ~/flowers-dr-state/verify-heartbeat.json;
+  com.braatz.flowers-dr-watchdog reads that and does the carding. One mouth per
+  lane. If THIS job dies outright, the watchdog notices the heartbeat going stale —
+  the drill is watched by the mechanism it feeds.
+
+  Repo-backed at ~/code/darwin-mac-ops/launchagents/ per handoff gate G-AE.
+
+  Install:   ~/repos/flowers/scripts/flowers-dr-verify.sh --install
+  Disarm:    ~/repos/flowers/scripts/flowers-dr-verify.sh --uninstall
+  Run now:   launchctl kickstart -k gui/$(id -u)/com.braatz.flowers-dr-verify
+  Safe test: ~/repos/flowers/scripts/flowers-dr-verify.sh --preflight   (no restore)
+  Log:       ~/Library/Logs/flowers-dr-verify.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.braatz.flowers-dr-verify</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jasoncbraatz/repos/flowers/scripts/flowers-dr-verify.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Day</key><integer>9</integer>
+        <key>Hour</key><integer>6</integer>
+        <key>Minute</key><integer>30</integer>
+    </dict>
+
+    <!-- Never at load. This job decrypts every order in the store and pushes a
+         plaintext dump across the wire; it runs on its schedule, not because
+         somebody reloaded an agent. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- The drill is a 19 MB round trip plus a restore. Give it room, but not
+         forever: a wedged ssh should die rather than sit on the decrypted extract. -->
+    <key>ExitTimeOut</key>
+    <integer>900</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/flowers-dr-verify.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/flowers-dr-verify.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
