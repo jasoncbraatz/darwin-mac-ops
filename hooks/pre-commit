@@ -32,6 +32,21 @@ fi
 . "$LIB"
 ge_load_allow
 
+# --- the roster brake (A1, 2026-08-14; State Machine 1217468064910605) ------------
+# Deferred six sessions. Every cloud session shares ONE working tree on darwin, and
+# `git add -A` stages a sibling's half-finished edits under YOUR message; the roster's
+# OTHER hook only says so post-commit, after the damage. This refuses exactly the
+# `add -A` shape under a FRESH claim by another session, and fails OPEN on everything
+# else -- deliberately unlike the secret scan above it, whose blast radius is one
+# credential rather than every commit on a machine running 11 concurrent sessions.
+# Runs AFTER the secret scan so the security control always speaks first.
+estate_roster_brake() {
+  local b="$HOME/Scripts/roster-brake.py"
+  [ -x "$b" ] || return 0
+  python3 "$b" || return 1
+  return 0
+}
+
 TOP="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 BASE="$(basename "$TOP")"
 
@@ -43,6 +58,7 @@ while IFS= read -r -d '' p; do
 done < <(git diff --cached -z --name-only --diff-filter=ACM 2>/dev/null)
 
 if [ "${#PATHS[@]}" -eq 0 ]; then
+  estate_roster_brake || exit 1
   ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
 fi
 
@@ -90,5 +106,7 @@ if [ "$hits" -gt 0 ]; then
 WHY
   exit 1
 fi
+
+estate_roster_brake || exit 1
 
 ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
