@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.flowers-backup-pull — pull the nightly flowers DR bundle off the Linode.
+
+  The flowers Linode writes its age-encrypted bundle at 03:35 UTC (= 22:35 local CDT).
+  This runs at 04:15 LOCAL, many hours later, so it never races the producer even
+  across a DST shift or a slow dump.
+
+  A backup that lives only on the machine it protects is not a backup. This is the
+  second physical copy; the NAS leg inside the script is the third.
+
+  Repo-backed at ~/code/darwin-mac-ops/launchagents/ per handoff gate G-AE — a
+  launchd job that exists only on darwin's disk is one SSD failure from being
+  forgotten entirely, which is a strange way to run a backup system.
+
+  Install:    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.braatz.flowers-backup-pull.plist
+  Disarm:     launchctl bootout   gui/$(id -u)/com.braatz.flowers-backup-pull
+  Run now:    launchctl kickstart -k gui/$(id -u)/com.braatz.flowers-backup-pull
+  Log:        ~/Library/Logs/flowers-backup-pull.log  (script's own, structured)
+              /tmp/flowers-backup-pull.err            (stderr safety net)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.braatz.flowers-backup-pull</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jasoncbraatz/repos/flowers/scripts/flowers-backup-pull.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>4</integer>
+        <key>Minute</key><integer>15</integer>
+    </dict>
+
+    <!-- darwin is a laptop that sleeps. Without this a missed 04:15 is simply lost
+         and the off-box copy silently stops refreshing. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/flowers-backup-pull.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/flowers-backup-pull.err</string>
+
+    <!-- launchd hands jobs a minimal PATH; ssh/shasum/osascript all live in these. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
