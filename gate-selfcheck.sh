@@ -532,6 +532,53 @@ if [ -f "$CANON_GATE" ]; then
   elif ! cmp -s "$CANON_GATE" "$MIRROR_GATE"; then
     WARNS+=("HANDOFF-GATE claude-blackbook mirror is STALE — run ~/Scripts/mirror-handoff-gate.sh")
   fi
+  # --- G-L#35c · the header version must have a changelog entry (born 2026-08-15,
+  #     stateMachineRename-1). The gate's own standing rule is "header version and this entry
+  #     bumped in the SAME edit", and the file that states it keeps breaking it: v2.29's entry
+  #     fixed it once, v2.31 backfilled two more, v2.34 counted FOUR, v2.43 was backfilled by
+  #     S39 (found only while writing v2.44), and v2.55 shipped 06ba490 with a header bump and
+  #     a whole new G-AI.2 section and no entry at all (backfilled today). That is six.
+  #
+  #     The part that matters more than the count: v2.34's own changelog entry, on 2026-07-30,
+  #     diagnosed this exactly right -- "by the estate's own N>2 rule the instrument is wrong;
+  #     it already derives the max G-step letter for G-L#35b, so it is ONE GREP AWAY from also
+  #     asserting the header version has a changelog line" -- and then EJECTED IT AS A CARD.
+  #     The card sat for sixteen days and the sixth instance happened anyway. When the fix is
+  #     smaller than the card that describes it, carding it is the slower path. This is that
+  #     one grep, finally written, and it is DERIVED from the file so it cannot itself rot.
+  #     Deliberately only the CURRENT version: checking every historical version would need
+  #     the header's git history and would fire on pre-rule entries, which is how a check
+  #     earns itself a mute.
+  _hv="$(grep -m1 -oE 'Version [0-9]+\.[0-9]+' "$CANON_GATE" 2>/dev/null | sed 's/Version //')"
+  if [ -z "$_hv" ]; then
+    FAILS+=("G-L#35c CANNOT VERIFY: could not read a 'Version X.YY' line from ${CANON_GATE/#$HOME/~} header, so the changelog-entry check ran against nothing.")
+  elif ! grep -qE "^- v${_hv//./\\.} " "$CANON_GATE"; then
+    FAILS+=("G-L#35c: HANDOFF-GATE header says v$_hv but the Changelog has no '- v$_hv' entry — the 'header version and this entry bumped in the SAME edit' rule slipped — it has slipped six times before (v2.29, v2.31 x2, v2.43, v2.55), which is why this check exists. Write the entry NOW, while you still remember what changed; a backfilled entry is always thinner than the one you'd have written today.")
+  fi
+
+  # G-L#35c#drill · the control for the four lines above. Wired, not left to be remembered:
+  # gate-roster-drill.sh had been failing since 2026-08-12 with nobody noticing precisely
+  # because no gate ran it (v2.52). And this drill's FIRST cut stopped controlling ninety
+  # seconds after it was written -- it hardcoded the version into its sed, the next bump made
+  # the sed a no-op, and its "positive control" cheerfully passed an unmodified file. Every
+  # control in it now DERIVES the version, and C5 asserts gate-selfcheck.sh still contains the
+  # block the drill claims to be controlling.
+  CL_DRILL="${CL_DRILL:-$HOME/code/darwin-mac-ops/gate-changelog-drill.sh}"
+  if [ -x "$CL_DRILL" ]; then
+    _cl_out="$(bash "$CL_DRILL" 2>&1)"; _cl_rc=$?
+    case "$_cl_rc" in
+      0) : ;;  # silent on success, house style -- G-L#35c itself speaks if the gate doc is wrong
+      1) printf '%s\n' "$_cl_out" | sed 's/^/         /'
+         FAILS+=("G-L#35c#drill: a control failed, so the header/changelog check cannot be trusted this run. Run: bash ~/code/darwin-mac-ops/gate-changelog-drill.sh") ;;
+      2) printf '%s\n' "$_cl_out" | sed 's/^/         /'
+         FAILS+=("G-L#35c#drill CANNOT VERIFY: the drill could not read the gate doc. Exit 2 is NOT a pass.") ;;
+      *) FAILS+=("G-L#35c#drill: exited unexpectedly ($_cl_rc) -- treat as CANNOT VERIFY") ;;
+    esac
+  else
+    bold "=== G-L#35c#drill · control for the header/changelog check ==="
+    printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- the changelog check ran uncontrolled\n' "${CL_DRILL/#$HOME/~}"
+    FAILS+=("G-L#35c#drill CANNOT VERIFY: $CL_DRILL is missing or not executable, so nothing proved the header/changelog check can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-changelog-drill.sh")
+  fi
 else
   # acmeLedger-24: this guard had no else, so a MISSING canonical gate doc — the strictly
   # worse state than a stale mirror — was the one condition this block stayed silent for.
