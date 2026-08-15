@@ -28,6 +28,14 @@
 # =============================================================================
 set -uo pipefail
 
+# CAPTURED AT LAUNCH, ON PURPOSE. The DoD block near the triad (search: "What this repo says
+# DONE looks like") originally asked git for the repo at the moment it printed -- and by then
+# this script has walked the whole estate and cwd is somewhere else entirely, so it silently
+# printed nothing. A force function that does not fire is decoration; this one failed its own
+# lesson on its first live run. The answer to "which repo did the human mean" is fixed the
+# instant they typed the command, so capture it then.
+GATE_START_REPO="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+
 ROOTS=("$HOME/repos" "$HOME/code" "$HOME/Desktop/downloads" "$HOME/Scripts" \
        "$HOME/Desktop/downloads/model-name-recon/repos")   # nest at depth 3 — past the maxdepth-2 walk (S44)
 DEAD_VALUES=()
@@ -1655,6 +1663,25 @@ if [ "${#FAILS[@]}" -eq 0 ]; then
   # historical comments ("G-A..R/P rot..."). So DERIVE it, same as _gate_ver below. Eighth
   # instance of the COPIED-not-DERIVED family, and the second one found inside its own detector.
   if [ -n "${MAXG:-}" ]; then _grange="G-A->G-$MAXG"; else _grange="G-A->? (could not read $CANON_GATE)"; fi
+
+  # --- the definition of done, ABOVE the triad (pitchingMachine-5, 2026-08-15) ---------------
+  # The triad asks "did we capture everything / what did we learn / what did we leave better".
+  # All three are questions about the session. NONE of them asks the one question that decides
+  # whether the session should have happened at all: was any of it on the path to done? So the
+  # line goes above them, where it frames the answers instead of competing with them.
+  # Silent outside a handoff repo -- handoff_gate.py --dod exits 2 and prints nothing.
+  if [ -x "$HOME/Scripts/handoff-kit/handoff_gate.py" ] \
+     && [ -n "${GATE_START_REPO:-}" ] \
+     && [ -f "$GATE_START_REPO/docs/HANDOFF.md" ]; then
+    _dod="$(cd "$GATE_START_REPO" && python3 "$HOME/Scripts/handoff-kit/handoff_gate.py" --dod 2>/dev/null || true)"
+    if [ -n "$_dod" ]; then
+      printf '\n  ── What this repo says DONE looks like ──\n' >&2
+      printf '%s\n' "$_dod" | sed 's/^/  /' >&2
+      printf '  Answer the triad against THAT line. Work that is not on the path to it is\n' >&2
+      printf '  drift, no matter how well it was done.\n' >&2
+    fi
+  fi
+
   cat <<'TRIAD' | sed "s/@@GRANGE@@/$_grange/" >&2
 
   ── The self-review triad — answer IN WRITING before any handoff (even if Jason never asked) ──
