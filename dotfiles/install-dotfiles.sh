@@ -70,6 +70,7 @@ say() { [ "$QUIET" -eq 1 ] || printf '%s\n' "$*"; }
 # 2007's) has no associative arrays, so this is a plain list.
 MANIFEST="
 .zshenv|$HOME/.zshenv
+.zshrc|$HOME/.zshrc
 gitignore_global|$HOME/.gitignore_global
 "
 

@@ -48,6 +48,24 @@ ck "2b ~/.zshenv resolves to the repo file" "same" "$([ "$HOME/.zshenv" -ef "$DO
 ck "2c ~/.gitignore_global resolves to the repo file" "same" "$([ "$HOME/.gitignore_global" -ef "$DOTFILES_DIR/gitignore_global" ] && echo same || echo different)"
 ck "2d excludesfile now points at ~/.gitignore_global" "$HOME/.gitignore_global" "$(git config --global --includes --get core.excludesfile 2>/dev/null)"
 
+# --- 2e EVERY manifest entry, not just the ones someone remembered to name ----
+# 2b and 2c hardcode their files, so a new MANIFEST line ships with ZERO coverage.
+# That is how the next regression hides: .zshrc was added to the manifest on
+# 2026-08-15 and this drill went on reporting 17/17 without ever looking at it.
+# Derive the list from the installer instead -- add a dotfile, get a case free.
+# (acmeLedger-19; the estate's own rule: a gate you must remember to update rots.)
+man_n=0; man_bad=0
+for m_line in $(sed -n '/^MANIFEST="/,/^"$/p' "$INSTALLER" | grep '|'); do
+  m_src="${m_line%%|*}"; m_dst="${m_line#*|}"
+  [ -n "$m_src" ] || continue
+  m_dst="$(eval printf '%s' "\"$m_dst\"")"
+  man_n=$((man_n+1))
+  if [ -L "$m_dst" ] && [ "$m_dst" -ef "$DOTFILES_DIR/$m_src" ]; then :
+  else man_bad=$((man_bad+1)); say "       uncovered or broken: $m_src -> $m_dst"; fi
+done
+ck "2e every MANIFEST entry is a symlink into the repo (n=$man_n)" "0" "$man_bad"
+ck "2f the MANIFEST parsed at all (control: n>0)" "yes" "$([ "$man_n" -gt 0 ] && echo yes || echo no)"
+
 # --- 3. the rule that has bitten twice actually bites ------------------------
 mkdir -p "$T/repo" && git -C "$T/repo" init -q
 : > "$T/repo/x.py.bak.20260623"
@@ -101,5 +119,6 @@ rm -f "$HOME/.zshenv"; printf 'not ours\n' > "$HOME/.zshenv"
 "$INSTALLER" --uninstall --quiet >/dev/null 2>&1
 ck "9  uninstall leaves a file it did not install alone" "1" "$(grep -c 'not ours' "$HOME/.zshenv" 2>/dev/null || echo 0)"
 
+[ $((pass+fail)) -eq 0 ] && { printf 'dotfiles-drill: 0 checks ran -- the drill did not execute\n'; exit 2; }
 printf 'dotfiles-drill: %s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
