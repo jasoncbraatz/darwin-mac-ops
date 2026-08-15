@@ -106,5 +106,57 @@ chk "o'brien" "$(_roster_other_claimant "$S/quoted-repo")" "#8 apostrophes in na
 GATE_ROSTER_WHO="o'brien"
 chk "" "$(_roster_other_claimant "$S/quoted-repo")" "#8b ...and the self-check still matches through the escaping"
 
+
+# ── #9 · G-H#22c, attribution by FILENAME (acmeLedger-25) ────────────────────────
+# Same extract-at-runtime discipline as above: a drill carrying its own copy of the
+# logic passes forever while the real thing rots.
+sed -n '/^_paths_owned_by_sibling() {/,/^}/p' "$GATE" > "$S/fn2.sh"
+if ! grep -q 'kind=.session.' "$S/fn2.sh"; then
+  echo "  FAIL  could not extract _paths_owned_by_sibling() from $GATE (moved or renamed?)"
+  exit 1
+fi
+. "$S/fn2.sh"
+addses() { # addses <who> <expires-offset>
+  _sw="$(printf '%s' "$1" | sed "s/'/''/g")"
+  sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('$_sw','session','','t',
+    strftime('%s','now'), strftime('%s','now')+$2);"
+}
+GATE_ROSTER_WHO="opus-acmeLedger-25"
+addses opus-pitchingMachine-2 3600
+addses opus-acmeLedger-25     3600
+addses dead-oldSession-9      -3600
+
+# POSITIVE: one untracked file carrying a live sibling's slug is attributed to them.
+chk "opus-pitchingMachine-2" \
+    "$(_paths_owned_by_sibling "$REPO" '?? HANDOFF-pitchingMachine-2.md')" \
+    "#9 a file named for a live sibling is attributed to them"
+
+# NEGATIVE, and the load-bearing one: ONE unattributable path and NOTHING is attributed.
+# Otherwise a wrapping session could launder its own mess in behind a sibling's file.
+chk "" \
+    "$(printf '%s' "$(_paths_owned_by_sibling "$REPO" ' M my-own-half-finished-thing.py
+?? HANDOFF-pitchingMachine-2.md')")" \
+    "#9b one unattributable path => attribute nothing (no laundering)"
+
+# NEGATIVE: a file named for YOUR OWN session is your problem, not a sibling's.
+chk "" "$(_paths_owned_by_sibling "$REPO" '?? HANDOFF-acmeLedger-25.md')" \
+    "#9c your own slug never downgrades your own dirt"
+
+# NEGATIVE: an ENDED session's name is not a live excuse.
+chk "" "$(_paths_owned_by_sibling "$REPO" '?? notes-oldSession-9.md')" \
+    "#9d an expired session's slug does not attribute anything"
+
+# NEGATIVE: a short slug is not evidence — 'cloud-e7J2AZ14' style ids must not match
+# random substrings of ordinary filenames.
+addses xx-abc 3600
+chk "" "$(_paths_owned_by_sibling "$REPO" '?? abc.md')" \
+    "#9e a too-short session slug is not evidence"
+
+# a missing roster DB fails CLOSED here too.
+ROSTER_DB_SAVED="$_ROSTER_DB"; _ROSTER_DB="$S/does-not-exist.sqlite3"
+chk "" "$(_paths_owned_by_sibling "$REPO" '?? HANDOFF-pitchingMachine-2.md')" \
+    "#9f missing roster DB -> no attribution, no crash"
+_ROSTER_DB="$ROSTER_DB_SAVED"
+
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1

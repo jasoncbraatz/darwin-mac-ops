@@ -162,6 +162,47 @@ for _rdrill in "$HOME/Scripts/roster-ghost-drill.sh" "$HOME/Scripts/roster-ident
   fi
 done
 
+# G-H #22c (acmeLedger-25, 2026-08-15) — ATTRIBUTION BY NAME, when no repo claim covers it.
+# #22b attributes dirt by roster CLAIM on the repo. That misses the commonest multi-session
+# case there is: a sibling drops HANDOFF-<theirSlug>-N.md into the everything folder, which
+# nobody claims because nobody edits "the downloads repo" as a unit. Measured 2026-08-15:
+# opus-pitchingMachine-2's untracked HANDOFF-pitchingMachine-2.md was the ONLY thing standing
+# between a clean estate and a PASS, and the two exits G-H's own header warns about were back:
+# commit a sibling's unfinished handoff, or lie. So: if EVERY dirty path in a repo carries a
+# LIVE sibling's session slug in its basename, downgrade to WARN naming them.
+# Deliberately narrow, and fail-closed in both directions -- ONE unattributable path and the
+# whole repo stays a FAIL, so this can never launder your own mess in with theirs.
+_paths_owned_by_sibling() {   # <repo-path> <porcelain> -> claimant name, or empty
+  [ -f "$_ROSTER_DB" ] || return 0
+  command -v sqlite3 >/dev/null 2>&1 || return 0
+  local _slugs _who _p _st _hit _found="" _line
+  # session rows only: a slug is 'opus-pitchingMachine-2' and the file says 'pitchingMachine-2',
+  # so strip the tier prefix. Skip our own identity and slugs too short to be evidence.
+  _slugs="$(sqlite3 "$_ROSTER_DB" \
+     "SELECT who FROM roster WHERE kind='session' AND expires > strftime('%s','now');" 2>/dev/null)"
+  [ -n "$_slugs" ] || return 0
+  while IFS= read -r _line; do
+    [ -n "$_line" ] || continue
+    _p="${_line:3}"; _p="${_p##* -> }"; _p="${_p%\"}"; _p="${_p#\"}"
+    _p="$(basename "$_p")"
+    _hit=""
+    while IFS= read -r _who; do
+      [ -n "$_who" ] || continue
+      [ "$_who" = "${GATE_ROSTER_WHO:-}" ] && continue
+      _slug="${_who#*-}"                      # opus-pitchingMachine-2 -> pitchingMachine-2
+      [ "${#_slug}" -ge 8 ] || continue        # too short to be evidence of anything
+      case "$_p" in *"$_slug"*) _hit="$_who"; break ;; esac
+    done <<EOF_SLUGS
+$_slugs
+EOF_SLUGS
+    [ -n "$_hit" ] || return 0                 # one unattributable path => attribute nothing
+    _found="$_hit"
+  done <<EOF_DIRT
+$2
+EOF_DIRT
+  printf '%s' "$_found"
+}
+
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
@@ -189,7 +230,14 @@ for repo in "${REPOS[@]}"; do
       fi
       [ "$level" = ok ] && level="WARN"
     else
-      flags="$flags DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); level="FAIL"
+      _owner="$(_paths_owned_by_sibling "$repo" "$dirty")"
+      if [ -n "$_owner" ]; then
+        flags="$flags DIRTY($nd,named:$_owner)"
+        WARNS+=("$name: $nd uncommitted change(s) — every path names LIVE session '$_owner' (G-H#22c attribution by filename, no repo claim covers it). Do NOT commit it. Verify: ~/Scripts/roster who")
+        [ "$level" = ok ] && level="WARN"
+      else
+        flags="$flags DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); level="FAIL"
+      fi
     fi
   fi
   if [ "$ahead" -gt 0 ]; then
