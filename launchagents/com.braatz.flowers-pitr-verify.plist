@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.flowers-pitr-verify — actually REPLAY the flowers WAL archive, monthly.
+
+  flowers-wal-archive.sh --install proves segments still ARCHIVE. flowers-dr-watchdog
+  §9 proves the lane is still armed. com.braatz.flowers-dr-verify proves the nightly
+  DUMP restores. None of them proves the archived segments REPLAY onto the basebackup
+  and STOP where they are told, which is the only thing a PITR lane is for.
+
+  This job writes three canary rows straddling a recovery target, replays the off-box
+  copy TWICE — once bounded at that target, once with no target at all — and requires
+  the post-target rows to be ABSENT from the first and PRESENT in the second. The
+  second replay is the positive control: without it, a lane that had silently stopped
+  carrying post-target WAL would pass the first check for entirely the wrong reason.
+  A negative control proves consistency; only a positive control proves sensitivity.
+
+  SCHEDULE: the 16th of each month at 06:45 local.
+    * the 16th, not the 9th — com.braatz.flowers-dr-verify owns the 9th, and two
+      drills sharing a cluster's IO on one morning is a self-inflicted incident.
+      A week apart also means a lane that breaks mid-month is found mid-month.
+    * 06:45 local lands well before the shop's day on whatever weekday the 16th
+      happens to be, so it can never collide with an order rush.
+    * monthly, not weekly: the drill ships ~60 MB and spends ~30 s of IO on the same
+      cluster that takes live orders. Cheap, but not free.
+    * the watchdog flags a heartbeat that has not PASSED in 40 days — monthly plus
+      grace, so one missed run (darwin asleep, the Linode rebooting) is tolerated
+      and two are not.
+
+  WHAT IT TOUCHES IN PRODUCTION: one table (public.pitr_canary), three rows, two
+  pg_switch_wal() calls, and an EXIT trap that drops the table again. The restore
+  itself happens in a throwaway cluster on port 5433 and never goes near the live
+  one. That is the entire footprint, stated plainly because a drill that fibs about
+  its own blast radius is worse than no drill.
+
+  It files no cards of its own. It writes ~/flowers-dr-state/pitr-verify-heartbeat.json;
+  com.braatz.flowers-dr-watchdog §10 reads that and does the carding. One mouth per
+  lane. If THIS job dies outright, the watchdog notices the heartbeat going stale —
+  the drill is watched by the mechanism it feeds.
+
+  Repo-backed at ~/code/darwin-mac-ops/launchagents/ per handoff gate G-AE.
+
+  Install:   ~/repos/flowers/scripts/flowers-pitr-verify.sh --install
+  Disarm:    ~/repos/flowers/scripts/flowers-pitr-verify.sh --uninstall
+  Run now:   launchctl kickstart -k gui/$(id -u)/com.braatz.flowers-pitr-verify
+  Safe test: ~/repos/flowers/scripts/flowers-pitr-verify.sh --preflight  (offline; no
+             pull, no ssh, no canary — it judges only what darwin already holds)
+  Log:       ~/Library/Logs/flowers-pitr-verify.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.braatz.flowers-pitr-verify</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jasoncbraatz/repos/flowers/scripts/flowers-pitr-verify.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Day</key><integer>16</integer>
+        <key>Hour</key><integer>6</integer>
+        <key>Minute</key><integer>45</integer>
+    </dict>
+
+    <!-- Never at load. This job decrypts a physical copy of the entire order database
+         and writes to production to bound the replay; it runs on its schedule, not
+         because somebody reloaded an agent. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- Two pulls, ~60 MB up the wire and two full replays. Give it room — but not
+         forever: a wedged ssh should die rather than sit on decrypted orders, and the
+         EXIT trap only fires if the process is allowed to end. -->
+    <key>ExitTimeOut</key>
+    <integer>2400</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/flowers-pitr-verify.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/flowers-pitr-verify.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- launchd hands a job a PATH that has never heard of Homebrew, and this drill
+             needs age, gunzip and shasum. A stripped PATH is how the sibling lane's
+             archive_command failed on every segment at once. -->
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
