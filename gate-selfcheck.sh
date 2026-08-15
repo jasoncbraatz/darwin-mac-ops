@@ -910,20 +910,65 @@ fi
 # ~/Library/LaunchAgents dies with the SSD, and the loss is SILENT: a job that never
 # runs looks exactly like a job with nothing to say. S38 found 7 unbacked schedules --
 # including the AAR gate itself and, with a straight face, the spine-backup job whose
-# own schedule was not backed up. launchd-census.sh proves every LOADED com.braatz.* /
-# com.strikezone.* job has its plist in a git repo. Read-only; exit 1 on drift.
+# own schedule was not backed up. launchd-census.sh proves every LOADED estate job has its
+# plist in a git repo. Read-only; exit 1 on drift.
+#
+# WIDENED 2026-08-15 (acmeLedger-23). acmeLedger-22 proved this step still SPEAKS when its
+# instrument is gone. The next question is whether the instrument that speaks is aimed at the
+# subject the banner names -- and it was not, three ways. The census enumerated
+# `com.braatz|com.strikezone` and called that "every loaded job", so com.user.ttyd (loaded,
+# KeepAlive, a writable shell on *:7681) had never been in the subject at all; it tested that a
+# file of the right NAME existed in a repo, never that the file would reproduce the job, so
+# ~/repos/ttyd-darwin's copy could omit the `-c` credential and still read as backed; and
+# `find | head -1` picked the backing arbitrarily among three copies, one of them a stale nested
+# clone under ~/Desktop/downloads. Widening the census surfaced a second live divergence within
+# a minute: com.braatz.dsh-fire-poller's vault copy still pointed at /bin/bash, 15 days after the
+# live job was FDA-scoped to an app bundle -- restoring it would have quietly undone the scoping.
+# So rc=3 (DIVERGED) is now its own outcome with its own remedy, and the census's own drill runs
+# here, because acmeLedger-22 learned the hard way that wiring a drill in is when you find out
+# the drill was broken. (It was: D3's fixture used $WORK/downloads and passed for free.)
 CENSUS="${CENSUS:-$HOME/Scripts/launchd-census.sh}"   # overridable so the CANNOT-VERIFY branch is drillable
+CENSUS_DRILL="${CENSUS_DRILL:-$HOME/code/darwin-mac-ops/launchd-census-drill.sh}"
 if [ -x "$CENSUS" ]; then
   bold "=== G-AE . launchd schedule backing (every loaded job's plist is repo-backed) ==="
   _census_out="$(bash "$CENSUS" 2>&1)"; _census_rc=$?
   _census_line="$(printf '%s\n' "$_census_out" | grep -E '^launchd-census:' | tail -1)"
   [ -z "$_census_line" ] && _census_line="launchd-census produced no summary line (rc=$_census_rc)"
-  if [ "$_census_rc" -eq 0 ]; then
-    printf '  ok     %s\n' "$_census_line"
+  case "$_census_rc" in
+    0) printf '  ok     %s\n' "$_census_line" ;;
+    3) # BACKED BUT DIVERGED. Distinct remedy from unbacked: the plist IS committed, it just
+       # would not reproduce the running job. Telling someone to "commit the plist" here sends
+       # them looking for a file that is already there.
+       printf '  FAIL   %s\n' "$_census_line"
+       printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
+       FAILS+=("G-AE: $_census_line -> a vault copy would NOT reproduce the running job. Reconcile the two (usually: copy the live plist over the repo copy and commit), or ratify the difference WITH A REASON in ~/code/darwin-mac-ops/launchd-divergence-allowlist.txt -- and a divergence is only ratifiable if restoring WITHOUT the missing piece fails CLOSED. Census: bash ~/Scripts/launchd-census.sh") ;;
+    2) printf '  FAIL   %s\n' "$_census_line"
+       printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
+       FAILS+=("G-AE CANNOT VERIFY: the census could not enumerate (rc=2), or classified every loaded job as foreign and none as estate -- which means the filter is broken, not the estate empty. Exit 2 is NOT a pass. Check ~/code/darwin-mac-ops/launchd-foreign-allowlist.txt for an over-broad glob.") ;;
+    *) printf '  FAIL   %s\n' "$_census_line"
+       printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
+       FAILS+=("G-AE: $_census_line -> commit the plist into a repo (~/code/darwin-mac-ops/launchagents/ is the usual home) and re-run, or bootout+disable the job if it is dead. Census: bash ~/Scripts/launchd-census.sh") ;;
+  esac
+
+  # G-AE#drill -- the census's own control, run here rather than trusted. Same reasoning as
+  # G-H#drill and G-AI: a drill nobody runs is a comment. It is fixture-only (LC_* overrides),
+  # installs nothing, and never touches ~/Library/LaunchAgents.
+  if [ -x "$CENSUS_DRILL" ]; then
+    bold "=== G-AE#drill · the census's own control (fixture-only, installs nothing) ==="
+    _cd_out="$(bash "$CENSUS_DRILL" 2>&1)"; _cd_rc=$?
+    _cd_line="$(printf '%s\n' "$_cd_out" | grep -E '^launchd-census-drill:' | tail -1)"
+    [ -z "$_cd_line" ] && _cd_line="the drill produced no summary line (rc=$_cd_rc)"
+    if [ "$_cd_rc" -eq 0 ]; then
+      printf '  ok     G-AE#drill  %s\n' "$_cd_line"
+    else
+      printf '  FAIL   G-AE#drill  %s\n' "$_cd_line"
+      printf '%s\n' "$_cd_out" | grep -E '^  FAIL' | sed 's/^/         /'
+      FAILS+=("G-AE#drill: the census's own control is RED ($_cd_line) -- so this run's G-AE verdict, pass or fail, is unproven. Detail: bash ~/code/darwin-mac-ops/launchd-census-drill.sh")
+    fi
   else
-    printf '  FAIL   %s\n' "$_census_line"
-    printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
-    FAILS+=("G-AE: $_census_line -> commit the plist into a repo (~/code/darwin-mac-ops/launchagents/ is the usual home) and re-run, or bootout+disable the job if it is dead. Census: bash ~/Scripts/launchd-census.sh")
+    bold "=== G-AE#drill · the census's own control (fixture-only, installs nothing) ==="
+    printf '  WARN   CANNOT VERIFY: %s is missing or not executable\n' "${CENSUS_DRILL/#$HOME/~}"
+    WARNS+=("G-AE#drill CANNOT VERIFY: $CENSUS_DRILL is missing, so nothing checked whether the census can still tell a stale vault copy from a good one. Restore it: git -C ~/code/darwin-mac-ops checkout -- launchd-census-drill.sh")
   fi
 else
   # See the G-AD else-branch for why this exists. WARN rather than FAIL: an unbacked plist is a

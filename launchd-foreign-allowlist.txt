@@ -1,0 +1,25 @@
+# launchd-foreign-allowlist.txt — loaded jobs that are NOT ours to back up.
+#
+# Read by launchd-census.sh. One shell glob per line; text after # is the REASON and is
+# required by convention, not by the parser — an entry without one is a future Claude's
+# unanswerable question. Same shape as claude-blackbook/scripts/bb-writers-allowlist.json.
+#
+# WHY AN ALLOWLIST OF THE FOREIGN RATHER THAN A FILTER FOR THE FAMILIAR (acmeLedger-23,
+# 2026-08-15). The census used to enumerate `com.braatz|com.strikezone` and call that "every
+# loaded job". Those were the two namespaces that existed the day it was written. `com.user.ttyd`
+# — loaded, KeepAlive, a writable shell on *:7681 — sat outside both for eight days while the
+# census reported a clean bill of health for a set that did not contain it. A filter naming what
+# we know fails OPEN on what we add next; an allowlist naming what is foreign fails CLOSED,
+# because anything unrecognised lands in ESTATE and has to be backed or explicitly excused here.
+#
+# So: adding a job under a brand-new namespace makes this census go RED until someone says why.
+# That is the intended cost. Do not add a `com.*` glob here to quiet it — back the plist instead.
+
+com.adobe.*                     # Creative Cloud / Acrobat vendor agents, installed by Adobe
+com.anthropic.claudefordesktop.*  # Claude desktop app auto-updater (ShipIt), vendor-installed
+com.autodesk.*                  # Fusion 360 vendor agent
+com.docker.*                    # Docker Desktop vendor helper
+com.google.*                    # GoogleUpdater / Keystone, vendor-installed
+com.openssh.*                   # system ssh-agent
+com.wireguard.macos.*           # WireGuard app's own login-item helper. NOTE: com.braatz.wg-keepalive
+                                # IS ours and is deliberately NOT covered by this glob.

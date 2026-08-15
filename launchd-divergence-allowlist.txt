@@ -1,0 +1,21 @@
+# launchd-divergence-allowlist.txt — jobs whose vault copy deliberately differs from the live one.
+#
+# Read by launchd-census.sh. One shell glob per line; the text after # is the REASON.
+#
+# WHY THIS FILE EXISTS (acmeLedger-23, 2026-08-15). The census used to call a job "repo-backed"
+# when a file of the same name existed inside some git repo. It never opened either file, so
+# "backed" and "would actually reproduce this job on a rebuilt Mac" were the same green line.
+# They are not the same thing, and the gap has a direction: a vault copy is usually SMALLER than
+# the live one, because the parts we strip are secrets.
+#
+# THE BAR FOR AN ENTRY HERE, and it is a high one: a ratified divergence is only legitimate if
+# restoring the vault copy WITHOUT the missing piece fails CLOSED. If the stripped-down copy
+# still starts, and starts less safely, that is not a ratification — that is the bug, and the
+# fix is an installer that refuses to run without the missing piece.
+
+com.user.ttyd    # The live plist carries `-c jason:<secret>`; the committed copy in
+                 # ~/repos/ttyd-darwin must not. Ratified ONLY because install-ttyd.sh now
+                 # refuses to install a `-W` (writable) shell without a credential, so a
+                 # rebuild cannot reproduce the auth-less web shell the bare plist describes.
+                 # Ratified by opus-acmeLedger-23 after shipping that installer — the
+                 # ratification and the fail-closed guarantee landed in the same commit.
