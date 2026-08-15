@@ -1447,6 +1447,52 @@ else
   FAILS+=("G-AJ CANNOT VERIFY: $ND_CHECK is missing or not executable, so no front door was checked for retired names. Restore it: git -C ~/code/darwin-mac-ops checkout -- name-drift-check.sh")
 fi
 
+# -- G-AK · a ratification is re-read (born 2026-08-15, acmeLedger-25) -----------------
+# Every exception record in this estate fails CLOSED at authoring time and not one of them
+# had an expiry. -22 found controls that print nothing when unplugged; -23 controls aimed
+# at the wrong set; -24 a control whose subject was an allowlist of the familiar. This is
+# the next turn: the exceptions those controls grant, which nothing ever re-read. A dead
+# allowlist entry suppresses nothing, so it prints nothing, so nobody learns it died --
+# and it is fail-open in the FUTURE tense, pre-authorising whatever lands at that path
+# next under a reason written for something else.
+RAT_CENSUS="${RAT_CENSUS:-$HOME/code/darwin-mac-ops/ratification-census.sh}"
+if [ -x "$RAT_CENSUS" ]; then
+  _rc_out="$(bash "$RAT_CENSUS" 2>&1)"; _rc_rc=$?
+  case "$_rc_rc" in
+    0) : ;;  # every ratification still describes something true. Success is silent.
+    1) bold "=== G-AK · every ratification still describes something true ==="
+       printf '%s\n' "$_rc_out" | sed 's/^/         /'
+       FAILS+=("G-AK: an exception record excuses a subject that no longer exists, OR a record shape was found that the census cannot check (it fails CLOSED on purpose). Retire the dead entry, or teach the census. Detail: bash ~/code/darwin-mac-ops/ratification-census.sh") ;;
+    2) bold "=== G-AK · every ratification still describes something true ==="
+       printf '%s\n' "$_rc_out" | sed 's/^/         /'
+       FAILS+=("G-AK CANNOT VERIFY: a subject enumeration came back empty (zero launchd labels, zero files, zero repos) or a delegate was missing, so a clean report would mean nothing. Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/ratification-census.sh") ;;
+    *) FAILS+=("G-AK: ratification-census.sh exited unexpectedly ($_rc_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  # G-AI requires this else, and G-AK is about exceptions that stop being true -- a step
+  # about rot that could itself rot away silently would be the joke telling itself.
+  bold "=== G-AK · every ratification still describes something true ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- ZERO exception records were re-read\n' "${RAT_CENSUS/#$HOME/~}"
+  FAILS+=("G-AK CANNOT VERIFY: $RAT_CENSUS is missing or not executable, so not one allowlist entry, baseline row or inline ratification was checked against reality. Restore it: git -C ~/code/darwin-mac-ops checkout -- ratification-census.sh")
+fi
+
+# -- G-AK#drill · the census can still go red (run its controls, do not trust them) -----
+RAT_DRILL="${RAT_DRILL:-$HOME/code/darwin-mac-ops/ratification-census-drill.sh}"
+if [ -x "$RAT_DRILL" ]; then
+  _rd_out="$(bash "$RAT_DRILL" 2>&1)"; _rd_rc=$?
+  case "$_rd_rc" in
+    0) : ;;
+    *) bold "=== G-AK#drill · the ratification census can still go red ==="
+       printf '%s\n' "$_rd_out" | sed 's/^/         /'
+       FAILS+=("G-AK#drill: the ratification census failed its own controls ($_rd_rc) -- a census that can no longer report a stale entry is decorative, and a decorative control is indistinguishable from a passing one. Run: bash ~/code/darwin-mac-ops/ratification-census-drill.sh") ;;
+  esac
+else
+  bold "=== G-AK#drill · the ratification census can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- the census went unproven this run\n' "${RAT_DRILL/#$HOME/~}"
+  FAILS+=("G-AK#drill CANNOT VERIFY: $RAT_DRILL is missing or not executable, so nothing proved the census can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- ratification-census-drill.sh")
+fi
+
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate
