@@ -572,8 +572,21 @@ if [ -f "$CANON_GATE" ]; then
     r=$(gstep_rank "$g"); [ "$r" -gt "$MAXR" ] && { MAXR=$r; MAXG=$g; }
   done < <(grep -oE '^## G-[A-Z]{1,2}\b' "$CANON_GATE" | sed 's/.*G-//')
   if [ -n "$MAXG" ]; then
-    for RF in "$CANON_GATE" "$HOME/repos/claude-blackbook/lessons.py" "$HOME/Desktop/downloads/CLAUDE.md" "$HOME/repos/strike-zone/docs/HANDOFF-PROMPT.md"; do
-      [ -f "$RF" ] || continue
+    # Scope grew from four to SIX on 2026-08-15 (stateMachineRename-1). AGENTS.md -- the
+    # Codex-facing twin of CLAUDE.md, same doctrine, different reader -- was never in the list
+    # and had rotted to "G-A→G-U", TWENTY-FOUR letters stale, while its sibling one file over
+    # was kept current by this very check. It was invisible to the drift detector for the same
+    # reason it was invisible to git (no allowlist line, fixed in the same pass): nobody had
+    # written its name down anywhere. STANDING-BRIEF-CURRENT.md joins for the same reason, and
+    # it is the harder case to argue away -- it hedges with "the version moves; trust the file,
+    # not this line", and it was still four letters stale. A hedge is not a detector.
+    for RF in "$CANON_GATE" "$HOME/repos/claude-blackbook/lessons.py" "$HOME/Desktop/downloads/CLAUDE.md" "$HOME/Desktop/downloads/AGENTS.md" "$HOME/Desktop/downloads/STANDING-BRIEF-CURRENT.md" "$HOME/repos/strike-zone/docs/HANDOFF-PROMPT.md"; do
+      # A named front door that is GONE used to `continue` in silence -- the vanishing-instrument
+      # class (G-AI) applied to the subject rather than the tool. Say so instead.
+      if [ ! -f "$RF" ]; then
+        FAILS+=("gate range-ref drift CANNOT VERIFY: named front door ${RF/#$HOME/~} is missing, so its range statement was not checked. A door that is not there cannot be certified honest.")
+        continue
+      fi
       if [ "$RF" = "$CANON_GATE" ]; then CONTENT=$(awk '/^## Changelog/{exit} {print}' "$RF"); else CONTENT=$(cat "$RF"); fi
       while IFS= read -r m; do
         # The END of the range is whatever follows the SEPARATOR -- not the last letter (which
@@ -590,7 +603,9 @@ if [ -f "$CANON_GATE" ]; then
           # accumulates, and this one had accumulated across a version bump whose whole point
           # was a new letter. The remedy is one perl -pi -e per front door, so blocking costs
           # minutes while not blocking costs a front door that lies to a zero-memory session.
-          # Scope unchanged: the four named front doors only, gate changelog still excluded.
+          # Scope: the SIX named front doors (four until 2026-08-15 — see the comment above the
+          # loop for why AGENTS.md and STANDING-BRIEF-CURRENT.md joined); gate changelog still
+          # excluded by design, since it quotes historical ranges on purpose.
           FAILS+=("gate range-ref drift: ${RF/#$HOME/~} cites 'G-A..$endp' but the gate documents through G-$MAXG — update the live range statement (one perl -pi -e per front door; BLOCKER since S42)")
         fi
       done < <(printf '%s\n' "$CONTENT" | grep -hoE 'G-A *(\.\.|->|→|through)+ *(G-)?[A-Z]{1,2}')
