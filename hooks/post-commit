@@ -24,4 +24,15 @@ if [ -n "${DARLISH_SESSION:-}" ] && [ -x "$HOME/Scripts/roster-oncommit.py" ]; t
   python3 "$HOME/Scripts/roster-oncommit.py" 2>&1 >/dev/null || true
 fi
 
+# --- the definition-of-done force function (pitchingMachine-5, 2026-08-15) -------------------
+# Prints "DONE = <the one checkable sentence>" after every commit in a repo that HAS a handoff,
+# and NOTHING AT ALL in the ~100 repos that do not. This is the only DoD surface that fires
+# during the work rather than at its boundaries, which is where drift actually starts: you are
+# never more honest about what you are building than in the commit you just made.
+# Deliberately NOT gated on DARLISH_SESSION -- Jason at his own terminal needs it as much as a
+# cloud session does, arguably more.
+if [ -x "$HOME/Scripts/dod-echo.py" ]; then
+  python3 "$HOME/Scripts/dod-echo.py" 2>/dev/null || true
+fi
+
 ESTATE_HOOK_NAME=post-commit exec "$HOOK_DIR/_chain.sh" "$@"
