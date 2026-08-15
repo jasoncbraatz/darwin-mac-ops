@@ -1,0 +1,16 @@
+# project-charters.tsv — every multi-session project must say what DONE looks like.
+#
+# Registered here, a project gets a force function: charter-read.sh prints its board at
+# student-in and stamps the session ledger, and gate step G-AL FAILs at wrap for a session
+# that never read it. Unregistered projects are reported by G-AL as a WARN, never silence --
+# "no definition of done" is a finding, not a default.
+#
+# COLUMNS (tab-separated):
+#   project-key <TAB> repo <TAB> criteria-file <TAB> brief-command
+#
+# The key is matched loosely: a session slug has its trailing -NN stripped, is lowercased,
+# and non-alphanumerics are dropped. So acmeLedger-26, acme-ledger-25 and acmeledger all
+# resolve to the same row. (The estate learned this the hard way -- braatzio-plan was once
+# acme-ledger-plan, the session IDs never changed, and a path symlink papers over the rest.)
+
+acmeLedger	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/v3/done-criteria.tsv	python3 $HOME/repos/braatzio-plan/v3/tools/gen-done.py --brief

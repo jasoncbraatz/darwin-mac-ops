@@ -1541,6 +1541,111 @@ else
 fi
 
 
+# -- G-AL · the session knew what DONE looks like (born 2026-08-15, acmeLedger-25b) -----
+# Jason's ruling, in session: "if we all agree on what done looks like it's much harder for
+# a session to wander off the reservation, since it knows up front what piece it's working
+# on in the final puzzle."
+#
+# It was earned by measurement, not theory. braatzio-plan's ARCHITECTURE.md has been RATIFIED
+# since 2026-08-14 with REQ-1..10 binding and a Layer 0-3 build order. Handoffs acmeLedger-07
+# through -20 all cite it. Handoffs -21 through -25 cite NOTHING -- five consecutive sessions
+# worked without opening the document that defines done, and the thread drifted off the ladder
+# into estate control-hardening (real work, and REQ-5 covers it, but it is not a layer).
+# Nobody noticed for five sessions. Meanwhile L0a's done-when -- "blast-radius rows 1-4 have
+# passing tests" -- was marked "carried to acmeLedger-07" and was still carried EIGHTEEN
+# sessions later, with zero implementation files for the coax spine anywhere in the repo.
+#
+# The estate had ~39 gate steps auditing whether DOCUMENTS were current and not one asking
+# whether the WORK was aimed at the project's own stated finish line. Same family as G-AE and
+# G-AK: the instrument was fine, nobody had pointed it at the subject.
+#
+# So: charter-read.sh prints the board at student-in and stamps the session ledger with the
+# criteria file's SHA. This checks the stamp. The SHA matters -- reading a charter that has
+# since been amended does not count, because you read a different document than the one now
+# in force.
+CHARTER_READ="${CHARTER_READ:-$HOME/Scripts/charter-read.sh}"
+CHARTER_REG="${PROJECT_CHARTERS:-$HOME/code/darwin-mac-ops/project-charters.tsv}"
+if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
+  _ch_tag="$(cat "$SESSION_STATE/current" 2>/dev/null || true)"
+  _ch_key="$(printf '%s' "$_ch_tag" | sed -E 's/-[0-9]+[a-z]?$//' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
+  if [ -z "$_ch_tag" ]; then
+    bold "=== G-AL · the session knew what DONE looks like ==="
+    printf '  WARN   CANNOT VERIFY: no current session tag, so no project charter was checked\n'
+    WARNS+=("G-AL CANNOT VERIFY: $SESSION_STATE/current is empty or missing, so nothing could tell which project this session belongs to, let alone whether it read that project's definition of done. Open one: ~/Scripts/session-in <slug>")
+  else
+    _ch_row=""
+    while IFS=$'\t' read -r _k _repo _crit _brief; do
+      case "$_k" in ''|'#'*) continue ;; esac
+      _kn="$(printf '%s' "$_k" | sed -E 's/-[0-9]+[a-z]?$//' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
+      [ "$_kn" = "$_ch_key" ] && { _ch_row="$_k"; _ch_crit="$(eval printf '%s' "$_crit")"; break; }
+    done < "$CHARTER_REG"
+    if [ -z "$_ch_row" ]; then
+      # NOT silence. A multi-session project with no written definition of done is the very
+      # condition this step exists to surface -- it is how -21..-25 happened.
+      bold "=== G-AL · the session knew what DONE looks like ==="
+      printf '  warn   no charter registered for project %s\n' "$_ch_key"
+      WARNS+=("G-AL: project '$_ch_key' has no row in ${CHARTER_REG/#$HOME/~}, so nobody has written down what DONE looks like for it. Multi-session projects drift without one -- acmeLedger lost five sessions to exactly this. Write the criteria and register them.")
+    elif [ ! -f "$_ch_crit" ]; then
+      bold "=== G-AL · the session knew what DONE looks like ==="
+      printf '  FAIL   CANNOT VERIFY: %s criteria file %s is missing\n' "$_ch_row" "${_ch_crit/#$HOME/~}"
+      FAILS+=("G-AL CANNOT VERIFY: $_ch_row's criteria file $_ch_crit is missing, so this session could not have read a definition of done and nothing can reconstruct one. A project whose finish line has vanished is in a worse state than one that never had it.")
+    else
+      _ch_sha="$(shasum -a 256 "$_ch_crit" | cut -c1-12)"
+      _ch_log="$SESSION_STATE/$_ch_tag.log"
+      if grep -q "^CHARTER $_ch_row $_ch_sha " "$_ch_log" 2>/dev/null; then
+        : ;  # read the charter in force. Success is silent.
+      elif grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null; then
+        bold "=== G-AL · the session knew what DONE looks like ==="
+        printf '  FAIL   charter was read, but at a DIFFERENT version than the one now in force (%s)\n' "$_ch_sha"
+        FAILS+=("G-AL: this session stamped a charter read for '$_ch_row' at a different SHA than $_ch_crit carries now ($_ch_sha) -- the definition of done was amended after you read it, so you have been working toward a finish line that moved. Re-read it: ~/Scripts/charter-read.sh")
+      else
+        bold "=== G-AL · the session knew what DONE looks like ==="
+        printf '  FAIL   %s never read its charter this session\n' "$_ch_tag"
+        FAILS+=("G-AL: session '$_ch_tag' belongs to project '$_ch_row' but never read its definition of done, so it cannot say which piece of the finished puzzle it built. Read it (it takes ten seconds): ~/Scripts/charter-read.sh")
+      fi
+      # And the board itself must not be stale: a lane that closed -- or RE-OPENED -- since
+      # the last commit means the doc in the repo describes a world that moved on.
+      _ch_gen="$(dirname "$_ch_crit")/tools/gen-done.py"
+      if [ -f "$_ch_gen" ]; then
+        _ch_out="$(/usr/bin/python3 "$_ch_gen" --check 2>&1)"; _ch_rc=$?
+        case "$_ch_rc" in
+          0) : ;;
+          1) bold "=== G-AL#board · the generated DONE board is stale ==="
+             printf '%s\n' "$_ch_out" | sed 's/^/         /'
+             FAILS+=("G-AL#board: a lane changed status since DONE.md was generated -- the committed board describes a world that moved on. Regenerate and commit: python3 ${_ch_gen/#$HOME/~}") ;;
+          *) bold "=== G-AL#board · the generated DONE board is stale ==="
+             printf '%s\n' "$_ch_out" | sed 's/^/         /'
+             FAILS+=("G-AL#board CANNOT VERIFY: the board generator exited $_ch_rc (missing or empty criteria). An empty board must never read as a finished project. Run: python3 ${_ch_gen/#$HOME/~}") ;;
+        esac
+      else
+        FAILS+=("G-AL#board CANNOT VERIFY: $_ch_gen is missing, so DONE.md is a hand-maintained state doc -- which ARCHITECTURE.md §12 forbids precisely because it rots with a straight face.")
+      fi
+    fi
+  fi
+else
+  bold "=== G-AL · the session knew what DONE looks like ==="
+  printf '  FAIL   CANNOT VERIFY: %s or %s missing -- no project charter was checked\n' \
+     "${CHARTER_READ/#$HOME/~}" "${CHARTER_REG/#$HOME/~}"
+  FAILS+=("G-AL CANNOT VERIFY: $CHARTER_READ or $CHARTER_REG is missing, so NO project on this machine was asked whether its session knew what done looks like. Restore: git -C ~/code/darwin-mac-ops checkout -- project-charters.tsv; git -C ~/Scripts checkout -- charter-read.sh")
+fi
+
+# -- G-AL#drill · the charter check can still go red -----------------------------------
+CHARTER_DRILL="${CHARTER_DRILL:-$HOME/code/darwin-mac-ops/gate-charter-drill.sh}"
+if [ -x "$CHARTER_DRILL" ]; then
+  _cd_out="$(bash "$CHARTER_DRILL" 2>&1)"; _cd_rc=$?
+  case "$_cd_rc" in
+    0) : ;;
+    *) bold "=== G-AL#drill · the charter force function can still go red ==="
+       printf '%s\n' "$_cd_out" | sed 's/^/         /'
+       FAILS+=("G-AL#drill: the charter force function failed its own controls ($_cd_rc). A drift check that can no longer report drift is decorative. Run: bash ~/code/darwin-mac-ops/gate-charter-drill.sh") ;;
+  esac
+else
+  bold "=== G-AL#drill · the charter force function can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing -- G-AL ran uncontrolled this session\n' "${CHARTER_DRILL/#$HOME/~}"
+  FAILS+=("G-AL#drill CANNOT VERIFY: $CHARTER_DRILL is missing or not executable, so nothing proved G-AL can still go red. Restore: git -C ~/code/darwin-mac-ops checkout -- gate-charter-drill.sh")
+fi
+
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate
