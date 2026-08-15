@@ -57,9 +57,24 @@ add sibling      n8n-stack       3600      # live claim by someone else
 add me           other-repo      3600
 add ghost        expired-repo    -3600     # already expired
 
-# 1 — the default: no GATE_ROSTER_WHO, nothing is EVER downgraded.
+# 1 — no GATE_ROSTER_WHO: EVERY live claim is reported. This assertion was inverted on
+# 2026-08-15 (opus-acmeLedger-21) because the CODE was deliberately inverted on 2026-08-12
+# (1979d80): the old contract "no identity -> never downgrade" failed OPEN, and the gate came
+# within one obedient step of committing a sibling's half-written paragraph. The new contract
+# is that an unknown identity makes the check MORE cautious, not less — we cannot prove a
+# claim is someone else's, so we surface it and let the human decide.
+#
+# THE DRILL HAD BEEN RED FOR THREE DAYS AND NOBODY SAW IT, because nothing ran it. That is
+# why gate-selfcheck.sh now runs this drill as G-H#drill. A drill that is not in a gate is a
+# note, not a control.
 unset GATE_ROSTER_WHO
-chk "" "$(_roster_other_claimant "$REPO")" "#1 no GATE_ROSTER_WHO -> no downgrade (byte-identical to pre-S46)"
+chk "sibling" "$(_roster_other_claimant "$REPO")" "#1 no GATE_ROSTER_WHO -> EVERY live claim is reported (fail-safe, post-1979d80)"
+
+# 1b — and with no identity, even a claim in what would be YOUR name is reported. Without an
+# identity there is no 'your'. This is the deliberate over-report, pinned so that a future
+# 'optimisation' restoring the self-exemption without an identity trips a named assertion.
+unset GATE_ROSTER_WHO
+chk "sibling" "$(_roster_other_claimant "$REPO")" "#1b no identity -> no self-exemption is possible"
 
 # 2 — a live claim by ANOTHER session is found, by repo basename.
 GATE_ROSTER_WHO=me

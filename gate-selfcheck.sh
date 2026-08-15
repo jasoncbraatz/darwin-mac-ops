@@ -72,9 +72,18 @@ done
 # names the claimant. UNPUSHED stays a FAIL -- pushing a sibling's finished commit is safe (git
 # refuses non-ff), and unpushed work sitting for weeks is the failure Jason actually got bitten by.
 #
-# Fail-closed by design: without GATE_ROSTER_WHO naming who YOU are, nothing is ever downgraded,
-# so the default behaviour is byte-identical to before. And a claim by your OWN name never
-# downgrades anything -- otherwise a session could exempt itself by claiming its own repo.
+# Fail-closed by design -- but READ THE FUNCTION, NOT THIS PARAGRAPH, because this paragraph
+# described the opposite behaviour for three days. It used to say "without GATE_ROSTER_WHO
+# nothing is ever downgraded, so the default is byte-identical to before". That stopped being
+# true on 2026-08-12 (1979d80, floristAlix-1): an unknown identity now makes the check MORE
+# cautious, reporting EVERY live claim, because with no identity we cannot prove a claim is
+# someone else's. The comment was not updated, and neither was gate-roster-drill.sh, whose
+# assertion #1 asserted this stale sentence and had been failing ever since -- unnoticed,
+# because nothing ran the drill. Corrected 2026-08-15 by opus-acmeLedger-21, along with the
+# drill, which the gate now RUNS (see the G-H#drill step below) so the next such divergence
+# announces itself instead of waiting for someone to run it by hand.
+# A claim by your OWN name never downgrades anything -- otherwise a session could exempt
+# itself by claiming its own repo -- but that self-exemption needs an identity to apply.
 # ROSTER_DB is honoured (same env var roster itself uses) so this is drillable, not production-only.
 _ROSTER_DB="${ROSTER_DB:-$HOME/.local/state/darlish/roster.sqlite3}"
 _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
@@ -106,6 +115,28 @@ _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
             OR resource='$(printf '%s' "$1" | sed "s/'/''/g")')
      LIMIT 1;" 2>/dev/null
 }
+
+# ── G-H#drill · the sibling-downgrade control must still be a control (2026-08-15) ──
+# _roster_other_claimant() turns a FAIL into a WARN -- the most dangerous direction a check
+# can move -- and it cannot be exercised in production, so gate-roster-drill.sh exists to
+# exercise it offline. Nothing ran it. Its assertion #1 was invalidated by the 2026-08-12
+# fail-open fix and it sat red for three days in total silence, which is the same defect as
+# a green light that never goes red: an instrument nobody reads. Now the gate reads it.
+# The drill EXTRACTS the function from this file at run time, so it also catches the function
+# being renamed or moved out from under it.
+_RD="$HOME/code/darwin-mac-ops/gate-roster-drill.sh"
+if [ -x "$_RD" ]; then
+  bold "=== G-H#drill · roster downgrade control (offline drill) ==="
+  _RD_OUT="$("$_RD" 2>&1)"; _RD_RC=$?
+  printf '%s\n' "$_RD_OUT" | tail -3
+  case "$_RD_RC" in
+    0) : ;;
+    2) FAILS+=("G-H#drill CANNOT VERIFY: gate-roster-drill.sh could not run (sqlite3 missing?). Exit 2 is NOT a pass") ;;
+    *) FAILS+=("G-H#drill: the sibling-downgrade control FAILED its own drill -- G-H's DIRTY->WARN downgrade is not behaving as specified. Run: bash $_RD") ;;
+  esac
+else
+  WARNS+=("G-H#drill: $_RD missing or not executable -- the sibling-downgrade control is unproven this run")
+fi
 
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
@@ -738,14 +769,30 @@ fi
 # stat() still succeeds an `ls` prints a bare "total 0" -- indistinguishable from an
 # EMPTY FOLDER. On 2026-07-31 a session nearly reported the Shopify statements as
 # missing on exactly this. Silent-failure class -> it gets a gate.
+#
+# 2026-08-15 (opus-acmeLedger-21): THIS STEP IS TITLED "still HOLD its grant" AND UNTIL
+# TODAY IT DID NOT ASK THAT QUESTION. It ran the canary in hash-only mode, which detects
+# a binary that CHANGED and nothing else -- so a grant revoked in System Settings, with
+# the binary untouched, sailed through green. The step's own name was the spec its code
+# did not meet. It now runs --live, which reads the TCC grant table via
+# ~/Scripts/tcc-grant.sh (five controls, three positive / two negative).
+# The old --live was worse than useless and was retired the same day: it ran
+# `ls <canary_path>` in the CHECKING SHELL's TCC context, which inherits sshd's own Full
+# Disk Access, so it printed ok for every registered app regardless. Measured, one
+# throwaway probe agent, both legs in the same minute:
+#     ctx=dxshell  statements=READ_OK(5)  |  ctx=launchd  statements=DENIED
+# Safe to run --live here: nothing schedules gate-selfcheck under launchd (checked --
+# no LaunchAgent references it), and reading the TCC databases needs the FDA that every
+# shell this gate runs in already has. From launchd it would return CANNOT VERIFY, which
+# this case block already treats as a failure rather than a pass.
 FDA_CANARY="$HOME/Scripts/fda-canary.sh"
 if [ -x "$FDA_CANARY" ]; then
   bold "=== G-X · FDA grant canary (scoped .app wrappers still hold their grant) ==="
-  FDA_OUT="$("$FDA_CANARY" 2>&1)"; FDA_RC=$?
+  FDA_OUT="$("$FDA_CANARY" --live 2>&1)"; FDA_RC=$?
   printf '%s\n' "$FDA_OUT"
   case "$FDA_RC" in
     0) : ;;
-    1) FAILS+=("G-X: an FDA-scoped app wrapper drifted from its baseline -- macOS has SILENTLY dropped Full Disk Access. Re-tick it in System Settings -> Privacy & Security -> Full Disk Access, then run ~/Scripts/fda-canary.sh --update-baseline") ;;
+    1) FAILS+=("G-X: an FDA-scoped app wrapper either drifted from its baseline OR no longer holds an allowed TCC row. Read the lines above -- they say which. Drift: re-tick it in System Settings -> Privacy & Security -> Full Disk Access, then ~/Scripts/fda-canary.sh --update-baseline. Missing grant: ~/Scripts/tcc-grant.sh --explain '<bundle-id>' '<AppName>'") ;;
     2) FAILS+=("G-X CANNOT VERIFY: the FDA canary could not run (missing or empty registry). Exit 2 is NOT a pass") ;;
     *) FAILS+=("G-X: fda-canary.sh exited unexpectedly ($FDA_RC) -- treat as CANNOT VERIFY") ;;
   esac
