@@ -35,7 +35,15 @@ fi
 
 cp "$CANON" "$MIRROR"
 cd "$MIRROR_REPO"
+# `git add <path>` then a bare `git commit` is NOT path-scoped: commit takes the whole INDEX,
+# so anything a CONCURRENT session staged between the two lines rides along. Measured
+# 2026-08-15 (stateMachineRename-1): commit fe2aafa5 carried HANDOFF-GATE.md plus SIX in-flight
+# lesson leaves belonging to acmeLedger-24, which had run `lessons.py add` (git add; git commit)
+# milliseconds earlier -- its files were staged, mine committed them under my message. Nothing
+# was lost, but it is a G-AC violation (another session's work is not yours to commit) that no
+# amount of care in THIS script's `git add` line could prevent.
+# `commit --only <path>` commits that path and nothing else, whatever else sits in the index.
 git add HANDOFF-GATE.md
-git commit -q -m "mirror HANDOFF-GATE.md from darwin-everything-meta ($(ver "$CANON"))"
+git commit -q --only HANDOFF-GATE.md -m "mirror HANDOFF-GATE.md from darwin-everything-meta ($(ver "$CANON"))"
 git push -q
 echo "[mirror-gate] synced + pushed -> claude-blackbook ($(ver "$CANON"))"
