@@ -1,0 +1,16 @@
+# retired-names.tsv — the estate's registry of renamed shared objects.
+# Consumed by name-drift-check.sh (gate step G-AJ).
+#
+# A rename is not finished when the object is renamed. It is finished when every
+# front door either says the new name or admits it is saying the old one. This file
+# is what remembers that, so a human eyeball is not the only detector.
+#
+# TAB-separated, four columns:
+#   1 retired_regex  ERE matching the dead name as it appears in prose
+#   2 current_name   what to call it now (printed in the failure message)
+#   3 retired_on     ISO date of the rename
+#   4 ack_regex      ERE that, present ANYWHERE in the file, means "this doc knows"
+#
+# Adding a rename = append one row. That is the whole procedure.
+#
+[Bb]ullpen	State Machine	2026-07-10	fka .?[Bb]ullpen|RENAME 2026-07-10|renamed 2026-07-10|renamed from .?[Bb]ullpen|period-correct

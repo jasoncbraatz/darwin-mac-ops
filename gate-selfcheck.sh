@@ -1353,6 +1353,38 @@ else
   FAILS+=("G-AI CANNOT VERIFY: $CV_DRILL is missing or not executable, so nothing checked whether the gate's own steps can vanish. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-cannot-verify-drill.sh")
 fi
 
+# -- G-AJ · a renamed object must stop teaching its old name (born 2026-08-15, stateMachineRename-1)
+# Asana project 1215913700958709 was renamed Bullpen -> "State Machine" on 2026-07-10, and the
+# rename was done PROPERLY: lesson banked, RENAME banner at the top of BATTERS-BOX-HYGIENE.md,
+# GID unchanged so zero code broke, UNDO recorded. It rotted anyway. For FIVE WEEKS the two files
+# a zero-memory session reads FIRST -- CLAUDE.md and AGENTS.md -- still opened a section with
+# "## Bullpen" and taught the dead name as current. Jason found it by eye on 2026-08-15.
+# This is G-L#35b's family (a value COPIED into prose rots) with a NAME instead of a gate range,
+# and the estate should not have to learn it once per renamed object. Registry-driven: adding a
+# rename is one row in retired-names.tsv. The rule is loose so it cannot cry wolf -- a doc may say
+# the old name freely, it just may not say it WITHOUT acknowledging the rename somewhere in the
+# same file (one "fka" or one banner clears it), which is why the period-correct history in
+# BATTERS-BOX-HYGIENE.md and CANON-GEOGRAPHY passes untouched.
+ND_CHECK="${ND_CHECK:-$HOME/code/darwin-mac-ops/name-drift-check.sh}"
+if [ -x "$ND_CHECK" ]; then
+  bold "=== G-AJ · a renamed object stops teaching its old name (front doors vs retired-names.tsv) ==="
+  _nd_out="$(bash "$ND_CHECK" 2>&1)"; _nd_rc=$?
+  case "$_nd_rc" in
+    0) printf '  ok     %s\n' "$(printf '%s\n' "$_nd_out" | grep -E '^=== name-drift:' | tail -1)" ;;
+    1) printf '%s\n' "$_nd_out" | sed 's/^/         /'
+       FAILS+=("G-AJ: a front door teaches a RETIRED name with no acknowledgement -- rename the prose, or add an 'fka <old>' note / RENAME banner to that file. Detail: bash ~/code/darwin-mac-ops/name-drift-check.sh") ;;
+    2) printf '%s\n' "$_nd_out" | sed 's/^/         /'
+       FAILS+=("G-AJ CANNOT VERIFY: the name-drift checker could not run, found no rows, lost a scoped front door, or failed its own controls. Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/name-drift-check.sh") ;;
+    *) FAILS+=("G-AJ: name-drift-check.sh exited unexpectedly ($_nd_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  # G-AI exists to require this else. Writing the step without one would be the first
+  # violation of the rule the step immediately above it enforces.
+  bold "=== G-AJ · a renamed object stops teaching its old name (front doors vs retired-names.tsv) ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- zero front doors were checked for retired names\n' "${ND_CHECK/#$HOME/~}"
+  FAILS+=("G-AJ CANNOT VERIFY: $ND_CHECK is missing or not executable, so no front door was checked for retired names. Restore it: git -C ~/code/darwin-mac-ops checkout -- name-drift-check.sh")
+fi
+
 if [ "${#FAILS[@]}" -eq 0 ]; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate
