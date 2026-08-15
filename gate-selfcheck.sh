@@ -138,6 +138,30 @@ else
   WARNS+=("G-H#drill: $_RD missing or not executable -- the sibling-downgrade control is unproven this run")
 fi
 
+# ── G-H#roster · the OTHER two roster drills, which were also notes (2026-08-15, acmeLedger-22) ──
+# acmeLedger-21's finding was "a drill that is not in a gate is a note, not a control", and it
+# wired the one drill it had just repaired. Reading the same sentence against the rest of the
+# estate: roster-ghost-drill.sh and roster-identity-drill.sh were never wired either, so the
+# board's ghost and identity behaviour was proven only by whoever remembered to type it -- and
+# the handoff's verify block IS that remembering, which means the proof lived in a document
+# rather than in a run. Both are hermetic (scratch ROSTER_DB, live board never opened) and take
+# well under a second, so there was never a cost argument for leaving them out.
+for _rdrill in "$HOME/Scripts/roster-ghost-drill.sh" "$HOME/Scripts/roster-identity-drill.sh"; do
+  _rdname="$(basename "$_rdrill")"
+  if [ -x "$_rdrill" ]; then
+    bold "=== G-H#roster · $_rdname (offline, scratch db) ==="
+    _RG_OUT="$(bash "$_rdrill" 2>&1)"; _RG_RC=$?
+    printf '%s\n' "$_RG_OUT" | tail -1 | sed 's/^/  /'
+    case "$_RG_RC" in
+      0) : ;;
+      9) WARNS+=("G-H#roster: $_rdname could not find its subject (exit 9) -- unproven this run") ;;
+      *) FAILS+=("G-H#roster: $_rdname FAILED (rc=$_RG_RC) -- the roster's ghost/identity behaviour is not what the board's readers assume. Run: bash $_rdrill") ;;
+    esac
+  else
+    WARNS+=("G-H#roster: $_rdrill missing or not executable -- that roster control is unproven this run")
+  fi
+done
+
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue

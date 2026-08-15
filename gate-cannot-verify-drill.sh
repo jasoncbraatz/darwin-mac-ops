@@ -41,7 +41,7 @@ command -v python3 >/dev/null 2>&1 || {
 python3 - "$GATE" <<'PYDRILL'
 import re, sys, tempfile, os
 
-GUARD = re.compile(r'^if \[ -[xfrd] .*\]; then\s*$')
+GUARD = re.compile(r'^\s*if \[ -[xfrd] .*\]; then\s*$')
 HEADER = re.compile(r'^\s*bold "=== (G-[A-Z0-9#]+)')
 
 def analyse(lines):
