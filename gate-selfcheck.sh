@@ -532,6 +532,14 @@ if [ -f "$CANON_GATE" ]; then
   elif ! cmp -s "$CANON_GATE" "$MIRROR_GATE"; then
     WARNS+=("HANDOFF-GATE claude-blackbook mirror is STALE — run ~/Scripts/mirror-handoff-gate.sh")
   fi
+else
+  # acmeLedger-24: this guard had no else, so a MISSING canonical gate doc — the strictly
+  # worse state than a stale mirror — was the one condition this block stayed silent for.
+  # It is also the input to MAXG, the version derivation and the range-drift detector
+  # below, all of which then quietly degrade. Loud, once, here.
+  bold "=== HANDOFF-GATE canonical doc ==="
+  printf '  FAIL   CANNOT VERIFY: %s is missing -- no mirror-freshness, version or range check ran\n' "${CANON_GATE/#$HOME/~}"
+  FAILS+=("HANDOFF-GATE CANNOT VERIFY: the canonical gate doc $CANON_GATE is missing, so the mirror-freshness check, the gate-version derivation and the G-L#35b range-drift detector all had nothing to read. Restore it: git -C ~/Desktop/downloads checkout -- HANDOFF-GATE.md")
 fi
 
 # --- G-L#35b · gate range-ref drift (born 2026-06-25 P0 audit: "G-A..R/P" range statements rot in
@@ -555,6 +563,9 @@ gstep_rank() {  # G-step id (A..Z, AA..ZZ) -> ordinal. Empty input -> 0.
   done
   echo "$n"
 }
+# VANISH-OK: the identical `-f $CANON_GATE` condition now FAILs loudly ~30 lines above, and
+# a missing MAXG is reported again at the triad ("G-A->? (could not read ...)"). A second
+# CANNOT VERIFY here would be the same news told three times.
 if [ -f "$CANON_GATE" ]; then
   MAXG=""; MAXR=0
   while IFS= read -r g; do
@@ -639,6 +650,15 @@ if [ -d "$BB/.git" ]; then
     - CURATE: grep a unique phrase from EACH of today's leaves -- two adds with the same lead word
       SILENTLY clobber via lessons.py id-collision (see global leaf lessonspy-slug-collision).
 HARVEST
+else
+  # acmeLedger-24: G-U's whole premise is that banking ZERO lessons is suspicious. Until
+  # today, "the blackbook is not cloned here" and "you harvested nothing" produced the same
+  # output -- nothing -- so the one state that makes the challenge unanswerable was the one
+  # it stayed quiet for. The original comment ratified this as a "phone/web-safe skip", but
+  # a skip that looks identical to a pass is not a skip; it is a hole. Say it out loud.
+  bold "=== G-U · learning-harvest challenge ==="
+  printf '  WARN   CANNOT VERIFY: %s is not a git checkout -- the harvest was neither measured nor challenged\n' "${BB/#$HOME/~}"
+  WARNS+=("G-U CANNOT VERIFY: $BB is not a git checkout, so no lesson count was read and the harvest challenge did not run. On darwin that is a missing clone (git -C ~/repos clone ...); from a phone/web session it is expected -- harvest by hand and say so in the handoff.")
 fi
 echo
 
@@ -659,6 +679,12 @@ if [ -f "$HOME/repos/claude-blackbook/lessons.py" ]; then
   if ! python3 "$HOME/repos/claude-blackbook/lessons.py" --doctor >/dev/null 2>&1; then
     WARNS+=("G-W#2: lessons.py ranker is DEGRADED to pure BM25 (semantic backend down) — run: python3 ~/repos/claude-blackbook/lessons.py --doctor  (it prints the venv rebuild recipe)")
   fi
+else
+  # acmeLedger-24: a canary written because "a silent downgrade of a thinking tool is worse
+  # than a crash" was itself downgrading silently -- lessons.py absent meant no line at all.
+  bold "=== G-W#2 · toolchain canary ==="
+  printf '  WARN   CANNOT VERIFY: %s is missing -- the semantic-ranker canary did not run\n' "~/repos/claude-blackbook/lessons.py"
+  WARNS+=("G-W#2 CANNOT VERIFY: ~/repos/claude-blackbook/lessons.py is missing, so nothing checked whether the lessons ranker is still semantic. Every student-in search this session ran was unverified. Restore it: git -C ~/repos/claude-blackbook checkout -- lessons.py")
 fi
 
 # ── BRIDGE-BUG PLASTER (temporary, NOT a G-step — relabelled 2026-07-29 when the
@@ -873,6 +899,18 @@ if [ -d "$SESSION_STATE" ]; then
     FAILS+=("G-AA: task-tag '$_tag' has $_n used-but-unresolved leaf/leaves — assert the outcome: 'session-out --record pass' (or fail), or 'session-out --abandon \"<why>\"' if that session died. An unasserted outcome teaches the corpus NOTHING.")
     GAA_OPEN=$((GAA_OPEN+1))
   done
+else
+  # acmeLedger-24 — THE FIFTH INSTANCE G-AI WAS WRITTEN TO NOTICE, and G-AI could not see
+  # it. This step is gated on a DIRECTORY rather than an executable, and it prints its
+  # header only from inside the loop, when it has something to report -- obeying the
+  # house's "success is silent" rule. That compliance was the camouflage: the drill's
+  # subject was "prints a bold header within 3 lines of a guard", so the most
+  # correctly-written step in this file was invisible to the control that catches
+  # vanishing steps. Measured 2026-08-15: CLAUDE_SESSION_STATE=/nonexistent removed G-AA
+  # from the output entirely and left the gate verdict unchanged.
+  bold "=== G-AA · session corroboration (used leaves must be resolved — ADR-002) ==="
+  printf '  WARN   CANNOT VERIFY: %s does not exist -- no session ledger was read\n' "${SESSION_STATE/#$HOME/~}"
+  WARNS+=("G-AA CANNOT VERIFY: the session-state directory $SESSION_STATE does not exist, so NOTHING checked whether this session (or a crashed sibling) used leaves and never recorded an outcome. On darwin that means session-in has never run here -- which is itself the corroboration gap this step exists to catch. Start one: ~/Scripts/session-in --task <tag>")
 fi
 
 
@@ -886,12 +924,28 @@ fi
 BB_AUDIT="${BB_AUDIT:-$HOME/repos/claude-blackbook/scripts/bb-writers-audit.py}"   # overridable so the CANNOT-VERIFY branch is drillable
 if [ -f "$BB_AUDIT" ]; then
   bold "=== G-AD · bb-writers ratchet (every BB-gid writer ratified — HITL-only doctrine) ==="
-  if _bb_line="$(python3 "$BB_AUDIT" --card-line 2>/dev/null)"; then
+  # acmeLedger-24: this was TWO-STATE over a THREE-STATE world, and the third state was
+  # dressed as the second. `python3 x.py` exits 1 on an uncaught traceback -- the SAME code
+  # the auditor uses for "found an unratified writer" -- and `2>/dev/null` threw away the
+  # traceback that was the only way to tell them apart. The result: `_bb_line` empty, the
+  # gate printing a bare "FAIL", and a blocker reading "G-AD:  -> ratify it (allowlist entry
+  # + reason)", sending the reader to hunt a writer that does not exist. Same misdiagnosis
+  # shape acmeLedger-23 fixed in G-AE by giving rc=3 its own remedy: telling someone to fix
+  # the wrong thing costs more than saying nothing. The card line's EMPTINESS is the
+  # discriminator, and stderr is kept so the traceback survives to be read.
+  _bb_err="$(mktemp -t gaderr)"
+  _bb_line="$(python3 "$BB_AUDIT" --card-line 2>"$_bb_err")"; _bb_rc=$?
+  if [ "$_bb_rc" -eq 0 ] && [ -n "$_bb_line" ]; then
     printf '  ok     %s\n' "$_bb_line"
+  elif [ -z "$_bb_line" ]; then
+    printf '  FAIL   CANNOT VERIFY: the auditor produced no summary line (rc=%s)\n' "$_bb_rc"
+    sed 's/^/         /' "$_bb_err" | tail -8
+    FAILS+=("G-AD CANNOT VERIFY: $BB_AUDIT exited $_bb_rc with an EMPTY summary line, so it crashed rather than judged -- nothing checked which files can write to the Batter's Box gid. This is NOT an unratified writer; do not go looking for one. Run it bare and read the traceback: python3 $BB_AUDIT --card-line")
   else
     printf '  FAIL   %s\n' "$_bb_line"
     FAILS+=("G-AD: $_bb_line -> ratify it (allowlist entry + reason) or reroute its cards to State Machine (1215913700958709). Auditor: python3 ~/repos/claude-blackbook/scripts/bb-writers-audit.py")
   fi
+  rm -f "$_bb_err"
 else
   # A CONTROL THAT VANISHES WITH ITS INSTRUMENT IS NOT A CONTROL (acmeLedger-22, 2026-08-15).
   # Measured: `ESTATE_HOOKS=/nonexistent gate-selfcheck.sh` printed no G-AF line at all -- no ok,
@@ -1202,6 +1256,29 @@ else
   _ah_n=$(wc -l < "$_ah_list" | tr -d ' ')
 fi
 
+# ── G-AH#tripwire · does the INSTRUMENT still fire? (acmeLedger-24, 2026-08-15) ───────────
+# acmeLedger-22 fixed this step's VACUITY -- it now counts the files it fed in, so a shrinking
+# scan cannot look like a clean one. But the denominator only proves the INPUT was real. Both
+# prongs are still `$(xargs -0 grep ... 2>/dev/null)` whose result is judged solely by whether
+# it is EMPTY, and the two greps are wrapped in an xargs that collapses "no match" (grep 1) and
+# "grep errored" (grep >=2) into the same exit 123 -- so the exit code cannot separate them
+# either, and stderr is discarded. A pattern broken by a future edit, an unreadable file, a grep
+# that is not GNU-compatible: every one of those produces zero lines, and zero lines prints
+# `ok  no unchecked write-then-log-success pattern in 812 estate shell script(s) scanned`.
+# The denominator is honest and the verdict is still fail-open.
+#
+# So the control is a POSITIVE one, not an exit code: two fixture files that each prong MUST
+# match are added to the scan list. If a prong does not report its own tripwire, that prong
+# matched nothing because it is broken, and its silence about the estate means nothing either.
+# (The estate hits are counted with the tripwire paths subtracted, so the fixtures cannot
+# inflate the finding or the denominator.)
+_ah_tw_dir="$(mktemp -d -t gahtw)"
+printf '#!/bin/bash\n# G-AH tripwire: prong 1 MUST match the next line.\nasana_write "$gid"; log "PASS -- commented + completed"\n' > "$_ah_tw_dir/tripwire-sameline.sh"
+printf '#!/bin/bash\n# G-AH tripwire: prong 2 MUST match the log line after the terminator.\npython3 - <<PYEOF\nprint(1)\nPYEOF\nlog "OK"\n' > "$_ah_tw_dir/tripwire-heredoc.sh"
+if [ "${_ah_n:-0}" -gt 0 ]; then
+  printf '%s\n%s\n' "$_ah_tw_dir/tripwire-sameline.sh" "$_ah_tw_dir/tripwire-heredoc.sh" >> "$_ah_list"
+fi
+
 if [ "${_ah_n:-0}" -eq 0 ]; then
   # Reached when grep is absent, or when the three roots hold no shell script at all -- which is
   # what a rebuilt Mac looks like before the repos are cloned. Silence here used to read as clean.
@@ -1210,8 +1287,10 @@ if [ "${_ah_n:-0}" -eq 0 ]; then
     FAILS+=("G-AH CANNOT VERIFY: the sweep found 0 shell scripts under ~/Scripts, ~/code and ~/repos, so it certified nothing. Either the roots are not cloned on this machine yet, or the file selection is broken. A step that scans zero files is not a pass.")
   fi
 else
+_ah_tw1=0; _ah_tw2=0
 while IFS= read -r _hit; do
   [ -n "$_hit" ] || continue
+  case "$_hit" in "$_ah_tw_dir"/*) _ah_tw1=$((_ah_tw1+1)); continue ;; esac
   _ah_bad=$((_ah_bad+1)); _ah_notes[${#_ah_notes[@]}]="same-line: $_hit"
 done <<< "$(xargs -0 grep -HnE '^[^#]*(asana_|curl |urlopen)[^;]*;[[:space:]]*log "(PASS|OK|FAIL|STALE|CARDED)' < <(tr '\n' '\0' < "$_ah_list") 2>/dev/null)"
 # Any ALL-CAPS heredoc terminator, not just the literal PY (see repair 3 above).
@@ -1219,13 +1298,23 @@ done <<< "$(xargs -0 grep -HnE '^[^#]*(asana_|curl |urlopen)[^;]*;[[:space:]]*lo
 # the last (often 1-file) batch would print bare line numbers and slip past the filter below.
 while IFS= read -r _hit; do
   [ -n "$_hit" ] || continue
+  case "$_hit" in "$_ah_tw_dir"/*) _ah_tw2=$((_ah_tw2+1)); continue ;; esac
   _ah_bad=$((_ah_bad+1)); _ah_notes[${#_ah_notes[@]}]="after-heredoc: $_hit"
 done <<< "$(xargs -0 grep -Hn -A1 -E '^[A-Z][A-Z0-9_]*$' < <(tr '\n' '\0' < "$_ah_list") 2>/dev/null \
   | grep -E '^[^:]+-[0-9]+-[[:space:]]*log "' )"
+# The tripwire verdict. A prong that cannot find the hit planted for it is a prong whose
+# silence about the other 800 files is not evidence of anything.
+if [ "$_ah_tw1" -eq 0 ] || [ "$_ah_tw2" -eq 0 ]; then
+  printf '  FAIL   CANNOT VERIFY: prong tripwire(s) not detected (same-line=%s, after-heredoc=%s)\n' "$_ah_tw1" "$_ah_tw2"
+  FAILS+=("G-AH CANNOT VERIFY: a prong failed to match its own planted tripwire (same-line=$_ah_tw1, after-heredoc=$_ah_tw2, both must be >=1), so that prong is not matching anything and its clean sweep of $_ah_n script(s) proves nothing. The pattern, xargs, or grep is broken -- not the estate. Reproduce: bash -x ~/Scripts/gate-selfcheck.sh 2>&1 | grep -A3 tripwire")
 fi
+fi
+rm -rf "$_ah_tw_dir"
 rm -f "$_ah_list"
 if [ "$_ah_bad" -eq 0 ] && [ "${_ah_n:-0}" -gt 0 ]; then
-  printf '  ok     no unchecked write-then-log-success pattern in %s estate shell script(s) scanned\n' "$_ah_n"
+  # The denominator states the estate count, not the scan count: the two tripwire fixtures
+  # were appended to the list and must not pad the number the reader is asked to trust.
+  printf '  ok     no unchecked write-then-log-success pattern in %s estate shell script(s) scanned (both prong tripwires fired: %s/%s)\n' "$_ah_n" "${_ah_tw1:-0}" "${_ah_tw2:-0}"
 elif [ "$_ah_bad" -gt 0 ]; then
   printf '  WARN   %s dishonest log line(s) — a success logged on a path where the work can fail:\n' "$_ah_bad"
   printf '         %s\n' "${_ah_notes[@]}"
