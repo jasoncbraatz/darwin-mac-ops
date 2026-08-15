@@ -134,6 +134,29 @@ fi
 backed=0; unbacked=0; missing=0; diverged=0; ratified=0
 UNBACKED_LIST=""; DIVERGED_LIST=""
 
+# ── PLIST INDEX · walk the roots ONCE (acmeLedger-24, 2026-08-15) ───────────────────────
+# D1's widening (acmeLedger-23) turned the subject from 2 hardcoded namespaces into every
+# loaded estate job -- correct, and it moved the per-label `find $SEARCH_ROOTS` from ~7
+# iterations to 36. One of those roots is ~/Desktop/downloads, the everything folder, which
+# is large enough that a `grep -r` over it times out a 180s dx call. MEASURED: the census
+# took 279s standalone, and gate-selfcheck.sh runs it on every wrap. That is the shape of a
+# control people quietly stop running, and "a disabled gate is indistinguishable from a
+# passing one" is this estate's own rule. Same subject, same answers, one walk instead of 36.
+#
+# Non-vacuity: an EMPTY index means the roots are not on this machine or find broke, not that
+# nothing is backed. Without this, all 36 jobs would read "unbacked" and the remedy would tell
+# someone to commit 36 plists that are already committed -- the acmeLedger-23 exit-3 lesson.
+PLIST_INDEX="$(mktemp -t lcidx)"
+trap 'rm -f "$PLIST_INDEX"' EXIT
+find $SEARCH_ROOTS -name '*.plist' -not -path "$AGENTS/*" -not -path '*/.git/*' 2>/dev/null | sort > "$PLIST_INDEX"
+if [ ! -s "$PLIST_INDEX" ]; then
+  echo "launchd-census: CANNOT VERIFY -- the plist index is EMPTY: no *.plist found anywhere under" >&2
+  echo "                $SEARCH_ROOTS" >&2
+  echo "                Every job would read as unbacked, which would be the index failing, not the estate." >&2
+  echo "launchd-census: CANNOT VERIFY (empty plist index over the search roots)"
+  exit 2
+fi
+
 while IFS= read -r label; do
   [ -n "$label" ] || continue
   src="$AGENTS/$label.plist"
@@ -152,7 +175,7 @@ while IFS= read -r label; do
     git -C "$(dirname "$h")" rev-parse --git-dir >/dev/null 2>&1 || continue
     hits="$hits$h
 "
-  done <<< "$(find $SEARCH_ROOTS -name "$label.plist" -not -path "$AGENTS/*" -not -path '*/.git/*' 2>/dev/null | sort)"
+  done <<< "$(awk -F/ -v want="$label.plist" '$NF == want' "$PLIST_INDEX")"
 
   if [ -z "$hits" ]; then
     unbacked=$((unbacked+1)); UNBACKED_LIST="$UNBACKED_LIST
