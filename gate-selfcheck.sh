@@ -859,7 +859,7 @@ fi
 # must be ratified WITH A REASON in claude-blackbook/scripts/bb-writers-allowlist.json.
 # Fail-closed: UNKNOWN classification counts as a writer. A new unratified writer = FAIL;
 # the fix is either a conscious ratification or rerouting the card to State Machine.
-BB_AUDIT="$HOME/repos/claude-blackbook/scripts/bb-writers-audit.py"
+BB_AUDIT="${BB_AUDIT:-$HOME/repos/claude-blackbook/scripts/bb-writers-audit.py}"   # overridable so the CANNOT-VERIFY branch is drillable
 if [ -f "$BB_AUDIT" ]; then
   bold "=== G-AD · bb-writers ratchet (every BB-gid writer ratified — HITL-only doctrine) ==="
   if _bb_line="$(python3 "$BB_AUDIT" --card-line 2>/dev/null)"; then
@@ -868,6 +868,17 @@ if [ -f "$BB_AUDIT" ]; then
     printf '  FAIL   %s\n' "$_bb_line"
     FAILS+=("G-AD: $_bb_line -> ratify it (allowlist entry + reason) or reroute its cards to State Machine (1215913700958709). Auditor: python3 ~/repos/claude-blackbook/scripts/bb-writers-audit.py")
   fi
+else
+  # A CONTROL THAT VANISHES WITH ITS INSTRUMENT IS NOT A CONTROL (acmeLedger-22, 2026-08-15).
+  # Measured: `ESTATE_HOOKS=/nonexistent gate-selfcheck.sh` printed no G-AF line at all -- no ok,
+  # no WARN, no FAIL -- and the gate went on to report its usual verdict having silently run one
+  # fewer step. G-X, G-Y and G-H#drill already say CANNOT VERIFY when their instrument is gone;
+  # G-AD/G-AE/G-AF/G-AG did not, so the four steps whose absence is least visible were the four
+  # that disappeared quietly. Missing auditor == unratified writers are unmeasured, and this step
+  # exists precisely to keep Jason's phone from ringing at dinner: that earns a FAIL, not silence.
+  bold "=== G-AD · bb-writers ratchet (every BB-gid writer ratified — HITL-only doctrine) ==="
+  printf '  FAIL   CANNOT VERIFY: %s is missing -- the BB-writer ratchet did not run\n' "${BB_AUDIT/#$HOME/~}"
+  FAILS+=("G-AD CANNOT VERIFY: $BB_AUDIT is missing, so NOTHING checked which files can write to the Batter's Box gid. A step that does not run is not a pass. Restore it: git -C ~/repos/claude-blackbook checkout -- scripts/bb-writers-audit.py")
 fi
 
 # -- G-AE . launchd schedule backing (born 2026-08-07 S38, wired S39) ------------------
@@ -877,7 +888,7 @@ fi
 # including the AAR gate itself and, with a straight face, the spine-backup job whose
 # own schedule was not backed up. launchd-census.sh proves every LOADED com.braatz.* /
 # com.strikezone.* job has its plist in a git repo. Read-only; exit 1 on drift.
-CENSUS="$HOME/Scripts/launchd-census.sh"
+CENSUS="${CENSUS:-$HOME/Scripts/launchd-census.sh}"   # overridable so the CANNOT-VERIFY branch is drillable
 if [ -x "$CENSUS" ]; then
   bold "=== G-AE . launchd schedule backing (every loaded job's plist is repo-backed) ==="
   _census_out="$(bash "$CENSUS" 2>&1)"; _census_rc=$?
@@ -890,6 +901,13 @@ if [ -x "$CENSUS" ]; then
     printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
     FAILS+=("G-AE: $_census_line -> commit the plist into a repo (~/code/darwin-mac-ops/launchagents/ is the usual home) and re-run, or bootout+disable the job if it is dead. Census: bash ~/Scripts/launchd-census.sh")
   fi
+else
+  # See the G-AD else-branch for why this exists. WARN rather than FAIL: an unbacked plist is a
+  # loss that shows up at rebuild time, not a live blocker -- but "the census did not run" must
+  # never again read the same as "the census found nothing".
+  bold "=== G-AE . launchd schedule backing (every loaded job's plist is repo-backed) ==="
+  printf '  WARN   CANNOT VERIFY: %s is missing or not executable -- no schedule was checked\n' "${CENSUS/#$HOME/~}"
+  WARNS+=("G-AE CANNOT VERIFY: $CENSUS is missing or not executable, so no launchd schedule was checked this run. Restore it: git -C ~/Scripts checkout -- launchd-census.sh")
 fi
 
 # -- G-AF · pre-commit hook coverage (born 2026-08-08 S45, two-layer since S46) -------------
@@ -972,6 +990,17 @@ if [ -d "$ESTATE_HOOKS" ]; then
     printf '         %s\n' "${_hk_missing[@]}"
     WARNS+=("G-AF: $_hk_miss repo(s) have no estate pre-commit hook -> bash ~/code/darwin-mac-ops/hooks/install-estate-hooks.sh   (--dry-run first; --uninstall reverses BOTH layers; prior repo hooks are chained, never replaced)")
   fi
+else
+  # The sharpest instance of the vanishing-control family, and the reason it was worth a session:
+  # leg A0 above FAILs when a hook FILE is missing, on the stated grounds that pre-commit then
+  # fails CLOSED and every commit on this Mac is blocked. The strictly WORSE state -- the whole
+  # hooks DIRECTORY gone -- skipped this block entirely and printed nothing. Proven 2026-08-15 by
+  # running the gate with ESTATE_HOOKS=/nonexistent/hooks: G-AF was absent from the output and the
+  # only FAIL reported was an unrelated dirty repo. The step's title claims EVERY repo refuses
+  # secrets at commit; the one condition under which no repo does was the one it stayed quiet for.
+  bold "=== G-AF · pre-commit hook coverage (every repo refuses secrets at COMMIT, not just at wrap) ==="
+  printf '  FAIL   CANNOT VERIFY: estate hooks dir %s does not exist -- commit-time secret protection is UNMEASURED\n' "${ESTATE_HOOKS/#$HOME/~}"
+  FAILS+=("G-AF CANNOT VERIFY: the estate hooks directory ($ESTATE_HOOKS) does not exist, so no repo's commit-time secret refusal was checked -- and if core.hooksPath still points there, every commit on this Mac is being refused. Fix: git -C ~/code/darwin-mac-ops checkout -- hooks/  then bash ~/code/darwin-mac-ops/hooks/install-estate-hooks.sh")
 fi
 
 # -- G-AG · dotfiles installed and DERIVED (born 2026-08-08 S47) --------------------------
@@ -1033,6 +1062,14 @@ if [ -r "$DOTFILES_DIR/install-dotfiles.sh" ]; then
     printf '         %s\n' "${_df_notes[@]}"
     WARNS+=("G-AG: $_df_bad dotfile issue(s) -> bash ~/code/darwin-mac-ops/dotfiles/install-dotfiles.sh   (--dry-run first; --uninstall restores the prior file, never leaves you bare; proof: dotfiles/dotfiles-drill.sh)")
   fi
+else
+  # See the G-AD else-branch. Note the recursion this closes: the manifest is EXTRACTED from
+  # install-dotfiles.sh so the check cannot rot against it -- but if that file is gone, the
+  # extraction yields an empty manifest and the loop runs zero times, which is indistinguishable
+  # from "all dotfiles fine" unless somebody says so out loud. Now somebody does.
+  bold "=== G-AG · dotfiles installed and derived (a rebuild inherits them, not just this Mac) ==="
+  printf '  WARN   CANNOT VERIFY: %s is missing -- the dotfile manifest could not be read, 0 dotfiles checked\n' "${DOTFILES_DIR/#$HOME/~}/install-dotfiles.sh"
+  WARNS+=("G-AG CANNOT VERIFY: $DOTFILES_DIR/install-dotfiles.sh is missing, so the manifest could not be extracted and ZERO dotfiles were checked. Restore it: git -C ~/code/darwin-mac-ops checkout -- dotfiles/")
 fi
 
 # -- G-AH · a log line is not evidence (born 2026-08-09 S49) ------------------------------
@@ -1045,24 +1082,117 @@ fi
 # Two prongs. Prong 1 is S48's proven same-line grep. Prong 2 catches the estate's python-
 # heredoc template form: a `log "` line immediately after a `^PY$` terminator with no rc
 # capture between. Neither prong reads python bodies — that sweep is carded, not claimed.
+#
+# THREE REPAIRS, 2026-08-15 (acmeLedger-22), all of them found by reading this step's own
+# printed sentence against the code under it. The sentence said "in ANY estate shell script":
+#
+#   1. NON-VACUITY. Both prongs were `grep -r ... 2>/dev/null` whose output was only ever
+#      tested for emptiness, so "found nothing" and "looked at nothing" produced the identical
+#      green line. Measured: the same grep against a nonexistent root returns 0 hits, i.e. on a
+#      freshly rebuilt Mac -- before ~/repos is cloned -- this step certified every estate shell
+#      script honest without opening one. Same family as verify-de-opus.sh's fail-open, which
+#      acmeLedger-21 closed in a different file on the same day; the gate still had it.
+#      The list is now BUILT first and COUNTED, an empty list FAILs, and the ok line carries its
+#      own denominator so a shrinking scan cannot look like a clean one.
+#   2. --include='*.sh' NEVER SAW AN EXTENSIONLESS SCRIPT. Measured: 20+ shell-shebang
+#      executables in the three roots carry no .sh -- among them session-in, session-out,
+#      dsh-publish, darlish-up, and (with a straight face) ~/code/darwin-mac-ops/hooks/pre-commit,
+#      the file that guards every commit on this machine. Now selected by shebang, not by name.
+#   3. THE HEREDOC PRONG MATCHED THE LITERAL TAG `PY` ONLY. Measured tag census in estate .sh
+#      files: 76 PY, 8 P, 6 PYEOF, 2 TOKEOF, plus others -- so ~14 python heredocs were invisible
+#      to a prong written to catch python heredocs. Widening surfaces no new hit TODAY (checked);
+#      it stops the next one from being born invisible. bridge-bug-watch.sh's own PYSTATUS
+#      terminator is the local example.
 bold "=== G-AH · a log line is not evidence (no filer logs a success it did not confirm) ==="
 _ah_bad=0; declare -a _ah_notes=()
+_ah_list="$(mktemp -t gah)"; _ah_n=0
+if ! command -v grep >/dev/null 2>&1; then
+  printf '  FAIL   CANNOT VERIFY: grep is not on PATH\n'
+  FAILS+=("G-AH CANNOT VERIFY: grep is not on PATH, so no script was scanned. A verdict produced by not looking is not a pass.")
+else
+  # -prune the vendored trees BEFORE descending: without it this walk opens ~/repos/*/node_modules
+  # and the shebang test below runs on tens of thousands of files, turning a 1s step into minutes.
+  # GAH_ROOTS is overridable for one reason: the vacuity FAIL below is otherwise unreachable on a
+  # machine that HAS the repos, i.e. the branch could only ever be proven by a rebuild.
+  for _ah_root in ${GAH_ROOTS:-"$HOME/Scripts" "$HOME/code" "$HOME/repos"}; do
+    [ -d "$_ah_root" ] || continue
+    while IFS= read -r _ah_f; do
+      case "$_ah_f" in
+        *.bak*) continue ;;
+        *.sh)   echo "$_ah_f" >> "$_ah_list"; continue ;;
+        *.*)    continue ;;   # .py/.js/.json/... : this prong reads shell, and says so
+      esac
+      # no extension at all: keep it only if its shebang says it is a shell script
+      head -1 "$_ah_f" 2>/dev/null | grep -qE '^#!.*(bash|zsh|/bin/sh)' && echo "$_ah_f" >> "$_ah_list"
+    done < <(find "$_ah_root" \
+               \( -name .git -o -name node_modules -o -name .venv -o -name venv \
+                  -o -name site-packages -o -name _deprecated \) -prune -o \
+               -type f \( -name '*.sh' -o -perm +111 \) -print 2>/dev/null)
+  done
+  sort -u -o "$_ah_list" "$_ah_list" 2>/dev/null
+  _ah_n=$(wc -l < "$_ah_list" | tr -d ' ')
+fi
+
+if [ "${_ah_n:-0}" -eq 0 ]; then
+  # Reached when grep is absent, or when the three roots hold no shell script at all -- which is
+  # what a rebuilt Mac looks like before the repos are cloned. Silence here used to read as clean.
+  if command -v grep >/dev/null 2>&1; then
+    printf '  FAIL   CANNOT VERIFY: 0 shell scripts found under ~/Scripts ~/code ~/repos -- nothing was scanned\n'
+    FAILS+=("G-AH CANNOT VERIFY: the sweep found 0 shell scripts under ~/Scripts, ~/code and ~/repos, so it certified nothing. Either the roots are not cloned on this machine yet, or the file selection is broken. A step that scans zero files is not a pass.")
+  fi
+else
 while IFS= read -r _hit; do
   [ -n "$_hit" ] || continue
   _ah_bad=$((_ah_bad+1)); _ah_notes[${#_ah_notes[@]}]="same-line: $_hit"
-done <<< "$(grep -rnE '^[^#]*(asana_|curl |urlopen)[^;]*;[[:space:]]*log "(PASS|OK|FAIL|STALE|CARDED)' \
-  "$HOME/Scripts" "$HOME/code" "$HOME/repos" --include='*.sh' 2>/dev/null | grep -v '\.bak' )"
+done <<< "$(xargs -0 grep -HnE '^[^#]*(asana_|curl |urlopen)[^;]*;[[:space:]]*log "(PASS|OK|FAIL|STALE|CARDED)' < <(tr '\n' '\0' < "$_ah_list") 2>/dev/null)"
+# Any ALL-CAPS heredoc terminator, not just the literal PY (see repair 3 above).
+# -H is load-bearing: xargs batches, and grep given a SINGLE file omits the filename prefix, so
+# the last (often 1-file) batch would print bare line numbers and slip past the filter below.
 while IFS= read -r _hit; do
   [ -n "$_hit" ] || continue
   _ah_bad=$((_ah_bad+1)); _ah_notes[${#_ah_notes[@]}]="after-heredoc: $_hit"
-done <<< "$(grep -rn -A1 '^PY$' "$HOME/Scripts" "$HOME/code" "$HOME/repos" --include='*.sh' 2>/dev/null \
-  | grep -E '^[^:]+-[0-9]+-[[:space:]]*log "' | grep -v '\.bak' )"
-if [ "$_ah_bad" -eq 0 ]; then
-  printf '  ok     no unchecked write-then-log-success pattern in any estate shell script\n'
-else
+done <<< "$(xargs -0 grep -Hn -A1 -E '^[A-Z][A-Z0-9_]*$' < <(tr '\n' '\0' < "$_ah_list") 2>/dev/null \
+  | grep -E '^[^:]+-[0-9]+-[[:space:]]*log "' )"
+fi
+rm -f "$_ah_list"
+if [ "$_ah_bad" -eq 0 ] && [ "${_ah_n:-0}" -gt 0 ]; then
+  printf '  ok     no unchecked write-then-log-success pattern in %s estate shell script(s) scanned\n' "$_ah_n"
+elif [ "$_ah_bad" -gt 0 ]; then
   printf '  WARN   %s dishonest log line(s) — a success logged on a path where the work can fail:\n' "$_ah_bad"
   printf '         %s\n' "${_ah_notes[@]}"
   WARNS+=("G-AH: $_ah_bad write-then-log hit(s) -> capture the rc (WRC=\$?) and branch the log; on failure log UNCONFIRMED and let the next firing retry. Pattern + proof: HANDOFF-GATE.md §G-AH, filer-honesty-drill.sh")
+fi
+
+# -- G-AI · no gate step vanishes with its instrument (born 2026-08-15, acmeLedger-22) -------
+# The class this closes: a step written as `if [ -x "$INSTRUMENT" ]; then ... fi` with no else
+# disappears ENTIRELY when the instrument is missing -- no ok, no WARN, no FAIL, no line -- and
+# the gate prints its usual verdict having silently run one fewer check. G-X, G-Y and G-H#drill
+# already said CANNOT VERIFY; G-AD, G-AE, G-AF and G-AG did not, and the sharpest instance was
+# G-AF, whose A0 leg calls a missing hook FILE a blocker while the strictly worse state -- the
+# whole hooks DIRECTORY gone -- was the one it stayed quiet for (measured with
+# ESTATE_HOOKS=/nonexistent/hooks: G-AF absent from the output, gate verdict unchanged).
+# All four now speak. This step is what notices the FIFTH one, whenever it is written.
+# Structural on purpose: proving it behaviourally costs a full gate run per step (minutes);
+# parsing costs 30ms and catches the defect at authoring time. The drill carries its own
+# positive AND negative controls, so a parser that can no longer go red refuses to go green.
+CV_DRILL="${CV_DRILL:-$HOME/code/darwin-mac-ops/gate-cannot-verify-drill.sh}"
+if [ -x "$CV_DRILL" ]; then
+  bold "=== G-AI · no gate step vanishes with its instrument (every instrument-gated step has an else) ==="
+  _cv_out="$(bash "$CV_DRILL" 2>&1)"; _cv_rc=$?
+  case "$_cv_rc" in
+    0) printf '  ok     %s\n' "$(printf '%s\n' "$_cv_out" | grep -E '^=== drill:' | tail -1)" ;;
+    1) printf '%s\n' "$_cv_out" | sed 's/^/         /'
+       FAILS+=("G-AI: a gate step would VANISH SILENTLY if its instrument went missing -- add an else branch printing CANNOT VERIFY (copy the shape from G-X or G-AF). Detail: bash ~/code/darwin-mac-ops/gate-cannot-verify-drill.sh") ;;
+    2) printf '%s\n' "$_cv_out" | sed 's/^/         /'
+       FAILS+=("G-AI CANNOT VERIFY: the vanishing-control drill could not run or failed its own controls. Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/gate-cannot-verify-drill.sh") ;;
+    *) FAILS+=("G-AI: gate-cannot-verify-drill.sh exited unexpectedly ($_cv_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  # Practising what the step preaches: this step is itself instrument-gated, so it gets the
+  # else it exists to require. Anything less would be the joke telling itself.
+  bold "=== G-AI · no gate step vanishes with its instrument (every instrument-gated step has an else) ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- no gate step was structurally checked\n' "${CV_DRILL/#$HOME/~}"
+  FAILS+=("G-AI CANNOT VERIFY: $CV_DRILL is missing or not executable, so nothing checked whether the gate's own steps can vanish. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-cannot-verify-drill.sh")
 fi
 
 if [ "${#FAILS[@]}" -eq 0 ]; then
