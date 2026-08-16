@@ -1574,7 +1574,18 @@ fi
 CHARTER_READ="${CHARTER_READ:-$HOME/Scripts/charter-read.sh}"
 CHARTER_REG="${PROJECT_CHARTERS:-$HOME/code/darwin-mac-ops/project-charters.tsv}"
 if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
-  _ch_tag="$(cat "$SESSION_STATE/current" 2>/dev/null || true)"
+  # WHO IS ASKING? $SESSION_STATE/current is a single global file, so with parallel sessions
+  # (Jason runs 2-3) it names whoever ran session-in last, not the session running this gate.
+  # Prefer an explicit per-session identity; fall back to the shared file unchanged.
+  #   CHARTER_SLUG=...            explicit override, wins
+  #   GATE_ROSTER_WHO=big-foo-52  the roster identity already set on every cloud call
+  #   $SESSION_STATE/current      the original behaviour, for a solo session
+  _ch_tag="${CHARTER_SLUG:-}"
+  if [ -z "$_ch_tag" ] && [ -n "${GATE_ROSTER_WHO:-}" ]; then
+    _ch_tag="$(printf '%s' "$GATE_ROSTER_WHO" \
+                | sed -E 's/^(orchestrator|big|mid|fast|cloud)-//')"
+  fi
+  [ -n "$_ch_tag" ] || _ch_tag="$(cat "$SESSION_STATE/current" 2>/dev/null || true)"
   _ch_key="$(printf '%s' "$_ch_tag" | sed -E 's/-[0-9]+[a-z]?$//' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
   if [ -z "$_ch_tag" ]; then
     bold "=== G-AL · the session knew what DONE looks like ==="
@@ -1585,7 +1596,8 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
     while IFS=$'\t' read -r _k _repo _crit _brief; do
       case "$_k" in ''|'#'*) continue ;; esac
       _kn="$(printf '%s' "$_k" | sed -E 's/-[0-9]+[a-z]?$//' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
-      [ "$_kn" = "$_ch_key" ] && { _ch_row="$_k"; _ch_crit="$(eval printf '%s' "$_crit")"; break; }
+      [ "$_kn" = "$_ch_key" ] && { _ch_row="$_k"; _ch_crit="$(eval printf '%s' "$_crit")"; \
+                                   _ch_brief="$(eval echo "$_brief")"; break; }
     done < "$CHARTER_REG"
     if [ -z "$_ch_row" ]; then
       # NOT silence. A multi-session project with no written definition of done is the very
@@ -1625,8 +1637,24 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
              printf '%s\n' "$_ch_out" | sed 's/^/         /'
              FAILS+=("G-AL#board CANNOT VERIFY: the board generator exited $_ch_rc (missing or empty criteria). An empty board must never read as a finished project. Run: python3 ${_ch_gen/#$HOME/~}") ;;
         esac
+      elif printf '%s' "${_ch_brief:-}" | grep -q 'board\.py'; then
+        # THE SHARED ENGINE. board.py generates docs/CHECKLIST.md for every project that did
+        # not write its own generator, and it has the same --check contract: 0 fresh, 1 stale,
+        # 2 empty criteria. The per-project gen-done.py being absent is how the generic path
+        # LOOKS, not evidence of a hand-maintained board.
+        _ch_bcheck="$(printf '%s' "$_ch_brief" | sed 's/--brief/--check/')"
+        _ch_out="$(eval "$_ch_bcheck" 2>&1)"; _ch_rc=$?
+        case "$_ch_rc" in
+          0) : ;;
+          1) bold "=== G-AL#board · the generated board is stale ==="
+             printf '%s\n' "$_ch_out" | sed 's/^/         /'
+             FAILS+=("G-AL#board: a lane changed status since the board was generated -- the committed board describes a world that moved on. Regenerate and commit: ${_ch_brief/#$HOME/~}") ;;
+          *) bold "=== G-AL#board · the generated board could not be checked ==="
+             printf '%s\n' "$_ch_out" | sed 's/^/         /'
+             FAILS+=("G-AL#board CANNOT VERIFY: the shared board engine exited $_ch_rc (missing or empty criteria). An empty board must never read as a finished project. Run: ${_ch_bcheck/#$HOME/~}") ;;
+        esac
       else
-        FAILS+=("G-AL#board CANNOT VERIFY: $_ch_gen is missing, so DONE.md is a hand-maintained state doc -- which ARCHITECTURE.md §12 forbids precisely because it rots with a straight face.")
+        FAILS+=("G-AL#board CANNOT VERIFY: neither $_ch_gen nor a board.py brief command in the charter registry -- so the board is a hand-maintained state doc, which ARCHITECTURE.md §12 forbids precisely because it rots with a straight face.")
       fi
     fi
   fi
