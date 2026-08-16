@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.braatz.cqi-weekly</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jasoncbraatz/Scripts/cqi-weekly.sh</string>
+  </array>
+  <!-- Mondays 09:15. After aar-gate (08:15) and aar-retro (1st, 08:45) so the three learning
+       jobs never contend for the corpus's git lock, and early enough that a regression is on
+       the board before the week's work starts. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key><integer>1</integer>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>15</integer>
+  </dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>/Users/jasoncbraatz/Library/Logs/cqi-weekly.out</string>
+  <key>StandardErrorPath</key><string>/Users/jasoncbraatz/Library/Logs/cqi-weekly.err</string>
+</dict>
+</plist>
