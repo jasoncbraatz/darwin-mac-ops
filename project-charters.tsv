@@ -14,3 +14,4 @@
 # acme-ledger-plan, the session IDs never changed, and a path symlink papers over the rest.)
 
 acmeLedger	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/v3/done-criteria.tsv	python3 $HOME/repos/braatzio-plan/v3/tools/gen-done.py --brief
+wealthTensor	~/repos/wealth-tensor	$HOME/repos/wealth-tensor/docs/done-criteria.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/wealth-tensor/docs/done-criteria.tsv --project wealth-tensor --preamble $HOME/repos/wealth-tensor/docs/checklist-preamble.md --brief
