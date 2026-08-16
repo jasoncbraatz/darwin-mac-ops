@@ -1585,12 +1585,38 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
     _ch_tag="$(printf '%s' "$GATE_ROSTER_WHO" \
                 | sed -E 's/^(orchestrator|big|mid|fast|cloud)-//')"
   fi
-  [ -n "$_ch_tag" ] || _ch_tag="$(cat "$SESSION_STATE/current" 2>/dev/null || true)"
+  #   ...and if we DO fall back to the shared file, check that it is still warm.
+  # STALENESS GUARD (born 2026-08-16, ctxband-01). $SESSION_STATE/current is never cleared,
+  # so a session that skipped session-in silently inherits whoever ran it last. G-AL then
+  # reports a CONFIDENT FAIL about a STRANGER'S project -- "the definition of done was
+  # amended after you read it, you have been working toward a finish line that moved" --
+  # for a charter this session never opened. That is worse than silence: it burns a fresh
+  # Opus's context chasing a drift that belongs to someone else, and it trains sessions to
+  # wave G-AL through. Measured 2026-08-16: current pointed at acme-ledger-25b, 22h cold.
+  # A ledger not written in 12h is not this session's. Refuse it -- an honest CANNOT VERIFY
+  # beats a precise lie. Drilled BOTH directions at author time: cold pointer -> CANNOT
+  # VERIFY, freshly-minted pointer -> used normally.
+  _ch_stale=""
+  if [ -z "$_ch_tag" ]; then
+    _ch_cur="$(cat "$SESSION_STATE/current" 2>/dev/null || true)"
+    if [ -n "$_ch_cur" ]; then
+      _ch_log="$SESSION_STATE/$_ch_cur.log"
+      if [ -f "$_ch_log" ] && [ -z "$(find "$_ch_log" -mmin -720 2>/dev/null)" ]; then
+        _ch_stale="$_ch_cur"
+      else
+        _ch_tag="$_ch_cur"
+      fi
+    fi
+  fi
   _ch_key="$(printf '%s' "$_ch_tag" | sed -E 's/-[0-9]+[a-z]?$//' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
   if [ -z "$_ch_tag" ]; then
     bold "=== G-AL · the session knew what DONE looks like ==="
     printf '  WARN   CANNOT VERIFY: no current session tag, so no project charter was checked\n'
-    WARNS+=("G-AL CANNOT VERIFY: $SESSION_STATE/current is empty or missing, so nothing could tell which project this session belongs to, let alone whether it read that project's definition of done. Open one: ~/Scripts/session-in <slug>")
+    if [ -n "$_ch_stale" ]; then
+      WARNS+=("G-AL CANNOT VERIFY: $SESSION_STATE/current still points at '$_ch_stale', whose ledger has not been written in over 12h -- that is a PREVIOUS session's pointer, not this one's, so G-AL refused to grade this session against that project's charter (it would have reported a stranger's moved finish line as yours). Open your own: ~/Scripts/session-in <slug>")
+    else
+      WARNS+=("G-AL CANNOT VERIFY: $SESSION_STATE/current is empty or missing, so nothing could tell which project this session belongs to, let alone whether it read that project's definition of done. Open one: ~/Scripts/session-in <slug>")
+    fi
   else
     _ch_row=""
     while IFS=$'\t' read -r _k _repo _crit _brief; do
