@@ -1649,11 +1649,11 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       elif grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null; then
         bold "=== G-AL · the session knew what DONE looks like ==="
         printf '  FAIL   charter was read, but at a DIFFERENT version than the one now in force (%s)\n' "$_ch_sha"
-        FAILS+=("G-AL: this session stamped a charter read for '$_ch_row' at a different SHA than $_ch_crit carries now ($_ch_sha) -- the definition of done was amended after you read it, so you have been working toward a finish line that moved. Re-read it: ~/Scripts/charter-read.sh")
+        FAILS+=("G-AL: this session stamped a charter read for '$_ch_row' at a different SHA than $_ch_crit carries now ($_ch_sha) -- the definition of done was amended after you read it, so you have been working toward a finish line that moved. Re-read it: ~/Scripts/charter-read.sh $_ch_tag")
       else
         bold "=== G-AL · the session knew what DONE looks like ==="
         printf '  FAIL   %s never read its charter this session\n' "$_ch_tag"
-        FAILS+=("G-AL: session '$_ch_tag' belongs to project '$_ch_row' but never read its definition of done, so it cannot say which piece of the finished puzzle it built. Read it (it takes ten seconds): ~/Scripts/charter-read.sh")
+        FAILS+=("G-AL: session '$_ch_tag' belongs to project '$_ch_row' but never read its definition of done, so it cannot say which piece of the finished puzzle it built. Read it (it takes ten seconds): ~/Scripts/charter-read.sh $_ch_tag")
       fi
       # And the board itself must not be stale: a lane that closed -- or RE-OPENED -- since
       # the last commit means the doc in the repo describes a world that moved on.
