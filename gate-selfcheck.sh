@@ -244,7 +244,13 @@ for repo in "${REPOS[@]}"; do
         WARNS+=("$name: $nd uncommitted change(s) — every path names LIVE session '$_owner' (G-H#22c attribution by filename, no repo claim covers it). Do NOT commit it. Verify: ~/Scripts/roster who")
         [ "$level" = ok ] && level="WARN"
       else
-        flags="$flags DIRTY($nd)"; FAILS+=("$name: $nd uncommitted change(s)"); level="FAIL"
+        _paths="$(printf '%s\n' "$dirty" | head -6 | sed 's/^/    /')"
+        [ "$nd" -gt 6 ] && _paths="$_paths
+    ... and $((nd - 6)) more"
+        flags="$flags DIRTY($nd)"
+        FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo and G-H#22c could not attribute every path by filename, so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+$_paths")
+        level="FAIL"
       fi
     fi
   fi
