@@ -1707,7 +1707,16 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
         # 2 empty criteria. The per-project gen-done.py being absent is how the generic path
         # LOOKS, not evidence of a hand-maintained board.
         _ch_bcheck="$(printf '%s' "$_ch_brief" | sed 's/--brief/--check/')"
-        _ch_out="$(eval "$_ch_bcheck" 2>&1)"; _ch_rc=$?
+        # THE TIMEOUT IS PART OF THE INVOCATION, HERE TOO (wealthTensor-97).
+        # board.py runs every `cmd:` criterion under BOARD_CHECK_TIMEOUT, default 25s.
+        # `-96` measured a real project whose criterion takes 16s idle -- a 1.6x margin --
+        # and watched a CLOSED lane come back CANNOT VERIFY purely from concurrent load. It
+        # repaired the REGENERATOR (regen-board.sh exports 300) and the gate's own check was
+        # left on the default, which is the worse half: the gate runs at WRAP, when this
+        # file's own recommended workflow has long builds backgrounded, and a false red in
+        # committed state is how a guard gets switched off. Scoped to the subshell so a
+        # caller's explicit value still wins.
+        _ch_out="$(export BOARD_CHECK_TIMEOUT="${BOARD_CHECK_TIMEOUT:-300}"; eval "$_ch_bcheck" 2>&1)"; _ch_rc=$?
         case "$_ch_rc" in
           0) : ;;
           1) bold "=== G-AL#board · the generated board is stale ==="
