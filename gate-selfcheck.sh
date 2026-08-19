@@ -1588,8 +1588,12 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
   #   $SESSION_STATE/current      the original behaviour, for a solo session
   _ch_tag="${CHARTER_SLUG:-}"
   if [ -z "$_ch_tag" ] && [ -n "${GATE_ROSTER_WHO:-}" ]; then
-    _ch_tag="$(printf '%s' "$GATE_ROSTER_WHO" \
-                | sed -E 's/^(orchestrator|big|mid|fast|cloud)-//')"
+    # No tier-stripping here any more. This line used to carry its own
+    # `orchestrator|big|mid|fast|cloud` alternation, which had no `opus` in it -- so every
+    # Opus session that ran this gate warned "no charter registered", while session-in had
+    # resolved the same project without complaint. charter-read.sh --resolve now owns the
+    # whole question, tier prefixes included, and the charter drill covers it.
+    _ch_tag="$GATE_ROSTER_WHO"
   fi
   #   ...and if we DO fall back to the shared file, check that it is still warm.
   # STALENESS GUARD (born 2026-08-16, ctxband-01). $SESSION_STATE/current is never cleared,
@@ -1624,13 +1628,17 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       WARNS+=("G-AL CANNOT VERIFY: $SESSION_STATE/current is empty or missing, so nothing could tell which project this session belongs to, let alone whether it read that project's definition of done. Open one: ~/Scripts/session-in <slug>")
     fi
   else
+    # ONE matcher, not two. This block used to carry a second copy of charter-read.sh's row
+    # loop -- and the copies drifted twice: charter-read gained PREFIX matching for voice-box
+    # (2026-08-16) which this never got, and this carried a tier-strip list missing `opus`.
+    # Both bugs were invisible because gate-charter-drill.sh exercises charter-read.sh only.
+    # So G-AL now ASKS charter-read, and the drill's controls cover both by construction.
     _ch_row=""
-    while IFS=$'\t' read -r _k _repo _crit _brief; do
-      case "$_k" in ''|'#'*) continue ;; esac
-      _kn="$(printf '%s' "$_k" | sed -E 's/-[0-9]+[a-z]?$//' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
-      [ "$_kn" = "$_ch_key" ] && { _ch_row="$_k"; _ch_crit="$(eval printf '%s' "$_crit")"; \
-                                   _ch_brief="$(eval echo "$_brief")"; break; }
-    done < "$CHARTER_REG"
+    if _ch_res="$(PROJECT_CHARTERS="$CHARTER_REG" "$CHARTER_READ" --resolve "$_ch_tag" 2>/dev/null)"; then
+      _ch_row="$(printf '%s' "$_ch_res"  | cut -f1)"
+      _ch_crit="$(eval printf '%s' "$(printf '%s' "$_ch_res" | cut -f3)")"
+      _ch_brief="$(eval echo "$(printf '%s' "$_ch_res" | cut -f4)")"
+    fi
     if [ -z "$_ch_row" ]; then
       # NOT silence. A multi-session project with no written definition of done is the very
       # condition this step exists to surface -- it is how -21..-25 happened.
@@ -1644,9 +1652,33 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
     else
       _ch_sha="$(shasum -a 256 "$_ch_crit" | cut -c1-12)"
       _ch_log="$SESSION_STATE/$_ch_tag.log"
+      # A session has TWO names: the SLUG it opened with (`session-in acme-ledger-26`, which
+      # keys the ledger) and the ROSTER IDENTITY it works under (`opus-acmeLedger-26`, which
+      # keys this gate). Same session, two names. Looking only under the roster identity made
+      # G-AL FAIL a session that had read its charter ten seconds after boot -- a confident
+      # accusation about a thing that did happen. So: the exact ledger first, then any WARM
+      # ledger (<12h) carrying a stamp for THIS project, and NAME the file when it is not the
+      # expected one -- a stamp borrowed from a genuine sibling should be visible, not silent.
+      _ch_hitfile=""; _ch_anyfile=""
       if grep -q "^CHARTER $_ch_row $_ch_sha " "$_ch_log" 2>/dev/null; then
-        : ;  # read the charter in force. Success is silent.
-      elif grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null; then
+        _ch_hitfile="$_ch_log"
+      elif ! grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null; then
+        while IFS= read -r _f; do
+          [ -n "$_f" ] || continue
+          if grep -q "^CHARTER $_ch_row $_ch_sha " "$_f" 2>/dev/null; then _ch_hitfile="$_f"; break; fi
+          # ...and remember a stamp at ANY version, so the stale-version branch below can
+          # fire. Without this, a session that DID read the charter and then amended it gets
+          # accused of never having read it -- the wrong finding, and the wrong remedy.
+          [ -z "$_ch_anyfile" ] && grep -q "^CHARTER $_ch_row " "$_f" 2>/dev/null && _ch_anyfile="$_f"
+        done < <(find "$SESSION_STATE" -name '*.log' -mmin -720 2>/dev/null)
+      fi
+      if [ -n "$_ch_hitfile" ]; then
+        if [ "$_ch_hitfile" != "$_ch_log" ]; then
+          bold "=== G-AL · the session knew what DONE looks like ==="
+          printf '  ok     charter read at the version in force (stamped in %s)\n' "$(basename "$_ch_hitfile")"
+        fi
+        : ;  # read the charter in force. Success is otherwise silent.
+      elif grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null || [ -n "$_ch_anyfile" ]; then
         bold "=== G-AL · the session knew what DONE looks like ==="
         printf '  FAIL   charter was read, but at a DIFFERENT version than the one now in force (%s)\n' "$_ch_sha"
         FAILS+=("G-AL: this session stamped a charter read for '$_ch_row' at a different SHA than $_ch_crit carries now ($_ch_sha) -- the definition of done was amended after you read it, so you have been working toward a finish line that moved. Re-read it: ~/Scripts/charter-read.sh $_ch_tag")

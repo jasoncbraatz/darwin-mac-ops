@@ -96,6 +96,45 @@ grep -q 'PENDING-HUMAN' "$T/proj/v3/DONE.md" \
   || { printf '  FAIL  %-52s\n' "a manual criterion never auto-closes"; FAIL=$((FAIL+1)); }
 
 echo
+# --- ROSTER IDENTITIES (2026-08-19, acmeLedger-26) --------------------------------------
+# The estate's session identities are <tier>-<task>-<NN>, and the tier vocabulary is not
+# fixed. G-AL carried a hardcoded `orchestrator|big|mid|fast|cloud` strip that had no `opus`,
+# so every Opus session warned "no charter registered for project opusacmeledger" while
+# session-in resolved the same project fine. These controls pin the resolution instead of
+# the list, so the next new tier cannot reintroduce it.
+mkfix
+for who in demo-3 opus-demo-3 big-demo-12 fable-demo-1 rail-demo-1786812293; do
+  run_cr --resolve "$who"
+  chk "roster identity '$who' resolves to its charter" 0 "$RC" "^demo	" "$OUT"
+done
+
+# NEGATIVE — segment-dropping must not turn an unknown project into a known one.
+run_cr --resolve opus-nosuchproject-9
+chk "unknown project stays unresolved (rc=3)" 3 "$RC" "no charter registered" "$OUT"
+
+# NEGATIVE — a candidate too short to be a name must not prefix-match anything.
+run_cr --resolve x-9
+chk "a 1-char identity resolves nothing" 3 "$RC" "no charter registered" "$OUT"
+
+# PREFIX — the voice-box shape (per-phase slugs) still resolves, at every tier.
+printf 'demoPhase\tDEMO2\t%s/proj/v3/crit.tsv\tprintf "## The board\\n"\n' "$T" >> "$T/charters.tsv"
+run_cr --resolve opus-demoPhaseCorpus-2
+chk "per-phase slug prefix-matches under a tier prefix" 0 "$RC" "^demoPhase	" "$OUT"
+
+# ANTI-DIVERGENCE — G-AL must ASK charter-read, not carry its own copy of the row loop.
+# Both historical bugs here were copies drifting apart while the drill watched only one of
+# them. This control fails if a second implementation reappears.
+GS="${GATE_SELFCHECK:-$HOME/Scripts/gate-selfcheck.sh}"
+if [ -r "$GS" ]; then
+  if grep -q 'CHARTER_READ" --resolve' "$GS" && ! grep -qE '_kn=.*sed -E .s/-\[0-9\]' "$GS"; then
+    printf '  ok    %-52s\n' "G-AL delegates the match (no second copy)"; PASS=$((PASS+1))
+  else
+    printf '  FAIL  %-52s\n' "G-AL has its own matcher again — they WILL drift"; FAIL=$((FAIL+1))
+  fi
+else
+  printf '  WARN  %-52s\n' "gate-selfcheck.sh unreadable; anti-divergence control skipped"
+fi
+
 if [ "$FAIL" -gt 0 ]; then bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="; exit 1; fi
-bold "=== drill: PASS — $PASS controls, 7 of them negative (G-AL can still go red) ==="
+bold "=== drill: PASS — $PASS controls, 9 of them negative (G-AL can still go red) ==="
 exit 0
