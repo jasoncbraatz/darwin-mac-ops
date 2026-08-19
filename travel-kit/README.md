@@ -87,19 +87,45 @@ plain VNC feels useless here — it is *too literal*, exactly as suspected.
 macOS has no true multi-session RDP; it cannot hand you a differently-shaped session the way
 Windows can. The workaround is to change what "the screen" *is*:
 
-**BetterDisplay** (free tier, installed 2026-08-19) creates a **virtual display** at any
-resolution. Make one at 2732×2048 (iPad Pro 13" native), disable the Dell, and the Mac genuinely
-believes it has one 4:3 monitor. VNC then streams a correctly-shaped desktop at full size — no
-pinch-zooming, no scrolling a sliver.
+**Solved 2026-08-19, and verified live.** The working recipe is one command:
 
 ```
-Dell U4924DW  6720x1890  (32:9)  <- disabled while travelling
-Virtual "ipad" 2732x2048  (4:3)  <- what you actually see
+dmode ipad     # mirror everything onto the 4:3 virtual screen  -> use this before you connect
+dmode desk     # restore the ultrawide Dell layout              -> use this when you're home
+dmode status   # which am I in?
+dmode save     # re-snapshot the current layout as the new "desk" default
 ```
+
+(`dmode` -> `~/Scripts/darwin-display-mode.sh`, on PATH via `/opt/homebrew/bin`.)
+
+**Why mirroring, of all things.** The obvious plan was "make a virtual display, turn the Dell
+off." That plan died twice:
+
+| Attempt | Result |
+|---|---|
+| Resize the physical Dell to 4:3 | Impossible — aspect is fixed by the panel. |
+| Set the virtual screen to 2732×2048 | **Silently no-ops.** A BetterDisplay vscreen's resolution is fixed at *creation*; `-resolutionList` only changes which scaled modes are *offered*. |
+| `create` a second, larger vscreen | Free tier is capped at one virtual screen. |
+| `-connected=off` to disable the Dell | **Requires BetterDisplay Pro.** Rejected — the whole point is not buying a subscription. |
+| **Mirror the Dell onto the vscreen** (`displayplacer`) | ✅ **Works, free.** |
+
+Mirroring wins because it makes macOS collapse to **one logical 4:3 framebuffer** — and that
+framebuffer is precisely what Screen Sharing serves. No display-picker needed, so even the free
+RealVNC client gets the right shape.
+
+Verified both directions on 2026-08-19: `ipad` → `Mirror: On`, virtual screen is main, both at
+1600×1200. `desk` → Dell back to 6720×1890, `Mirror: Off`. **The restore was tested, not assumed.**
+
+Side effect worth knowing: in `ipad` mode the physical Dell shows a 4:3 image letterboxed on its
+ultrawide panel. Nobody is home to care, and `dmode desk` undoes it instantly.
+
+**On the resolution:** 1600×1200 rather than the 2732×2048 originally planned. This is fine, and
+arguably better — the *aspect ratio* was the whole problem, and 1600×1200 is a third of the
+pixels to push over unknown hotel wifi. If you ever want it sharper, delete the vscreen in
+BetterDisplay and recreate it at the target resolution (remember: it's fixed at creation).
 
 Client on the iPad: **RealVNC Viewer** (free) to `10.10.10.2:5900`, or **Jump Desktop**
-(~one-time purchase, no subscription) if you want the noticeably better experience — its Fluid
-protocol and display-picker beat raw VNC on a touchscreen.
+(~one-time purchase, no subscription) for a noticeably better touch experience.
 
 ### Rejected alternatives, and why
 
