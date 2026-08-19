@@ -23,12 +23,29 @@ PLIST="/Library/LaunchDaemons/io.braatz.wg-home-gateway.plist"
 ANCHOR="/etc/pf.anchors/io.braatz.wg-nat"
 
 echo "  [1/3] Screen Sharing ........."
-launchctl enable system/com.apple.screensharing 2>/dev/null || true
-launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist 2>/dev/null || true
-sleep 1
-if nc -z -G 2 127.0.0.1 5900 2>/dev/null; then echo "        enabled (port 5900 listening)"
-else echo "        !! port 5900 not listening — finish it by hand:"
-     echo "           System Settings > General > Sharing > Screen Sharing ON"; fi
+# ── 2026-08-19: DO NOT enable Screen Sharing from here. ──────────────────────────────────
+# v1 of this script did `launchctl enable/load com.apple.screensharing` and it APPEARED to
+# work -- port 5900 opened, RealVNC connected, auth succeeded -- and then served a BLACK
+# FRAME WITH A LIVE CURSOR. macOS brings the daemon up half-registered when it is enabled
+# from the command line. The tell: /Library/Preferences/com.apple.RemoteManagement.plist
+# ends up with only AllowSRPForNetworkNodes + DisableKerberos, where a UI-enabled one also
+# writes ARD_AllLocalUsers, VNCLegacyConnectionsEnabled and friends.
+# The symptom is indistinguishable from a display-topology problem and cost three rounds of
+# misdirected debugging. So: we DETECT and INSTRUCT, we do not enable.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+if nc -z -G 2 127.0.0.1 5900 2>/dev/null; then
+  RMKEYS=$(defaults read /Library/Preferences/com.apple.RemoteManagement 2>/dev/null | grep -c '=')
+  if [ "${RMKEYS:-0}" -le 2 ]; then
+    echo "        !! port 5900 is open but Screen Sharing looks CLI-registered (only ${RMKEYS} keys)."
+    echo "           You will get a BLACK SCREEN. Fix it in the UI:"
+    echo "           System Settings > General > Sharing > Screen Sharing -> OFF, wait 3s, ON"
+  else
+    echo "        enabled and properly registered (port 5900, ${RMKEYS} config keys)"
+  fi
+else
+  echo "        NOT enabled. Turn it on IN THE UI (never from the CLI -- see comment above):"
+  echo "           System Settings > General > Sharing > Screen Sharing -> ON"
+fi
 
 echo "  [2/3] Boot-time gateway helper"
 mkdir -p /usr/local/sbin /etc/pf.anchors
