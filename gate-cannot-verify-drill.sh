@@ -86,17 +86,29 @@ def analyse(lines):
         if not GUARD.match(ln):
             continue
 
-        # walk the guard's own block to its matching `fi`, looking for an else at depth 1
+        # walk the guard's own block to its matching `fi`, looking for an else at depth 1.
+        #
+        # COUNT PER LINE, NOT PER SHAPE. The first cut of this matched `^if`, `^else` and
+        # `^fi` as whole lines, one classification each -- so a single-line
+        # `if cond; then x; fi` (an extremely ordinary bash shape) incremented depth and
+        # never decremented it. Every guard AFTER such a line then had its own `else`
+        # measured at depth 2 and was reported as VANISHING when it plainly does not.
+        # A control that cries wolf gets waved through, which costs more than the bug it
+        # was watching for. Found 2026-08-19 when one new one-liner in G-AL turned this
+        # drill red against a guard whose else sits 144 lines below it.
         depth, has_else, end = 0, False, i
         for k in range(i, len(lines)):
             s = lines[k].strip()
-            if re.match(r'^if\b', s):
-                depth += 1
-            elif re.match(r'^else\b', s) and depth == 1:
+            if s.startswith('#'):
+                continue
+            opens = len(re.findall(r'(?:^|[;&|]\s*|\bthen\s+|\bdo\s+)if\b', s))
+            closes = len(re.findall(r'(?:^|[;&|]\s*)fi\b', s))
+            if re.match(r'^else\b', s) and depth == 1:
                 has_else = True
-            elif re.match(r'^fi\b', s):
-                depth -= 1
-                if depth == 0:
+            depth += opens
+            if closes:
+                depth -= closes
+                if depth <= 0:
                     end = k
                     break
 
@@ -158,6 +170,18 @@ CTL = {
     'headerless': (['STATE="/x"', 'if [ -d "$STATE" ]; then',
                     '  for f in "$STATE"/*; do', '    echo found', '  done', 'fi'],
                    lambda r: not r['has_else'] and r['reason'] is None),
+    # THE SHAPE THAT BROKE THE COUNTER (2026-08-19): a one-line `if ...; fi` inside the block.
+    # The guard below DOES have an else; a per-shape counter loses a level on the one-liner
+    # and reports it as vanishing.
+    'oneliner': (['if [ -x "$TOOL" ]; then',
+                  '  bold "=== G-ZZ · a step with a one-line if inside ==="',
+                  '  if [ -n "$x" ]; then y=1; fi',
+                  '  echo ok',
+                  'else',
+                  '  echo "CANNOT VERIFY"',
+                  'fi'],
+                 lambda r: r['has_else'] and r['reason'] is None),
+
     # a ratified else-less guard: NOT flagged
     'ratified': (['# VANISH-OK: reported downstream by the block above, deliberately quiet',
                   'if [ -f "$THING" ]; then', '  echo ok', 'fi'],
