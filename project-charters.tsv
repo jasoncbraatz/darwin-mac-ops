@@ -16,3 +16,4 @@
 acmeLedger	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/v3/done-criteria.tsv	python3 $HOME/repos/braatzio-plan/v3/tools/gen-done.py --brief
 wealthTensor	~/repos/wealth-tensor	$HOME/repos/wealth-tensor/docs/done-criteria.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/wealth-tensor/docs/done-criteria.tsv --project wealth-tensor --preamble $HOME/repos/wealth-tensor/docs/checklist-preamble.md --brief
 voiceBox	~/repos/voice-box	$HOME/repos/voice-box/docs/done-criteria.tsv	BOARD_CHECK_TIMEOUT=180 python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/voice-box/docs/done-criteria.tsv --project voice-box --preamble $HOME/repos/voice-box/docs/checklist-preamble.md --brief
+floristDeputize	~/repos/claude-blackbook	$HOME/repos/claude-blackbook/docs/done-criteria-floristdeputize.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/claude-blackbook/docs/done-criteria-floristdeputize.tsv --project floristDeputize --brief
