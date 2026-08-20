@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# gate-roster-drill.sh — prove G-H's roster-aware DIRTY downgrade, offline.
+# gate-roster-drill.sh — prove G-H's roster-aware downgrades, offline.
 #
 # The downgrade turns a FAIL into a WARN. That is the most dangerous direction a
 # control can move, so it does not get to ship untested — and it cannot be tested
@@ -157,6 +157,62 @@ ROSTER_DB_SAVED="$_ROSTER_DB"; _ROSTER_DB="$S/does-not-exist.sqlite3"
 chk "" "$(_paths_owned_by_sibling "$REPO" '?? HANDOFF-pitchingMachine-2.md')" \
     "#9f missing roster DB -> no attribution, no crash"
 _ROSTER_DB="$ROSTER_DB_SAVED"
+
+
+# ── #10-#12 · IS THE FUNCTION ACTUALLY WIRED IN? (acmeLedger-30) ─────────────────
+# Everything above tests _roster_other_claimant() in isolation. A unit test of a
+# predicate cannot see whether the CALLER consults it, and on 2026-08-20 the answer was
+# "only in one of the two places that needed it": the DIRTY branch downgraded a sibling's
+# work to a WARN and the UNPUSHED branch failed the whole gate on the same sibling's
+# commits. Every parallel session's wrap hit it. So these three read the SWEEP ITSELF.
+SWEEP="$(sed -n '/repo hygiene sweep/,/^# --- G-S/p' "$GATE")"
+if [ -z "$SWEEP" ]; then
+  bad "#10 could not extract the G-H #22 sweep from $GATE (did the banner change?)"
+else
+  case "$SWEEP" in
+    *'if [ -n "$dirty" ]'*'_claimant'*) ok "#10 the DIRTY branch consults the roster claimant" ;;
+    *) bad "#10 the DIRTY branch no longer consults _roster_other_claimant" ;;
+  esac
+  # The unpushed branch must both KNOW about the claimant and still have a FAIL for the
+  # unclaimed case. A downgrade that swallowed the FAIL entirely would pass a naive grep.
+  _UP="$(printf '%s\n' "$SWEEP" | sed -n '/ahead.*-gt 0/,/^  fi$/p')"
+  case "$_UP" in
+    *'_claimant'*) ok "#11 the UNPUSHED branch consults the roster claimant too (G-H#22d)" ;;
+    *) bad "#11 the UNPUSHED branch fails the gate on a sibling's in-flight commits — it does not consult _roster_other_claimant" ;;
+  esac
+  case "$_UP" in
+    *'FAILS+='*) ok "#11b ...and an UNCLAIMED repo with unpushed commits is still a FAIL, which is the whole point of the check" ;;
+    *) bad "#11b the UNPUSHED branch has no FAIL path left — the downgrade swallowed the control" ;;
+  esac
+  # G-H#stat, carded by acmeLedger-28: `git status` reports a merely-TOUCHED file as
+  # modified from stat data alone. The sweep must refresh the index BEFORE reading status,
+  # or it fails the gate on byte-identical content.
+  case "$SWEEP" in
+    *'update-index --refresh'*'git status --porcelain'*) ok "#12 the sweep refreshes the git index BEFORE reading status (no stat-dirty false FAIL)" ;;
+    *) bad "#12 the sweep reads git status without refreshing the index first — a touched-but-unchanged file will be reported as an uncommitted change" ;;
+  esac
+fi
+
+# ── #13-#14 · and the stat-dirty fix, on a real repo ─────────────────────────────
+# You cannot observe a false positive that did not happen, so give it a fixture. Both
+# columns matter: the second is what stops somebody "fixing" this by ignoring modified
+# files altogether.
+if command -v git >/dev/null 2>&1; then
+  G="$S/statrepo"; mkdir -p "$G"
+  ( cd "$G" && git init -q . && git config user.email d@d && git config user.name d \
+    && printf 'hello\n' > f.txt && git add f.txt && git commit -qm init ) >/dev/null 2>&1
+  ( cd "$G" && sleep 1 && touch f.txt )
+  _st="$( cd "$G" && git update-index --refresh >/dev/null 2>&1 || true; cd "$G" && git status --porcelain )"
+  chk "" "$_st" "#13 a TOUCHED but byte-identical file is CLEAN once the index is refreshed"
+  ( cd "$G" && printf 'goodbye\n' > f.txt )
+  _st2="$( cd "$G" && git update-index --refresh >/dev/null 2>&1 || true; cd "$G" && git status --porcelain )"
+  case "$_st2" in
+    *f.txt*) ok "#14 ...and a GENUINELY edited file is still DIRTY (the refresh does not blind the sweep)" ;;
+    *) bad "#14 a genuinely edited file was reported clean — the refresh is hiding real work" ;;
+  esac
+else
+  bad "#13 git not on PATH — the stat-dirty fixture could not run, so that fix is unproven this run"
+fi
 
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1

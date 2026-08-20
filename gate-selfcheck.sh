@@ -216,6 +216,16 @@ for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
   name="${repo/#$HOME/~}"
   [ "$DO_FETCH" -eq 1 ] && git fetch --quiet 2>/dev/null
+  # G-H#stat (carded by acmeLedger-28, landed by acmeLedger-30). `git status` decides a file
+  # is modified from STAT DATA -- mtime, size, inode -- before it ever compares content, so a
+  # file that was merely TOUCHED reports ` M` while `git diff` finds nothing at all. This gate
+  # runs scripts out of these very repos, so it touches its own. Refreshing the index first
+  # reconciles the two. The `|| true` is load-bearing: update-index --refresh exits NON-ZERO
+  # when it finds genuinely modified files, which is the normal case for a repo with real work
+  # in it, and letting that escape would turn this fix into a worse bug than the one it repairs.
+  # Why bother over a phantom: a control that cries wolf gets waved through, and a gate that
+  # fails on a file nobody edited trains the next session to wave through a real failure.
+  git update-index --refresh >/dev/null 2>&1 || true
   dirty="$(git status --porcelain 2>/dev/null)"
   branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
   has_remote=0; [ -n "$(git remote 2>/dev/null)" ] && has_remote=1
@@ -226,9 +236,11 @@ for repo in "${REPOS[@]}"; do
   fi
 
   flags=""; level="ok"
+  # Hoisted out of the DIRTY branch by acmeLedger-30: the UNPUSHED branch below needs the
+  # same answer, and a repo can be perfectly clean while a sibling holds unpushed commits.
+  _claimant="$(_roster_other_claimant "$repo")"
   if [ -n "$dirty" ]; then
     nd="$(printf '%s\n' "$dirty" | grep -c .)"
-    _claimant="$(_roster_other_claimant "$repo")"
     if [ -n "$_claimant" ]; then
       flags="$flags DIRTY($nd,claimed:$_claimant)"
       if [ -n "${GATE_ROSTER_WHO:-}" ]; then
@@ -255,7 +267,28 @@ $_paths")
     fi
   fi
   if [ "$ahead" -gt 0 ]; then
-    flags="$flags UNPUSHED($ahead)"; FAILS+=("$name: $ahead unpushed commit(s) on $branch"); level="FAIL"
+    # G-H#22d (acmeLedger-30) — the SAME reasoning the DIRTY branch has carried since S40,
+    # applied to UNPUSHED commits, where it never was. Since S35 several sessions routinely
+    # share darwin, and a sibling mid-flight normally HAS local commits it has not pushed:
+    # it pushes at ITS wrap, not at mine. So every parallel session's gate failed on a
+    # sibling's work in progress, and a gate that fails on something you must not touch is a
+    # gate that gets waved through. The downgrade is safe for exactly one reason: a roster
+    # claim is LEASED and expires, so a LIVE claim means minutes -- not the weeks of unpushed
+    # work Jason actually got bitten by, which is what this check exists for. Same predicate
+    # as the dirty branch, so gate-roster-drill.sh's control already covers the lookup; that
+    # drill now also asserts that BOTH branches consult it, which is the part a unit test of
+    # the function alone can never see.
+    if [ -n "$_claimant" ]; then
+      flags="$flags UNPUSHED($ahead,claimed:$_claimant)"
+      if [ -n "${GATE_ROSTER_WHO:-}" ]; then
+        WARNS+=("$name: $ahead unpushed commit(s) on $branch — LIVE roster claim by '$_claimant', i.e. ANOTHER session's work in flight. It pushes at ITS wrap, not at yours. Do NOT push it. Verify: ~/Scripts/roster who")
+      else
+        WARNS+=("$name: $ahead unpushed commit(s) on $branch — LIVE roster claim by '$_claimant', and THIS session did not export GATE_ROSTER_WHO so I cannot tell whether that is you. If it is you, push it; if it is not, DO NOT. Verify: ~/Scripts/roster who")
+      fi
+      [ "$level" = ok ] && level="WARN"
+    else
+      flags="$flags UNPUSHED($ahead)"; FAILS+=("$name: $ahead unpushed commit(s) on $branch"); level="FAIL"
+    fi
   fi
   if [ "$has_remote" -eq 0 ]; then
     flags="$flags NO-REMOTE"; WARNS+=("$name: no git remote (work is unbacked)"); [ "$level" = ok ] && level="WARN"
