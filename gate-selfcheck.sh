@@ -1693,8 +1693,29 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       # ledger (<12h) carrying a stamp for THIS project, and NAME the file when it is not the
       # expected one -- a stamp borrowed from a genuine sibling should be visible, not silent.
       _ch_hitfile=""; _ch_anyfile=""
-      if grep -q "^CHARTER $_ch_row $_ch_sha " "$_ch_log" 2>/dev/null; then
-        _ch_hitfile="$_ch_log"
+      # THE WRITE PATH NORMALISES THE TIER PREFIX AND THIS READ PATH DID NOT, so every cloud
+      # session that followed its handoff's `GATE_ROSTER_WHO=<tier>-<slug>` instruction missed
+      # its OWN stamp. charter-read.sh writes `$SESSION_STATE/wealthTensor-101.log`; this gate
+      # is handed `big-wealthTensor-101` and looked for `big-wealthTensor-101.log`, which never
+      # exists. The exact-file grep missed, the `elif` fired on the absent file, and the warm
+      # scan below graded the session against whichever sibling `find` returned first -- then
+      # printed `ok` while NAMING that stranger's file, which reads as the borrow being
+      # deliberate. Found at wealthTensor-101, where the borrowed stamp was the session's own
+      # predecessor (-100) and G-AL had been vacuous for every tier-prefixed session before it.
+      # Fix: try the tier-stripped ledger name BEFORE the blind scan. Deliberately not a list
+      # of known tiers -- that list is exactly what drifted here once already (it had no
+      # `opus`), so this strips ONE leading `<word>-` and lets the file's existence decide.
+      _ch_cands=("$_ch_log")
+      case "$_ch_tag" in
+        *-*) _ch_cands+=("$SESSION_STATE/${_ch_tag#*-}.log") ;;
+      esac
+      for _f in "${_ch_cands[@]}"; do
+        if grep -q "^CHARTER $_ch_row $_ch_sha " "$_f" 2>/dev/null; then
+          _ch_hitfile="$_f"; _ch_log="$_f"; break
+        fi
+      done
+      if [ -n "$_ch_hitfile" ]; then
+        :
       elif ! grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null; then
         while IFS= read -r _f; do
           [ -n "$_f" ] || continue

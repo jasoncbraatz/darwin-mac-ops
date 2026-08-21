@@ -135,6 +135,31 @@ else
   printf '  WARN  %-52s\n' "gate-selfcheck.sh unreadable; anti-divergence control skipped"
 fi
 
+# 12 · THE LEDGER NAME. A session writes its charter stamp under the SLUG
+#   (`wealthTensor-101.log`) and this gate is handed the ROSTER IDENTITY
+#   (`big-wealthTensor-101`). charter-read.sh normalises the tier prefix when it WRITES; until
+#   wealthTensor-101 the gate did not when it READ, so the exact-file grep missed, the warm
+#   scan below it graded the session against whichever SIBLING `find` returned first, and G-AL
+#   printed `ok` naming a stranger's ledger. Every tier-prefixed session -- which is every
+#   session that follows its handoff's `GATE_ROSTER_WHO=` instruction -- was vacuous.
+if [ -r "$GS" ]; then
+  if grep -q '_ch_cands+=("$SESSION_STATE/${_ch_tag#\*-}.log")' "$GS"; then
+    printf '  ok    %-52s\n' "G-AL tries the tier-stripped ledger name"; PASS=$((PASS+1))
+  else
+    printf '  FAIL  %-52s\n' "G-AL will miss its own stamp under a roster id"; FAIL=$((FAIL+1))
+  fi
+  # NEGATIVE — and this is the control that matters, because the hard-coded tier list is the
+  # thing that ALREADY drifted here once: it had no `opus`, so every Opus session warned "no
+  # charter registered". One leading `<word>-` is stripped and the file's EXISTENCE decides.
+  if grep -qE '_ch_(tag|cands).*(orchestrator\|big\|mid\|fast\|cloud|big\|mid)' "$GS"; then
+    printf '  FAIL  %-52s\n' "a hard-coded tier list is back — it WILL drift again"; FAIL=$((FAIL+1))
+  else
+    printf '  ok    %-52s\n' "no hard-coded tier list in the ledger-name path"; PASS=$((PASS+1))
+  fi
+else
+  printf '  WARN  %-52s\n' "gate-selfcheck.sh unreadable; ledger-name controls skipped"
+fi
+
 if [ "$FAIL" -gt 0 ]; then bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="; exit 1; fi
-bold "=== drill: PASS — $PASS controls, 9 of them negative (G-AL can still go red) ==="
+bold "=== drill: PASS — $PASS controls, 10 of them negative (G-AL can still go red) ==="
 exit 0
