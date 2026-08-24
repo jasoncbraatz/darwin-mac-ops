@@ -296,12 +296,31 @@ elif not any(os.access(os.path.join(d, "gh"), os.X_OK) for d in os.environ.get("
     cannot("gh is not on PATH — cannot ask GitHub whether the exempted repo(s) still exist")
 else:
     for nwo, line in rd:
-        p = subprocess.run(["gh", "repo", "view", nwo, "--json", "name"],
+        # A NONZERO gh EXIT IS NOT PROOF OF ABSENCE. A TLS handshake timeout, an expired
+        # token, a rate limit and a 5xx all exit nonzero, and reading any of them as "the
+        # repo is gone" turns a network blip into a confident FAIL telling a session to
+        # delete a live exemption. Observed 2026-08-24 (opus-mcpMirror-04): api.github.com
+        # timed out for ~two minutes, the gate reported the repo deleted, and the repo was
+        # there the whole time. Only a 404 means gone; everything else is CANNOT VERIFY,
+        # which this file already knows how to say.
+        p = subprocess.run(["gh", "api", "repos/%s" % nwo, "--jq", ".full_name"],
                            capture_output=True, text=True)
-        n = 1 if p.returncode == 0 else 0
+        err = (p.stderr or "") + (p.stdout or "")
+        if p.returncode == 0:
+            gone = False
+        elif "404" in err or "Not Found" in err:
+            gone = True
+        else:
+            row("repo-doctor", nwo, 1, "UNVERIFIED — gh could not reach GitHub")
+            cannot("repo-doctor.allow: could not ask GitHub about '%s' (gh: %s). NOT a"
+                   " stale-exemption finding — retry when the network is back."
+                   % (nwo, err.strip().splitlines()[0][:80] if err.strip() else
+                      "exit %d, no output" % p.returncode))
+            continue
+        n = 0 if gone else 1
         row("repo-doctor", nwo, n, line.split("#", 1)[-1].strip()[:44])
-        if not n:
-            stale("repo-doctor.allow: '%s' no longer exists on GitHub — the exemption outlived "
+        if gone:
+            stale("repo-doctor.allow: '%s' returns 404 on GitHub — the exemption outlived "
                   "its subject, and the reason line said to drop it when the repo went. Drop it."
                   % nwo)
 
