@@ -1709,6 +1709,27 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       case "$_ch_tag" in
         *-*) _ch_cands+=("$SESSION_STATE/${_ch_tag#*-}.log") ;;
       esac
+      # ...AND THE TWO NAMES DIFFER BY MORE THAN THE TIER PREFIX (acmeLedger-38, 2026-08-24).
+      # The ledger is keyed by the SLUG passed to session-in -- `acme-ledger-38`, kebab-case --
+      # and this gate is handed the ROSTER identity `opus-acmeLedger-38`, camelCase. Stripping
+      # the tier yields `acmeLedger-38`, which is not `acme-ledger-38`, so BOTH candidates
+      # above miss and the warm scan below grades the session against whichever sibling `find`
+      # returns first. At acmeLedger-38 that was its own PREDECESSOR's ledger, and G-AL printed
+      # `ok` -- a session graded on the previous session's evidence, which is the exact
+      # false-green the wealthTensor-101 fix was written to kill, one transformation further in.
+      # Fix in the same spirit: also try the ledger whose name NORMALISES to the same key
+      # (lowercased, non-alphanumerics removed) -- the transformation _ch_key already uses a
+      # few lines up. Deliberately NOT a list of known casings: that shape has now drifted
+      # twice here. A targeted lookup by key, never a blind scan; the exact names above still
+      # win, because they are tried first.
+      _ch_norm() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'; }
+      _ch_k1="$(_ch_norm "$_ch_tag")"
+      _ch_k2="$(_ch_norm "${_ch_tag#*-}")"
+      while IFS= read -r _f; do
+        [ -n "$_f" ] || continue
+        _ch_b="$(_ch_norm "$(basename "$_f" .log)")"
+        if [ "$_ch_b" = "$_ch_k1" ] || [ "$_ch_b" = "$_ch_k2" ]; then _ch_cands+=("$_f"); fi
+      done < <(find "$SESSION_STATE" -maxdepth 1 -name '*.log' 2>/dev/null | sort)
       for _f in "${_ch_cands[@]}"; do
         if grep -q "^CHARTER $_ch_row $_ch_sha " "$_f" 2>/dev/null; then
           _ch_hitfile="$_f"; _ch_log="$_f"; break

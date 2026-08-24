@@ -156,6 +156,36 @@ if [ -r "$GS" ]; then
   else
     printf '  ok    %-52s\n' "no hard-coded tier list in the ledger-name path"; PASS=$((PASS+1))
   fi
+
+  # 12b · THE NAMES ALSO DIFFER IN CASE AND HYPHENATION (acmeLedger-38, 2026-08-24). The tier
+  #   strip above turns `opus-acmeLedger-38` into `acmeLedger-38`, and the ledger on disk is
+  #   `acme-ledger-38.log` -- the slug that session-in was actually given. Both candidates
+  #   missed, the warm scan graded the session against its own PREDECESSOR's ledger, and G-AL
+  #   printed `ok`. Same false green as the tier-prefix bug, one transformation further in.
+  #
+  #   BEHAVIOURAL, not a grep: the normaliser is lifted OUT OF THE SHIPPED FILE and executed,
+  #   so this control tests the text that runs rather than a copy of it. A grep would have
+  #   passed against a normaliser that collapsed everything to the empty string.
+  _norm_src="$(grep -m1 '^ *_ch_norm() {' "$GS")"
+  if [ -n "$_norm_src" ]; then
+    eval "$_norm_src"
+    if [ "$(_ch_norm acmeLedger-38)" = "$(_ch_norm acme-ledger-38)" ] \
+       && [ -n "$(_ch_norm acme-ledger-38)" ]; then
+      printf '  ok    %-52s\n' "camelCase roster id and kebab slug share one key"; PASS=$((PASS+1))
+    else
+      printf '  FAIL  %-52s\n' "G-AL cannot match its own kebab-case ledger"; FAIL=$((FAIL+1))
+    fi
+    # THE OTHER COLUMN. A normaliser that answers the same for everything satisfies the line
+    # above and would hand every session a sibling's stamp -- which is the defect, not the fix.
+    if [ "$(_ch_norm acme-ledger-38)" != "$(_ch_norm acme-ledger-39)" ]; then
+      printf '  ok    %-52s\n' "...and two different sessions still differ"; PASS=$((PASS+1))
+    else
+      printf '  FAIL  %-52s\n' "the key collapses distinct sessions — worse than the bug"; FAIL=$((FAIL+1))
+    fi
+    unset -f _ch_norm
+  else
+    printf '  FAIL  %-52s\n' "G-AL has no ledger-name normaliser at all"; FAIL=$((FAIL+1))
+  fi
 else
   printf '  WARN  %-52s\n' "gate-selfcheck.sh unreadable; ledger-name controls skipped"
 fi
