@@ -16,7 +16,10 @@
 # That is the intended cost. Do not add a `com.*` glob here to quiet it — back the plist instead.
 
 com.adobe.*                     # Creative Cloud / Acrobat vendor agents, installed by Adobe
-com.anthropic.claudefordesktop.*  # Claude desktop app auto-updater (ShipIt), vendor-installed
+com.anthropic.claudefordesktop.*  # TRANSIENT: Claude desktop app updater (Squirrel/ShipIt) —
+                                # registers a launchd label ONLY while an update is installing,
+                                # so it is absent on any ordinary day. App itself is installed
+                                # and running; verified 2026-08-24. Vendor-installed, not ours.
 com.autodesk.*                  # Fusion 360 vendor agent
 com.docker.*                    # Docker Desktop vendor helper
 com.google.*                    # GoogleUpdater / Keystone, vendor-installed

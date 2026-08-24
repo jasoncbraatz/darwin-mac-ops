@@ -218,11 +218,25 @@ else:
         print("    %s (%d entries)" % (rel(path), len(ents)))
         for pat, line in ents:
             n = sum(1 for L in labels if fnmatch.fnmatch(L, pat))
-            row(name, pat, n, line.split("#", 1)[-1].strip()[:44] if "#" in line else "")
-            if not n:
+            why = line.split("#", 1)[-1].strip() if "#" in line else ""
+            # TRANSIENT: — a vendor job that only registers a launchd label WHILE it is doing
+            # something (Squirrel/ShipIt updaters, installers). It is legitimately absent on any
+            # ordinary day, so zero matches is not evidence of rot. This suppresses ONLY the
+            # staleness finding: the row still prints, and the marker still demands a real
+            # reason, so a bogus TRANSIENT is as visible in review as a bogus glob would be.
+            # Deliberately narrow — it is not an excuse for a job that simply died. (2026-08-24)
+            m = re.match(r"TRANSIENT:\s*(.+)", why)
+            transient = bool(m) and len(m.group(1).strip()) >= 25
+            row(name, pat, n, ("transient · " + m.group(1).strip())[:44] if transient else why[:44])
+            if not n and not transient:
                 stale("%s: '%s' matches NO loaded launchd label today — it excuses a job that is "
-                      "no longer running. Delete it, or say in the file why it is kept."
+                      "no longer running. Delete it, or say in the file why it is kept "
+                      "(a vendor job that only appears while updating: prefix the reason "
+                      "'TRANSIENT: ' plus 25+ chars saying when it DOES appear)."
                       % (rel(path), pat))
+            if m and not transient:
+                stale("%s: '%s' is marked TRANSIENT but its reason is too thin to audit — say "
+                      "in 25+ chars WHEN the label actually appears." % (rel(path), pat))
 
 # --- 2d. gate-secret-sweep.allow (consumer: G-E, via ge_allowed) ---
 print("  --- %s ---" % rel(GE_ALLOW))
