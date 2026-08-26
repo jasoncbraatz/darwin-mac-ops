@@ -7,6 +7,10 @@
 # which repos were protected. This hook + install-estate-hooks.sh + G-AF close
 # that: one needle (secret-re.sh), every repo, and the gate proves the wiring.
 #
+# 2026-08-26: a SECOND axis alongside the needle -- estate_leakguard() below refuses
+# the literal values this box actually holds, because a credential with no vendor
+# prefix (a Cloudflare token) has no shape a regex can safely match.
+#
 # Scans the STAGED INDEX, never the working tree. `git grep --cached` reads the
 # index, which is exactly what the commit will contain. Working-tree scanning is
 # wrong twice over (global lesson 2026-07-08): it MISSES a staged secret whose
@@ -40,6 +44,46 @@ ge_load_allow
 # else -- deliberately unlike the secret scan above it, whose blast radius is one
 # credential rather than every commit on a machine running 11 concurrent sessions.
 # Runs AFTER the secret scan so the security control always speaks first.
+# --- the identity layer (2026-08-26, opus-pnsTock) ---------------------------------
+# SECRET_RE above matches SHAPES, which only reaches credentials carrying a vendor
+# prefix. A Cloudflare API token is 52 characters of base64-ish nothing; on 2026-08-25
+# the live DNS:Edit-on-all-26-zones token reached a transcript and neither this hook nor
+# G-E could have seen it, because there is no pattern to see.
+#
+# leakguard.py matches IDENTITY: it reads the secret-bearing files this box actually
+# holds (SSOT for the inventory: secrets/SECRETS.md) and refuses those exact literals in
+# the staged index. Different axis, same index, one process for the whole commit.
+#
+# Fails OPEN-BUT-LOUD, unlike the regex above. The regex needle is repo-backed and
+# versioned beside this hook, so its absence is corruption and must fail closed; the
+# identity layer depends on ~/Scripts/leakguard.py plus live files under ~/.config that
+# a fresh clone legitimately will not have. Blocking every commit on a machine that has
+# not been set up yet would get the whole hook chain uninstalled, so it says so instead.
+estate_leakguard() {
+  local lg="${ESTATE_LEAKGUARD:-$HOME/Scripts/leakguard.py}"
+  if [ ! -f "$lg" ]; then
+    echo "estate pre-commit: NOTE — identity layer inert (no $lg); shape layer still ran" >&2
+    return 0
+  fi
+  local out
+  out="$(python3 "$lg" git-index 2>&1)" || {
+    echo "" >&2
+    echo "estate pre-commit: BLOCKED — the staged index carries a credential THIS BOX HOLDS" >&2
+    printf '%s\n' "$out" | sed 's/^/  /' >&2
+    cat >&2 <<'LGWHY'
+
+  This is not a shape guess. The literal in your staged file is byte-identical to a
+  value in one of the files listed by `python3 ~/Scripts/leakguard.py sources`.
+
+  To LOOK at the offending file safely:  python3 ~/Scripts/leakguard.py mask <file>
+  If it is real:  scrub it and ROTATE the credential — see secrets/SECRETS.md.
+  If you are sure it is fine:  git commit --no-verify   (this commit only)
+LGWHY
+    return 1
+  }
+  return 0
+}
+
 estate_roster_brake() {
   local b="$HOME/Scripts/roster-brake.py"
   [ -x "$b" ] || return 0
@@ -107,6 +151,7 @@ WHY
   exit 1
 fi
 
+estate_leakguard    || exit 1
 estate_roster_brake || exit 1
 
 ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
