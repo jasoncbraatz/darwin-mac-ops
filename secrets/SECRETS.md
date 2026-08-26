@@ -46,12 +46,34 @@ ssh flowers 'sudo ls -la /root/secrets/ /root/.secrets/'
 ssh n8n 'sudo grep N8N_ENCRYPTION_KEY /opt/n8n/docker-compose.yml'
 ```
 
+## Leak guard (added 2026-08-26)
+
+`~/Scripts/leakguard.py` reads every file listed in this document's inventory and refuses to let
+those exact literals appear anywhere else — it matches **identity, not shape**, which is the only
+thing that works for a credential with no vendor prefix (a Cloudflare token is 52 characters of
+base64-ish nothing). It is layer B of the `secret-scan-staged.sh` commit hook, and it is also the
+safe way to LOOK at a file that might embed one:
+
+```
+python3 ~/Scripts/leakguard.py mask FILE      # instead of `cat FILE`
+python3 ~/Scripts/leakguard.py scan FILE...   # exit 1 if a live secret is in there
+python3 ~/Scripts/leakguard.py sources        # which files it treats as secret-bearing
+```
+
+**When a new credential lands on disk, add its glob to `DEFAULT_SOURCES` in that script** (or to
+`~/.config/leakguard/manifest`) — that is the whole maintenance burden, and it is what keeps this
+document and the guard from drifting apart. Drill: `bash ~/Scripts/leakguard-drill.sh` (18 assertions).
+
 ## Rotation hygiene
 
 If any of these secrets are suspected compromised:
 
 1. **GitHub PAT:** revoke first at github.com/settings, then regenerate, then update `~/.config/github/pat` and `n8n:/root/.git-credentials`.
-2. **CF token:** revoke at dash.cloudflare.com/profile/api-tokens, regenerate (Zone:DNS:Edit on All zones), update `~/.config/cloudflare/token` and `flowers:/root/.secrets/cloudflare.ini`.
+2. **CF token:** the token CANNOT roll itself — `PUT /user/tokens/{id}/value` returns 9109 at DNS:Edit scope,
+   so the roll is a dashboard click: dash.cloudflare.com/profile/api-tokens → the DNS:Edit token → ⋯ → **Roll**.
+   Everything after that is one paste: `pbpaste | ~/Scripts/cf-token-install.sh` — it backs up, installs 0600,
+   refuses (and restores) unless the new value sees all 26 zones, and updates `flowers:/root/.secrets/cloudflare.ini`
+   for certbot. Never pass the token as an argument; argv lands in `ps`, in history, and in transcripts.
 3. **N8N_ENCRYPTION_KEY:** see `n8n-stack/SECURITY.md` for the dance.
 4. **Asana PAT:** regenerate in Asana, update `~/.config/scan-pipeline/asana.token`, AND update the n8n credential (so the source-of-truth in n8n's credentials store also reflects it).
 5. **Anthropic key:** revoke at console.anthropic.com, generate, update `~/.config/scan-pipeline/anthropic.key`.
