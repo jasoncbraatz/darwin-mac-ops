@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  com.braatz.pitching-machine-runner-b — the SECOND darwin runner lane (pm2 L2, 2026-08-26).
+
+  Mirrors com.braatz.pitching-machine-runner (lane A, at ~/repos/pitching-machine/runner/
+  com.braatz.pitching-machine-runner.plist) with three deliberate differences:
+
+    1. Label suffix -b so both jobs coexist in launchd's namespace.
+    2. RAIL_RUNNER_LANE=b so the worker id in the ledger is `local-<host>-<pid>-b`; without
+       this the two lanes are indistinguishable in rail_log, in `rail.py status`, and in
+       runs.jsonl, and every "which lane did that" question needs guesswork.
+    3. A distinct StandardOutPath/StandardErrorPath (runner-b.log/runner-b.err) so the two
+       lanes' stdout never interleaves — a shared file would race lines mid-write and turn
+       every post-mortem into paleontology.
+
+  ⚠ SAME KEYCHAIN CONSTRAINT AS LANE A. This MUST be bootstrapped into the GUI domain:
+
+      launchctl bootstrap gui/$(id -u) ~/code/darwin-mac-ops/launchagents/com.braatz.pitching-machine-runner-b.plist
+      launchctl kickstart -p gui/$(id -u)/com.braatz.pitching-machine-runner-b
+
+  `claude -p` reads its OAuth credentials from the macOS login keychain; a non-GUI session sees
+  empty secrets and reports "Not logged in" no matter how logged in the machine is. See lane
+  A's plist header for the whole story — this file inherits the same rule.
+
+  Both lanes read the SAME rail.py, the SAME ledger, and the SAME kill switches. Concurrency
+  is bounded by the claims table's PRIMARY KEY (one active claim per project) and by
+  rail_policy.max_concurrent (default 2; pm2 L2 scaffolding). No coordinator needed.
+
+  Stop it:   launchctl bootout gui/$(id -u)/com.braatz.pitching-machine-runner-b
+  Pause it:  touch ~/.config/pitching-machine/RUNNER-STOP     (stops BOTH lanes)
+  Estate-wide off switch: touch ~/.config/auto-bridge/AUTO-OFF
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.braatz.pitching-machine-runner-b</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jasoncbraatz/repos/pitching-machine/runner/rail-runner.sh</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/Users/jasoncbraatz/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>CLAUDE_BIN</key><string>/Users/jasoncbraatz/.local/bin/claude</string>
+    <key>RAIL_RUNNER_TIER</key><string>big_worker</string>
+    <key>RAIL_RUNNER_LANE</key><string>b</string>
+    <key>RAIL_DAILY_CAP</key><string>200</string>
+    <key>RAIL_IDLE_SLEEP</key><string>20</string>
+    <key>RAIL_INNING_MAX_SEC</key><string>2700</string>
+    <key>RAIL_HEARTBEAT_SEC</key><string>240</string>
+    <key>DARLISH_SESSION</key><string>rail-runner-b</string>
+  </dict>
+
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+
+  <key>StandardOutPath</key><string>/Users/jasoncbraatz/.local/state/auto-bridge/runner-b.log</string>
+  <key>StandardErrorPath</key><string>/Users/jasoncbraatz/.local/state/auto-bridge/runner-b.err</string>
+  <key>WorkingDirectory</key><string>/Users/jasoncbraatz/repos/pitching-machine</string>
+</dict>
+</plist>
