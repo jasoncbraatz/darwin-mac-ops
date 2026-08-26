@@ -44,7 +44,7 @@
   <dict>
     <key>PATH</key><string>/Users/jasoncbraatz/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>CLAUDE_BIN</key><string>/Users/jasoncbraatz/.local/bin/claude</string>
-    <key>RAIL_RUNNER_TIER</key><string>big_worker</string>
+    <key>RAIL_RUNNER_TIER</key><string>mid_worker</string>
     <key>RAIL_RUNNER_LANE</key><string>b</string>
     <key>RAIL_DAILY_CAP</key><string>200</string>
     <key>RAIL_IDLE_SLEEP</key><string>20</string>
