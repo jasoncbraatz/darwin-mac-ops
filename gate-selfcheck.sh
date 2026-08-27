@@ -1856,7 +1856,12 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
           0) : ;;
           1) bold "=== G-AL#board · the generated board is stale ==="
              printf '%s\n' "$_ch_out" | sed 's/^/         /'
-             FAILS+=("G-AL#board: a lane changed status since the board was generated -- the committed board describes a world that moved on. Regenerate and commit: ${_ch_brief/#$HOME/~}") ;;
+             # The fix command is the brief MINUS --brief: with neither flag board.py WRITES
+             # the full file, which is what --check compares against. Quoting the --brief
+             # command here sent a CEO through three stale->regenerate->stale loops
+             # (ceoDesk-6, 2026-08-27): --brief prints a slice, --check wants the body.
+             _ch_regen="${_ch_brief/ --brief/}"
+             FAILS+=("G-AL#board: a lane changed status since the board was generated -- the committed board describes a world that moved on. Regenerate and commit: ${_ch_regen/#$HOME/~}") ;;
           *) bold "=== G-AL#board · the generated board could not be checked ==="
              printf '%s\n' "$_ch_out" | sed 's/^/         /'
              FAILS+=("G-AL#board CANNOT VERIFY: the shared board engine exited $_ch_rc (missing or empty criteria). An empty board must never read as a finished project. Run: ${_ch_bcheck/#$HOME/~}") ;;
