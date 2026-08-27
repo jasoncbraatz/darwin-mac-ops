@@ -56,6 +56,35 @@ done
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 FAILS=(); WARNS=()
 
+# -- A CHECK THAT NEVER RAN IS NOT A CHECK THAT PASSED ----------------------------------
+# wealthTensor-109, AAR green-suite-hid-two-ship-blockers action A2.
+#
+# G-AI already refuses a step that vanishes with its INSTRUMENT. This is the sibling class
+# it cannot see: a step that vanishes because an UPSTREAM BRANCH took another path, with
+# every guard properly else-ed. The measured case: at -108 this gate ran without
+# GATE_ROSTER_WHO, so G-AL printed `WARN CANNOT VERIFY: no current session tag` and
+# returned -- and G-AL#board, which lives INSIDE G-AL's success branch and is a hard
+# blocker, never ran at all. Nothing said so. The gate reported PASS while
+# docs/CHECKLIST.md was stale over two ship-blocking defects, both of which the board
+# surfaced four minutes later when the gate was re-run with the variable set.
+#
+# So an upstream CANNOT VERIFY now has to NAME the downstream checks it just silenced, and
+# the verdict cannot read PASS while any of them is unrun. This is deliberately NOT a FAIL
+# of the downstream check: nobody knows what that check would have said, and asserting it
+# failed would be the same lie pointing the other way. It is a refusal to certify a run
+# that did not happen -- which is what a gate is for.
+SKIPPED=()
+gate_skipped() {   # gate_skipped <downstream step> <why it could not run, and the remedy>
+  SKIPPED+=("$1 NEVER RAN: $2")
+  printf '  !      %s did not run -- %s\n' "$1" "$2"
+}
+
+# THE VERDICT PREDICATE IS A NAMED FUNCTION so that gate-skipped-drill.sh can extract and
+# execute THIS text rather than a copy of it. A drill that reimplements the rule it checks
+# goes on passing forever on the day the rule changes -- the copied-not-derived family,
+# which this file has already caught in itself twice.
+gate_verdict_is_pass() { [ "${#FAILS[@]}" -eq 0 ] && [ "${#SKIPPED[@]}" -eq 0 ]; }
+
 # --- discover unique git working-tree toplevels under the roots ---
 declare -a REPOS=()
 seen=" "
@@ -1510,6 +1539,32 @@ else
   FAILS+=("G-AI CANNOT VERIFY: $CV_DRILL is missing or not executable, so nothing checked whether the gate's own steps can vanish. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-cannot-verify-drill.sh")
 fi
 
+# -- G-AI#skipped · the gate cannot certify a run in which a check never ran --------------
+# The sibling class G-AI is structurally blind to (wealthTensor-109). G-AI asks whether a
+# step vanishes when its INSTRUMENT is gone; this asks whether the verdict can still read
+# PASS when a step was skipped by an UPSTREAM BRANCH. Both are "absence reads as health",
+# one letter apart. The drill EXECUTES this file's own gate_verdict_is_pass rather than a
+# copy of the rule, so it cannot go stale against it.
+SK_DRILL="${SK_DRILL:-$HOME/code/darwin-mac-ops/gate-skipped-drill.sh}"
+if [ -x "$SK_DRILL" ]; then
+  _sk_out="$(bash "$SK_DRILL" 2>&1)"; _sk_rc=$?
+  case "$_sk_rc" in
+    0) : ;;
+    1) bold "=== G-AI#skipped · a skipped check must not be certifiable as a pass ==="
+       printf '%s\n' "$_sk_out" | sed 's/^/         /'
+       FAILS+=("G-AI#skipped: the gate can report PASS over a check that never ran, or the skip ledger is no longer written to. Detail: bash ~/code/darwin-mac-ops/gate-skipped-drill.sh") ;;
+    2) bold "=== G-AI#skipped · a skipped check must not be certifiable as a pass ==="
+       printf '%s\n' "$_sk_out" | sed 's/^/         /'
+       FAILS+=("G-AI#skipped CANNOT VERIFY: the skipped-check drill could not run or failed its own controls. Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/gate-skipped-drill.sh") ;;
+    *) FAILS+=("G-AI#skipped: gate-skipped-drill.sh exited unexpectedly ($_sk_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  # Instrument-gated, so it carries the else its own family requires.
+  bold "=== G-AI#skipped · a skipped check must not be certifiable as a pass ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- the skip ledger went unproven\n' "${SK_DRILL/#$HOME/~}"
+  FAILS+=("G-AI#skipped CANNOT VERIFY: $SK_DRILL is missing or not executable, so nothing proved the gate still refuses to certify a run in which a check was skipped. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-skipped-drill.sh")
+fi
+
 # -- G-AJ · a renamed object must stop teaching its old name (born 2026-08-15, stateMachineRename-1)
 # Asana project 1215913700958709 was renamed Bullpen -> "State Machine" on 2026-07-10, and the
 # rename was done PROPERLY: lesson banked, RENAME banner at the top of BATTERS-BOX-HYGIENE.md,
@@ -1660,6 +1715,9 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
     else
       WARNS+=("G-AL CANNOT VERIFY: $SESSION_STATE/current is empty or missing, so nothing could tell which project this session belongs to, let alone whether it read that project's definition of done. Open one: ~/Scripts/session-in <slug>")
     fi
+    # THIS is the line whose absence let -108 hand off green. G-AL#board lives inside the
+    # branch we are NOT taking, so it is about to be skipped in silence unless we say so.
+    gate_skipped "G-AL#board" "G-AL could not identify this session, and the board staleness check runs inside G-AL. Re-run as: GATE_ROSTER_WHO=<tier>-<project>-<n> ~/Scripts/gate-selfcheck.sh"
   else
     # ONE matcher, not two. This block used to carry a second copy of charter-read.sh's row
     # loop -- and the copies drifted twice: charter-read gained PREFIX matching for voice-box
@@ -1678,10 +1736,12 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       bold "=== G-AL · the session knew what DONE looks like ==="
       printf '  warn   no charter registered for project %s\n' "$_ch_key"
       WARNS+=("G-AL: project '$_ch_key' has no row in ${CHARTER_REG/#$HOME/~}, so nobody has written down what DONE looks like for it. Multi-session projects drift without one -- acmeLedger lost five sessions to exactly this. Write the criteria and register them.")
+      gate_skipped "G-AL#board" "project '$_ch_key' has no charter row, so nothing named a criteria ledger to check for staleness. Register it in ${CHARTER_REG/#$HOME/~}"
     elif [ ! -f "$_ch_crit" ]; then
       bold "=== G-AL · the session knew what DONE looks like ==="
       printf '  FAIL   CANNOT VERIFY: %s criteria file %s is missing\n' "$_ch_row" "${_ch_crit/#$HOME/~}"
       FAILS+=("G-AL CANNOT VERIFY: $_ch_row's criteria file $_ch_crit is missing, so this session could not have read a definition of done and nothing can reconstruct one. A project whose finish line has vanished is in a worse state than one that never had it.")
+      gate_skipped "G-AL#board" "$_ch_row's criteria file is gone, so the board could not be regenerated to compare against. Restore $_ch_crit first"
     else
       _ch_sha="$(shasum -a 256 "$_ch_crit" | cut -c1-12)"
       _ch_log="$SESSION_STATE/$_ch_tag.log"
@@ -1811,6 +1871,7 @@ else
   printf '  FAIL   CANNOT VERIFY: %s or %s missing -- no project charter was checked\n' \
      "${CHARTER_READ/#$HOME/~}" "${CHARTER_REG/#$HOME/~}"
   FAILS+=("G-AL CANNOT VERIFY: $CHARTER_READ or $CHARTER_REG is missing, so NO project on this machine was asked whether its session knew what done looks like. Restore: git -C ~/code/darwin-mac-ops checkout -- project-charters.tsv; git -C ~/Scripts checkout -- charter-read.sh")
+  gate_skipped "G-AL#board" "the charter resolver or registry is missing, so no project's board was checked for staleness on this machine at all"
 fi
 
 # -- G-AL#drill · the charter check can still go red -----------------------------------
@@ -1830,7 +1891,7 @@ else
 fi
 
 
-if [ "${#FAILS[@]}" -eq 0 ]; then
+if gate_verdict_is_pass; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate
   # documented through G-AE — six letters stale, in the one paragraph a wrapping session actually
@@ -1882,7 +1943,18 @@ TRIAD
   echo "  (public-reachability of any cloud-facing endpoint: ~/Scripts/probe-public.sh <url>)"
   exit 0
 else
-  bold "GATE SELF-CHECK: FAIL ❌  (${#FAILS[@]} issue(s) — fix before writing the handoff)"
-  printf '  - %s\n' "${FAILS[@]}"
+  if [ "${#SKIPPED[@]}" -gt 0 ]; then
+    bold "GATE SELF-CHECK: FAIL ❌  (${#FAILS[@]} issue(s), ${#SKIPPED[@]} check(s) NEVER RAN)"
+    printf '\n  ── checks that DID NOT RUN, because an upstream step could not verify ──\n'
+    printf '  ! %s\n' "${SKIPPED[@]}"
+    printf '  A check that never ran is not a check that passed, and the blocker it is hiding is\n'
+    printf '  usually one step below the warning. Give the upstream step what it asked for and\n'
+    printf '  run the gate again before you believe any of this.\n\n'
+  else
+    bold "GATE SELF-CHECK: FAIL ❌  (${#FAILS[@]} issue(s) — fix before writing the handoff)"
+  fi
+  if [ "${#FAILS[@]}" -gt 0 ]; then
+    printf '  - %s\n' "${FAILS[@]}"
+  fi
   exit 1
 fi
