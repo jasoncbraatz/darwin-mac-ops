@@ -20,3 +20,4 @@ floristDeputize	~/repos/claude-blackbook	$HOME/repos/claude-blackbook/docs/done-
 mcpMirror	~/Scripts	$HOME/Scripts/done-criteria-mcpmirror.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/done-criteria-mcpmirror.tsv --project mcpMirror
 paintsSticks	$HOME/repos/paints-and-sticks-web	$HOME/repos/paints-and-sticks-web/docs/done-criteria.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/paints-and-sticks-web/docs/done-criteria.tsv --project paintsSticks --brief
 ceoDesk	~/repos/ceo-desk	$HOME/repos/ceo-desk/docs/done-criteria.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/ceo-desk/docs/done-criteria.tsv --project ceoDesk --brief
+bbCleanup	~/repos/claude-blackbook	$HOME/repos/claude-blackbook/docs/bbcleanup-done-criteria.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/claude-blackbook/docs/bbcleanup-done-criteria.tsv --project bbCleanup --brief
