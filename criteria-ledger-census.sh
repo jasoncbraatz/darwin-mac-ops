@@ -88,6 +88,41 @@ for f in "${LEDGERS[@]}"; do
   FOUND=1
 done
 
+# -- board-path collision: two charters whose boards resolve to ONE file (ceoDesk-4, 2026-08-27) ---
+# board.py's default --out is <criteria dir>/CHECKLIST.md. claude-blackbook hosts TWO charters
+# (floristDeputize, bbCleanup); until bbCleanup's row carried an explicit --out, G-AL#board compared
+# bbCleanup's criteria against floristDeputize's board and reported STALE forever. The collision is
+# invisible from inside either session, so the census -- the only thing that reads every row -- checks it.
+# bash 3.2 on darwin: no associative arrays, so the seen-list is a newline-joined "out<TAB>key" string.
+_OUTSEEN=""
+_COLL=0
+while IFS=$'\t' read -r _key _repo _crit _brief; do
+  case "$_key" in ''|'#'*) continue ;; esac
+  [ -n "${_crit:-}" ] || continue
+  _crit="${_crit//\$HOME/$HOME}"; _crit="${_crit/#\~/$HOME}"
+  _out=""
+  if printf '%s' "${_brief:-}" | grep -q -- '--out '; then
+    _out="$(printf '%s' "$_brief" | sed -E 's/.*--out[[:space:]]+([^[:space:]]+).*/\1/')"
+    _out="${_out//\$HOME/$HOME}"; _out="${_out/#\~/$HOME}"
+  else
+    _out="$(dirname "$_crit")/CHECKLIST.md"
+  fi
+  _prev="$(printf '%s\n' "$_OUTSEEN" | awk -F'\t' -v o="$_out" '$1==o {print $2; exit}')"
+  if [ -n "$_prev" ]; then
+    printf '  RED   board-path collision: %s and %s both render to %s -- give one of them an explicit --out\n' \
+      "$_prev" "$_key" "${_out/#$HOME/~}"
+    _COLL=1
+  else
+    _OUTSEEN="$_OUTSEEN
+$_out	$_key"
+  fi
+done < "$REG"
+if [ "$_COLL" -eq 1 ]; then
+  say "  Two charters writing one CHECKLIST.md means G-AL#board judges one project's board against"
+  say "  the other project's criteria and reports STALE forever. Fix the registry row, not the gate."
+  exit 1
+fi
+
 say "=== criteria-ledger census: ${#LEDGERS[@]} ledger(s) found, ${#ORPHANS[@]} unregistered"
 if [ "$FOUND" -eq 0 ]; then
   say "  ok    every criteria ledger resolves to a charter row, so G-AL#board reads all of them"
