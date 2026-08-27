@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.sm-sweep — the State Machine valet (bbCleanup-1, 2026-08-27).
+  Daily 09:50 local (after the newspaper-boy): closes finished rail/canary/IPC notices
+  deterministically and upserts ONE orphans digest card into State Machine.
+  Design + registry: ~/repos/claude-blackbook/scripts/sm-sweep.py (docstring).
+  Vault copy: ~/code/darwin-mac-ops/launchagents/. Heartbeat: ~/Scripts/darwin-heartbeats.py.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.braatz.sm-sweep</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/jasoncbraatz/repos/claude-blackbook/scripts/sm-sweep.py</string>
+    <string>--apply</string>
+    <string>--digest</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>50</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/sm-sweep.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/sm-sweep.err</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/jasoncbraatz/repos/claude-blackbook</string>
+</dict>
+</plist>
