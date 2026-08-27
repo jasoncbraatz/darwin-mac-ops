@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.braatz.ledger-restore-drill</string>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>/Users/jasoncbraatz/Scripts/ledger-restore-drill.sh</string></array>
+<key>StartCalendarInterval</key><dict><key>Day</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>17</integer></dict>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+<key>StandardOutPath</key><string>/Users/jasoncbraatz/.local/state/ledger-offbox/drill.log</string>
+<key>StandardErrorPath</key><string>/Users/jasoncbraatz/.local/state/ledger-offbox/drill.err</string>
+</dict></plist>
