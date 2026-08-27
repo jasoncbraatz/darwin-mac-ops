@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.newspaper-boy — the Batter's Box paperboy (bbCleanup-1, 2026-08-27).
+  Daily 09:40 local (after the last daily paper lands ~09:01 CT): rolls daily report cards
+  that have gone unread for >2 days into ONE open edition card, closing the originals.
+  The n8n generators are untouched; only delivery changes.
+  Design + contract: ~/repos/claude-blackbook/scripts/newspaper-boy.py (docstring) and
+  ~/repos/claude-blackbook/scripts/CLOSE-ON-CLEAR.md §Newspaper Boy.
+  Vault copy: ~/code/darwin-mac-ops/launchagents/ (launchd-census rule). Heartbeat registered
+  in ~/Scripts/darwin-heartbeats.py so the Workflow Staleness Sentinel notices if it stops.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.braatz.newspaper-boy</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/jasoncbraatz/repos/claude-blackbook/scripts/newspaper-boy.py</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>40</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/newspaper-boy.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/newspaper-boy.err</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/jasoncbraatz/repos/claude-blackbook</string>
+</dict>
+</plist>
