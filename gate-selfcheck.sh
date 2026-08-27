@@ -1874,6 +1874,39 @@ else
   gate_skipped "G-AL#board" "the charter resolver or registry is missing, so no project's board was checked for staleness on this machine at all"
 fi
 
+# -- G-AL#registry · a criteria ledger nobody registered is a ledger nobody reads --------
+# wealthTensor-109, AAR green-suite-hid-two-ship-blockers action A3.
+#
+# G-AL#board above reads the board of THIS session's project, resolved through
+# project-charters.tsv. A project with no row there gets a WARN from G-AL and nothing else:
+# G-AL#board never runs for it, so its board's freshness is never anybody's business. That
+# is a per-session check with an estate-shaped hole, and the hole is invisible from inside
+# any single session -- you only see it by enumerating the ledgers and asking which ones
+# resolve.
+#
+# MEASURED the day this was wired: six ledgers, five registered. The sixth was
+# paints-and-sticks-web -- a live storefront whose own sessions had just written G-AM and
+# G-AN into this gate -- and regenerating its unwatched board found FIVE criteria flipped
+# MET -> UNMET behind a committed board still reporting CLOSED.
+CLC="${CLC:-$HOME/code/darwin-mac-ops/criteria-ledger-census.sh}"
+if [ -x "$CLC" ]; then
+  _clc_out="$(bash "$CLC" 2>&1)"; _clc_rc=$?
+  case "$_clc_rc" in
+    0) : ;;
+    1) bold "=== G-AL#registry · every criteria ledger is read by something ==="
+       printf '%s\n' "$_clc_out" | sed 's/^/         /'
+       FAILS+=("G-AL#registry: a project on this machine carries a done-criteria ledger with no row in project-charters.tsv, so G-AL#board never reads it and its board can rot unwatched. Detail: bash ~/code/darwin-mac-ops/criteria-ledger-census.sh") ;;
+    2) bold "=== G-AL#registry · every criteria ledger is read by something ==="
+       printf '%s\n' "$_clc_out" | sed 's/^/         /'
+       FAILS+=("G-AL#registry CANNOT VERIFY: the criteria-ledger census could not enumerate (no registry, or ZERO ledgers found -- a broken finder, not an empty estate). Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/criteria-ledger-census.sh") ;;
+    *) FAILS+=("G-AL#registry: criteria-ledger-census.sh exited unexpectedly ($_clc_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  bold "=== G-AL#registry · every criteria ledger is read by something ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- no ledger was checked for a reader\n' "${CLC/#$HOME/~}"
+  FAILS+=("G-AL#registry CANNOT VERIFY: $CLC is missing or not executable, so nothing checked whether every criteria ledger on this machine resolves to a charter row. Restore it: git -C ~/code/darwin-mac-ops checkout -- criteria-ledger-census.sh")
+fi
+
 # -- G-AL#drill · the charter check can still go red -----------------------------------
 CHARTER_DRILL="${CHARTER_DRILL:-$HOME/code/darwin-mac-ops/gate-charter-drill.sh}"
 if [ -x "$CHARTER_DRILL" ]; then
