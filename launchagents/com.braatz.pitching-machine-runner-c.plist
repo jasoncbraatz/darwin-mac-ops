@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  com.braatz.pitching-machine-runner-c — LANE C: the fast_worker (Haiku) lane, added 2026-08-27 by the CEO for
+  Jason's "test a Haiku with handoffs in CEO mode" — a data-classification lane. Same rules as lanes A/B (GUI
+  domain, same keychain, same kill switches). RAIL_RUNNER_TIER=fast_worker means pick_project() serves it ONLY
+  projects railed on with --tier fast_worker (pm2 ruling #11). Stop it: launchctl bootout gui/$(id -u)/com.braatz.pitching-machine-runner-c
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.braatz.pitching-machine-runner-c</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jasoncbraatz/repos/pitching-machine/runner/rail-runner.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/Users/jasoncbraatz/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>CLAUDE_BIN</key><string>/Users/jasoncbraatz/.local/bin/claude</string>
+    <key>RAIL_RUNNER_TIER</key><string>fast_worker</string>
+    <key>RAIL_RUNNER_LANE</key><string>c</string>
+    <key>RAIL_DAILY_CAP</key><string>200</string>
+    <key>RAIL_IDLE_SLEEP</key><string>20</string>
+    <key>RAIL_INNING_MAX_SEC</key><string>1200</string>
+    <key>RAIL_HEARTBEAT_SEC</key><string>240</string>
+    <key>DARLISH_SESSION</key><string>rail-runner-c</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>StandardOutPath</key><string>/Users/jasoncbraatz/.local/state/auto-bridge/runner-c.log</string>
+  <key>StandardErrorPath</key><string>/Users/jasoncbraatz/.local/state/auto-bridge/runner-c.err</string>
+  <key>WorkingDirectory</key><string>/Users/jasoncbraatz/repos/pitching-machine</string>
+</dict>
+</plist>
