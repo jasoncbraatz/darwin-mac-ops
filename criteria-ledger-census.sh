@@ -78,10 +78,37 @@ if [ -z "$(printf '%s' "$REGISTERED" | tr -d '[:space:]')" ]; then
       is a parser finding, not an estate finding."
 fi
 
+# -- a ledger inside a LINKED GIT WORKTREE is not a second project -----------------------------
+# The rail runs its lanes in git worktrees (claude-blackbook-lane-c etc). A worktree contains
+# the same COMMITTED files as its canonical repo, so a `find` across the roots sees one
+# registered ledger twice and reports the second copy as an unregistered project. That is a
+# false positive that fires for every lane that will ever exist -- and a check that cries wolf
+# on the estate's own tooling is one people learn to scroll past, which costs more than the
+# check was ever worth (the L3 OAuth criterion states the same rule: a row that reddens on
+# something nobody controls is a row nobody reads).
+#
+# Skipped ONLY when both are true: the file sits in a linked worktree, AND git already tracks
+# it -- so a genuinely NEW ledger written inside a lane is still reported, which is the case
+# that would actually matter. Skips are COUNTED AND NAMED below, never silent.
+in_linked_worktree() {
+  local d gd
+  d="$(dirname "$1")"
+  gd="$(git -C "$d" rev-parse --git-dir 2>/dev/null)" || return 1
+  case "$gd" in */worktrees/*) return 0 ;; *) return 1 ;; esac
+}
+ledger_is_tracked() {
+  git -C "$(dirname "$1")" ls-files --error-unmatch -- "$1" >/dev/null 2>&1
+}
+
 FOUND=0
 ORPHANS=()
+WORKTREE_DUPES=()
 for f in "${LEDGERS[@]}"; do
   if printf '%s\n' "$REGISTERED" | grep -qxF "$f"; then
+    continue
+  fi
+  if in_linked_worktree "$f" && ledger_is_tracked "$f"; then
+    WORKTREE_DUPES+=("$f")
     continue
   fi
   ORPHANS+=("$f")
@@ -124,6 +151,11 @@ if [ "$_COLL" -eq 1 ]; then
 fi
 
 say "=== criteria-ledger census: ${#LEDGERS[@]} ledger(s) found, ${#ORPHANS[@]} unregistered"
+if [ "${#WORKTREE_DUPES[@]}" -gt 0 ]; then
+  say "  note  ${#WORKTREE_DUPES[@]} tracked copy/copies skipped inside linked git worktrees (the rail's lanes);"
+  say "        each is the SAME committed file as its canonical repo, already registered there:"
+  for _d in "${WORKTREE_DUPES[@]}"; do say "          $_d"; done
+fi
 if [ "$FOUND" -eq 0 ]; then
   say "  ok    every criteria ledger resolves to a charter row, so G-AL#board reads all of them"
   exit 0
