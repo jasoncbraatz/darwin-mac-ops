@@ -1940,6 +1940,49 @@ else
 fi
 
 
+# -- G-AO . an exit code is never read through a pipe (born 2026-08-31, paintsSticks-9) ----
+# The species: a bare pipeline followed by a read of $? reports the LAST command's status --
+# tail's, head's, sed's -- which is 0 essentially always. It is the mechanism by which a RED
+# sweep gets handed over as a GREEN one, and this estate already knows that: six global lessons
+# say it, seven handoffs warn about it in prose, and THREE consecutive paints-and-sticks
+# sessions read the warning and walked into it anyway, one of them while measuring whether a
+# watch was green. A warning you have read is not a control. This is the control.
+#
+# It reads SHELL semantics, not grep semantics, which is the whole reason it can be a blocker
+# rather than a nag: a pipe inside quotes is text, and a pipe inside $(..) belongs to the
+# substitution -- whose $? IS its last command, and therefore correct. So the only thing it
+# reddens on is a bare pipeline whose exit code somebody then reads. Docs count: a recipe in a
+# handoff is pasted by the next session, which is exactly how this species propagates. Where
+# the pipeline's last command really IS the assertion, mark the line with the audit's opt-out
+# comment and say why -- the marker is honoured anywhere in the comment block above the line.
+RC_PIPE_AUDIT="${RC_PIPE_AUDIT:-$HOME/code/darwin-mac-ops/rc-through-pipe-audit.py}"
+if [ -x "$RC_PIPE_AUDIT" ]; then
+  bold "=== G-AO . no exit code is read through a pipe (scripts AND docs) ==="
+  # The detector's own controls FIRST. A detector that can no longer go red cannot certify a
+  # green -- the same rule G-AK#drill and G-AL#drill apply to their instruments.
+  _rp_self="$(/usr/bin/python3 "$RC_PIPE_AUDIT" --selftest 2>&1)"; _rp_srr=$?
+  if [ "$_rp_srr" -ne 0 ]; then
+    printf '%s\n' "$_rp_self" | sed 's/^/         /'
+    FAILS+=("G-AO CANNOT VERIFY: rc-through-pipe-audit.py failed its own selftest ($_rp_srr). A detector that cannot go red cannot certify a green. Run: /usr/bin/python3 ~/code/darwin-mac-ops/rc-through-pipe-audit.py --selftest")
+  else
+    _rp_out="$(/usr/bin/python3 "$RC_PIPE_AUDIT" 2>&1)"; _rp_rc=$?
+    case "$_rp_rc" in
+      0) printf '  ok     %s\n' "$(printf '%s\n' "$_rp_out" | head -1)" ;;
+      1) printf '%s\n' "$_rp_out" | sed 's/^/         /'
+         FAILS+=("G-AO: an exit code is being read through a pipe. That measurement reports the LAST command's status, not the tool's, and is how a red sweep gets handed over as a green. Fix each site, or mark it with the audit opt-out comment and say why. Detail: /usr/bin/python3 ~/code/darwin-mac-ops/rc-through-pipe-audit.py") ;;
+      2) printf '%s\n' "$_rp_out" | sed 's/^/         /'
+         FAILS+=("G-AO CANNOT VERIFY: the audit found no readable roots, so nothing was swept. Exit 2 is not a pass.") ;;
+      *) FAILS+=("G-AO CANNOT VERIFY: rc-through-pipe-audit.py exited unexpectedly ($_rp_rc) -- treat as CANNOT VERIFY") ;;
+    esac
+  fi
+else
+  # instrument-gated, so it gets the else that G-AI exists to require
+  bold "=== G-AO . no exit code is read through a pipe (scripts AND docs) ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- nothing swept for piped exit codes\n' "${RC_PIPE_AUDIT/#$HOME/~}"
+  FAILS+=("G-AO CANNOT VERIFY: $RC_PIPE_AUDIT is missing or not executable, so no exit-code-through-a-pipe sweep ran. Restore: git -C ~/code/darwin-mac-ops checkout -- rc-through-pipe-audit.py")
+fi
+
+
 if gate_verdict_is_pass; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate
