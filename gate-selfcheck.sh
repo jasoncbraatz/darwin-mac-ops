@@ -2022,9 +2022,36 @@ if gate_verdict_is_pass; then
   3. What ONE thing makes the next Opus's life easier than ours was — and did we ADD it THIS pass?
      a sharper prompt, a script, a cached LUT, a new gate check. "I looked hard and genuinely found
      nothing" is a LEGAL, celebrated answer — but it must be rare, and you must say WHY.  (-> G-G)
+  4. EPSILON: how many reversible calls did you make WITHOUT asking Jason? Name them, each
+     with its undo. ZERO is not a clean record, it is an UNMEASURED one -- a greedy policy
+     never learns, and caution that costs nothing becomes the default. Say what you asked
+     permission for, or quietly did not do, that a one-line undo would have answered.
+     Log as you go:  ~/Scripts/epsilon log "<what>" --undo "<how>"    (-> ~/Scripts/epsilon)
   Any "not yet" is a BLOCKER: fix the doc gap before handing off. Full gate: ~/Desktop/downloads/HANDOFF-GATE.md (@@GRANGE@@).
   COWORK ONLY (interactive Jason session): if THIS session's milestone is CLEARED, emit NO handoff -- say 'cleared for takeoff' (the ABSENCE is the done-signal; a handoff means real work remains). HANDOFF-GATE §G-F (version printed below). Autonomous DJ sessions: always hand off.
 TRIAD
+
+  # braatzMail-119: question 4 asks for a number, so the gate PRODUCES the number rather
+  # than trusting the session to remember. An unmeasured exhortation is a decoration --
+  # this whole session was about that. Identity resolves the same way the roster does.
+  _eps_who="${GATE_ROSTER_WHO:-${DARLISH_SESSION:-}}"
+  if [ -x "$HOME/Scripts/epsilon" ]; then
+    if [ -n "$_eps_who" ]; then
+      _eps_n="$(python3 "$HOME/Scripts/epsilon" count --who "$_eps_who" 2>/dev/null)"
+    else
+      _eps_n="$(python3 "$HOME/Scripts/epsilon" count 2>/dev/null)"
+    fi
+    [ -n "$_eps_n" ] || _eps_n="?"
+    if [ "$_eps_n" = "0" ]; then
+      printf "  EPSILON: %s unasked reversible call(s) logged for %s -- that is UNMEASURED,\n" \
+             "$_eps_n" "${_eps_who:-this board}" >&2
+      printf "  not clean. Answer question 4 in writing before you hand off.\n" >&2
+    else
+      printf "  EPSILON: %s unasked reversible call(s) logged for %s. Carry them, with their\n" \
+             "$_eps_n" "${_eps_who:-this board}" >&2
+      printf "  undos, into the handoff:  ~/Scripts/epsilon report\n" >&2
+    fi
+  fi
   # Version is DERIVED from the canonical doc header, never hardcoded -- see
   # global lesson "a number copied into prose rots". Fourth instance was this very line.
   _gate_ver="$(grep -m1 -oE 'Version [0-9]+\.[0-9]+' "$CANON_GATE" 2>/dev/null || true)"
