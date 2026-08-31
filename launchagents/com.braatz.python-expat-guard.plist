@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.braatz.python-expat-guard</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/jasoncbraatz/Scripts/fix-python-expat.sh</string>
+		<string>--settle</string>
+		<string>15</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>WatchPaths</key>
+	<array>
+		<string>/opt/homebrew/Cellar/python@3.14</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>7</integer>
+		<key>Minute</key>
+		<integer>35</integer>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/Users/jasoncbraatz/Library/Logs/python-expat-guard.stderr.log</string>
+	<key>StandardOutPath</key>
+	<string>/Users/jasoncbraatz/Library/Logs/python-expat-guard.stdout.log</string>
+</dict>
+</plist>
