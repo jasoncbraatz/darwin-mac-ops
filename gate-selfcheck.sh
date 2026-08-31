@@ -2051,6 +2051,15 @@ TRIAD
              "$_eps_n" "${_eps_who:-this board}" >&2
       printf "  undos, into the handoff:  ~/Scripts/epsilon report\n" >&2
     fi
+  else
+    # G-AI caught this block on its first run: no else branch, so if the ledger went missing
+    # the whole EPSILON check would VANISH SILENTLY -- an instrument that stops reporting and
+    # says nothing, which is the exact defect this session existed to hunt. A watcher has
+    # THREE states that must not collapse into two: saw-a-number, could-not-look, did-not-run.
+    # An unreadable ledger is UNKNOWN, never zero.
+     printf "  EPSILON: CANNOT VERIFY -- ~/Scripts/epsilon is missing or not executable, so\n" >&2
+    printf "  the unasked-reversible-call count could not be produced. That is UNKNOWN, not\n" >&2
+    printf "  zero. Answer triad question 4 by hand, and say so in the handoff.\n" >&2
   fi
   # Version is DERIVED from the canonical doc header, never hardcoded -- see
   # global lesson "a number copied into prose rots". Fourth instance was this very line.
