@@ -1735,6 +1735,17 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       # condition this step exists to surface -- it is how -21..-25 happened.
       bold "=== G-AL · the session knew what DONE looks like ==="
       printf '  warn   no charter registered for project %s\n' "$_ch_key"
+      # A session that invents its own project key lands here, and the old message sent it off
+      # to WRITE a charter for a project that already has one under its real name. psRetireWatch-1
+      # (2026-08-31) joined the roster as big_worker-psRetireWatch -- its session id -- when the
+      # project key was paintsSticks, and the gate failed on a project that was fully chartered.
+      # Fuzzy-matching would not have helped (the two strings share nothing), so show the answer:
+      # the convention, and every key that actually exists. One glance instead of one FAIL.
+      printf '         GATE_ROSTER_WHO must be <tier>-<projectKey>-<n>, and <projectKey> must be a\n'
+      printf '         key below -- NOT this session id. Inventing one fails a chartered project.\n'
+      printf '         REGISTERED CHARTER KEYS: '
+      awk -F'\t' '!/^#/ && NF>1 && $1!="" {printf "%s ", $1}' "$CHARTER_REG" 2>/dev/null
+      printf '\n'
       WARNS+=("G-AL: project '$_ch_key' has no row in ${CHARTER_REG/#$HOME/~}, so nobody has written down what DONE looks like for it. Multi-session projects drift without one -- acmeLedger lost five sessions to exactly this. Write the criteria and register them.")
       gate_skipped "G-AL#board" "project '$_ch_key' has no charter row, so nothing named a criteria ledger to check for staleness. Register it in ${CHARTER_REG/#$HOME/~}"
     elif [ ! -f "$_ch_crit" ]; then
