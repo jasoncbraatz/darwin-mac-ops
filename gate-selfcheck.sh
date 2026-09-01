@@ -664,6 +664,16 @@ if [ -f "$CANON_GATE" ]; then
   elif ! cmp -s "$CANON_GATE" "$MIRROR_GATE"; then
     WARNS+=("HANDOFF-GATE claude-blackbook mirror is STALE — run ~/Scripts/mirror-handoff-gate.sh")
   fi
+  # --- G-L#35d · handoff_gate.py copies are byte-identical to the canonical kit (luxuryDesk-01,
+  #     2026-09-01; card 1217526083727093). Same family as the mirror check above: one canonical
+  #     home, synced not forked. Found: the canonical BEHIND its pitching-machine copy by three
+  #     fixes, four repos on a fossil. WARN, not FAIL — the drift is rarely this session's doing —
+  #     but the remedy is one command and it is named.
+  if [ -x "$HOME/Scripts/handoff-kit/propagate-gate.sh" ]; then
+    if ! bash "$HOME/Scripts/handoff-kit/propagate-gate.sh" --check >/dev/null 2>&1; then
+      WARNS+=("G-L#35d: a scripts/handoff_gate.py copy DRIFTED from ~/Scripts/handoff-kit/handoff_gate.py — see: bash ~/Scripts/handoff-kit/propagate-gate.sh --check ; fix: propagate-gate.sh (no flag) then commit the copies. If a copy is AHEAD, port its fix into the canonical FIRST.")
+    fi
+  fi
   # --- G-L#35c · the header version must have a changelog entry (born 2026-08-15,
   #     stateMachineRename-1). The gate's own standing rule is "header version and this entry
   #     bumped in the SAME edit", and the file that states it keeps breaking it: v2.29's entry
