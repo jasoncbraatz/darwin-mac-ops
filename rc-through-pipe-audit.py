@@ -67,6 +67,14 @@ NEXT_LINE_RC_RE = re.compile(
 PIPESTATUS_RE = re.compile(r"\$\{?PIPESTATUS\[")
 LC_PIPESTATUS_RE = re.compile(r"\$\{?pipestatus\[")
 PIPEFAIL_RE = re.compile(r"pipefail")
+# `set -o pipefail` AT TOP LEVEL and BEFORE the line genuinely fixes the semantics: the
+# pipeline's status becomes the rightmost non-zero, so `cmd | report; exit $?` does propagate
+# cmd's failure. Flagging that is crying wolf on correct shell -- and a check that fires on the
+# weather is a check people learn to skip, which this file's own G-AO write-up says out loud.
+# Heuristic and deliberately erring toward SUPPRESSING: `set` must be at column 0-2, so a
+# pipefail set inside an indented function body does not count. Suppressed hits are still
+# counted and listable under --all; they never become invisible.
+TOP_PIPEFAIL_RE = re.compile(r"^ {0,2}set\b[^#]*pipefail")
 FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
 # prose that names the pattern as WRONG -- a lesson card, not a recipe
 WARNS_RE = re.compile(
@@ -232,6 +240,14 @@ def walk(roots):
 LESSONS_PATH_RE = re.compile(r"(^|/)lessons/")
 
 
+def pipefail_before(lines, i):
+    """Is `set -o pipefail` in effect at top level by the time we reach line i?"""
+    for j in range(i):
+        if TOP_PIPEFAIL_RE.match(lines[j].rstrip("\n")):
+            return True
+    return False
+
+
 def opted_out(lines, i):
     """The marker on this line, or anywhere in the contiguous comment block
     directly above it -- a justification worth writing runs to a paragraph."""
@@ -282,7 +298,12 @@ def scan_lines(lines, is_doc=False, path=""):
         if bars:
             sep = separator_after(work, bars[-1])
             if sep is not None and RC_READ_RE.search(work[sep:]):
-                kind = "QUOTED" if quoted_as_wrong(lines, i, is_doc, path) else "VIOLATION"
+                if quoted_as_wrong(lines, i, is_doc, path):
+                    kind = "QUOTED"
+                elif not is_doc and pipefail_before(lines, i):
+                    kind = "PIPEFAIL-OK"
+                else:
+                    kind = "VIOLATION"
                 yield (i + 1, kind, line)
                 continue
 
@@ -300,7 +321,12 @@ def scan_lines(lines, is_doc=False, path=""):
                 if PIPESTATUS_RE.search(nxt) or LC_PIPESTATUS_RE.search(nxt):
                     continue
                 if NEXT_LINE_RC_RE.match(nxt) and "$(" not in nxt.split("$?")[0]:
-                    kind = "QUOTED" if quoted_as_wrong(lines, i, is_doc, path) else "VIOLATION"
+                    if quoted_as_wrong(lines, i, is_doc, path):
+                        kind = "QUOTED"
+                    elif not is_doc and pipefail_before(lines, i):
+                        kind = "PIPEFAIL-OK"
+                    else:
+                        kind = "VIOLATION"
                     yield (i + 1, kind, line + "  [next] " + nxt.strip())
                     continue
 
@@ -439,6 +465,18 @@ def selftest():
     if "VIOLATION" not in got_script:
         fails.append("QUOTED leniency leaked into a SCRIPT: %r -> %s"
                      % (warned_script, got_script or "nothing"))
+    pf_ok = ["#!/bin/bash", "set -uo pipefail", "audit x | report", "exit $?"]
+    if "VIOLATION" in _kinds(pf_ok):
+        fails.append("top-level pipefail before the line should NOT be a violation")
+    if "PIPEFAIL-OK" not in _kinds(pf_ok):
+        fails.append("top-level pipefail hit was not classified PIPEFAIL-OK")
+    pf_late = ["#!/bin/bash", "audit x | report", "exit $?", "set -uo pipefail"]
+    if "VIOLATION" not in _kinds(pf_late):
+        fails.append("pipefail set AFTER the line must not excuse it")
+    pf_fn = ["#!/bin/bash", "f(){", "    set -uo pipefail", "}", "audit x | report", "exit $?"]
+    if "VIOLATION" not in _kinds(pf_fn):
+        fails.append("pipefail set inside an indented function body must not excuse a top-level line")
+
     block = ["# python3 is the LAST command in this pipeline, so $? is its code.",
              "# The credential rides on stdin.   rc-audit: ok",
              'printf %s "$PW" | python3 "$PY"', "exit $?"]
@@ -519,10 +557,11 @@ def main():
               % scanned)
         if other:
             print("  (%d suppressed: %d quoted-as-wrong in docs, %d $(subst) reads that are "
-                  "correct -- see --all)"
+                  "correct, %d under a top-level `set -o pipefail` -- see --all)"
                   % (len(other),
                      sum(1 for f in other if f[2] == "QUOTED"),
-                     sum(1 for f in other if f[2] == "SUBST-LAST")))
+                     sum(1 for f in other if f[2] == "SUBST-LAST"),
+                     sum(1 for f in other if f[2] == "PIPEFAIL-OK")))
         return 0
 
     print("rc-through-pipe-audit: %d VIOLATION(s) across %d files\n" % (len(viol), scanned))
