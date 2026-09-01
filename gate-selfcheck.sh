@@ -1958,6 +1958,22 @@ else
 fi
 
 
+# -- G-V#ship · a card whose fix this session SHIPPED is closed, or consciously left open
+#    (luxuryDesk-01 build 8, 2026-09-01; LUXURY DESK punch list item 8). GeoBuyPathWtch01 shipped
+#    08-13, its card stayed open and recruited a duplicate build on 08-29. close-on-ship.py sweeps
+#    this session's commits (by tag / project slug) for card gids still OPEN on BB/SM. WARN: a
+#    partial ship is legitimate; an ACCIDENTAL open card is what this retires.
+if [ -x "$HOME/Scripts/close-on-ship.py" ] && [ -n "${GATE_ROSTER_WHO:-}" ]; then
+  bold "=== G-V#ship · cards named in this session's commits are closed (or knowingly open) ==="
+  _cos_out="$(python3 "$HOME/Scripts/close-on-ship.py" --hours 24 --who "$GATE_ROSTER_WHO" 2>&1)"; _cos_rc=$?
+  case "$_cos_rc" in
+    0) printf '  ok     %s\n' "$(printf '%s\n' "$_cos_out" | tail -1)" ;;
+    1) printf '%s\n' "$_cos_out" | sed 's/^/         /'
+       WARNS+=("G-V#ship: a card named in this session's commits is STILL OPEN — shipped its fix? close it (bb-close.py, one line above each); partial ship? comment the remainder on the card so the next reader does not rebuild the shipped half.") ;;
+    *) printf '  WARN   CANNOT VERIFY: close-on-ship.py rc=%s (Asana unreachable?)\n' "$_cos_rc" ;;
+  esac
+fi
+
 # -- G-AO . an exit code is never read through a pipe (born 2026-08-31, paintsSticks-9) ----
 # The species: a bare pipeline followed by a read of $? reports the LAST command's status --
 # tail's, head's, sed's -- which is 0 essentially always. It is the mechanism by which a RED
