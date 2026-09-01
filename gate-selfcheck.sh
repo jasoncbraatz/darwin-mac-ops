@@ -248,6 +248,28 @@ EOF_DIRT
   printf '%s' "$_found"
 }
 
+# G-H #22e (luxuryDesk-03, 2026-09-01 — SM 1218069101293488, fix 4 of the priority card 1217971802676167).
+# ATTRIBUTION BY AUTHOR, when the lease is gone. #22b attributes dirt by a LIVE roster claim and
+# the roster prunes claims on TTL, so a sibling that went quiet for four hours had its in-flight
+# uncommitted work re-graded from "WARN, theirs" to "FAIL, unowned" for every other desk -- and
+# the remedy a FAIL prescribes is "commit it", i.e. commit a stranger's half-finished paragraph.
+# `roster claim` now also appends to a CLAIM JOURNAL the roster never prunes, and red-owner.py
+# (ceo-desk) feeds the dirty repo through the SAME table the AAR family uses (ADR-002):
+#   MINE         the journal says I claimed it           -> FAIL (yours; commit or stash it)
+#   SIBLING      author is a LIVE session, claim lapsed  -> WARN naming them (their wrap owes it)
+#   TRANSFERRED  a State Machine card owns it            -> WARN naming the card
+#   ORPHAN+name  author is DEAD                          -> FAIL that NAMES the author; `ceo transfer --key repo:<name>`
+#   ORPHAN       nobody ever claimed it                  -> the old anonymous FAIL (now the exception)
+# Fail-closed: red-owner missing/broken -> empty answer -> the anonymous FAIL below, unchanged.
+# RED_OWNER is honoured so gate-roster-drill.sh can point at a scratch journal (same ROSTER_DB dirname).
+_RED_OWNER="${RED_OWNER:-$HOME/repos/ceo-desk/red-owner.py}"
+_dirt_author_verdict() {   # <repo-path> -> "VERDICT<TAB>author<TAB>note" or empty
+  [ -f "$_RED_OWNER" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  ROSTER_DB="$_ROSTER_DB" GATE_ROSTER_WHO="${GATE_ROSTER_WHO:-}" \
+    python3 "$_RED_OWNER" repo-owner "$1" ${GATE_ROSTER_WHO:+--who "$GATE_ROSTER_WHO"} 2>/dev/null | head -1
+}
+
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
@@ -296,10 +318,41 @@ for repo in "${REPOS[@]}"; do
         _paths="$(printf '%s\n' "$dirty" | head -6 | sed 's/^/    /')"
         [ "$nd" -gt 6 ] && _paths="$_paths
     ... and $((nd - 6)) more"
-        flags="$flags DIRTY($nd)"
-        FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo and G-H#22c could not attribute every path by filename, so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+        # G-H#22e — the lease is gone; ask the journal who the AUTHOR was before calling it anonymous.
+        _av="$(_dirt_author_verdict "$repo")"
+        _T=$'\t'; _averdict="${_av%%${_T}*}"; _arest="${_av#*${_T}}"; _aauthor="${_arest%%${_T}*}"; _anote="${_arest#*${_T}}"
+        [ "$_av" = "$_averdict" ] && { _aauthor=""; _anote=""; }   # no tabs = no answer
+        case "$_averdict" in
+          SIBLING)
+            flags="$flags DIRTY($nd,author:$_aauthor)"
+            WARNS+=("$name: $nd uncommitted change(s) — author '$_aauthor' is a LIVE session whose repo claim has LAPSED ($_anote; G-H#22e attribution by claim journal). Their wrap owes it, not yours. Do NOT commit it. Verify: ~/Scripts/roster who")
+            [ "$level" = ok ] && level="WARN" ;;
+          TRANSFERRED)
+            flags="$flags DIRTY($nd,transferred)"
+            WARNS+=("$name: $nd uncommitted change(s) — TRANSFERRED: a State Machine card owns this dirt ($_anote). Do NOT commit it; the card's taker will. ~/Scripts/ceo reds for the ledger")
+            [ "$level" = ok ] && level="WARN" ;;
+          ORPHAN)
+            if [ -n "$_aauthor" ]; then
+              flags="$flags DIRTY($nd,orphan:$_aauthor)"
+              FAILS+=("$name: $nd uncommitted change(s) — author '$_aauthor' is NOT live ($_anote). NOT anonymous, NOT yours: it is an ORPHAN. Name an owner: ~/Scripts/ceo transfer --key repo:$(basename "$repo") --reason \"<why $_aauthor cannot be asked>\"  (a State Machine card; the red stays red for its taker). Do NOT commit a dead session's half-finished work as your own:
 $_paths")
-        level="FAIL"
+            else
+              flags="$flags DIRTY($nd)"
+              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, and the claim journal has NO author for it (G-H#22e), so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+$_paths")
+            fi
+            level="FAIL" ;;
+          MINE)
+            flags="$flags DIRTY($nd,mine)"
+            FAILS+=("$name: $nd uncommitted change(s) — YOURS: the claim journal says you claimed this repo ($_anote). Commit it or stash it before the handoff:
+$_paths")
+            level="FAIL" ;;
+          *)
+            flags="$flags DIRTY($nd)"
+            FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo and G-H#22c could not attribute every path by filename, so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+$_paths")
+            level="FAIL" ;;
+        esac
       fi
     fi
   fi

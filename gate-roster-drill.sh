@@ -214,5 +214,69 @@ else
   bad "#13 git not on PATH — the stat-dirty fixture could not run, so that fix is unproven this run"
 fi
 
+# ── #15-#20 · G-H#22e, DIRT KEEPS ITS AUTHOR'S NAME PAST CLAIM TTL (luxuryDesk-03) ──
+# SM 1218069101293488, fix 4 of the priority card. The roster prunes a claim on TTL, so a
+# sibling quiet for five hours used to have its in-flight dirt re-graded from "WARN, theirs"
+# to "FAIL, unowned" for every other desk. `roster claim` now also appends to a claim journal
+# beside the DB (same dirname as ROSTER_DB, so THIS scratch DB isolates it), and the gate asks
+# red-owner.py (the AAR family's MINE/SIBLING/TRANSFERRED/ORPHAN table) before calling any
+# dirt anonymous. Same extract-at-runtime discipline: the function under test is the gate's.
+sed -n '/^_dirt_author_verdict() {/,/^}/p' "$GATE" > "$S/fn3.sh"
+if ! grep -q 'repo-owner' "$S/fn3.sh"; then
+  echo "  FAIL  could not extract _dirt_author_verdict() from $GATE (moved or renamed?)"
+  exit 1
+fi
+_RED_OWNER="${RED_OWNER:-$HOME/repos/ceo-desk/red-owner.py}"
+. "$S/fn3.sh"
+if [ ! -f "$_RED_OWNER" ]; then
+  bad "#15 red-owner.py not found at $_RED_OWNER — G-H#22e is unproven this run"
+else
+  JOURNAL="$S/claim-journal.jsonl"
+  _now="$(date +%s)"
+  jrow() { # jrow <who> <resource> <hours-ago>
+    printf '{"ts": %s, "who": "%s", "resource": "%s", "task": "t", "event": "claim"}\n' \
+      "$(( _now - $3 * 3600 ))" "$1" "$2" >> "$JOURNAL"
+  }
+  : > "$JOURNAL"
+  jrow zzGoneAuthor  gonerepo   5          # claim expired 5h ago, session gone: THE CASE ON THE CARD
+  jrow zzQuietLive   quietrepo  5          # claim lapsed 5h ago, but the session row is still live
+  jrow zzMeDrill     myrepo     5          # my own lapsed claim
+  addses zzQuietLive 3600
+  addses zzMeDrill   3600
+  export RED_OWNER_STATE="$S/red-owner-state"     # transfers ledger stays scratch too
+  _T=$'\t'
+  GATE_ROSTER_WHO=zzMeDrill
+  _v="$(_dirt_author_verdict "$S/gonerepo")"
+  chk "ORPHAN${_T}zzGoneAuthor" "${_v%${_T}*}" "#15 THE CARD'S CASE: claim expired 5h ago, author dead -> ORPHAN that still NAMES zzGoneAuthor (never anonymous)"
+  case "$_v" in *"5.0h ago"*) ok "#15b ...and the note says how long ago the author last claimed it" ;; *) bad "#15b note lacks the claim age (got '$_v')" ;; esac
+  _v="$(_dirt_author_verdict "$S/quietrepo")"
+  chk "SIBLING${_T}zzQuietLive" "${_v%${_T}*}" "#16 claim lapsed 5h ago but the session is LIVE -> SIBLING (WARN naming them), not FAIL"
+  _v="$(_dirt_author_verdict "$S/myrepo")"
+  chk "MINE${_T}zzMeDrill" "${_v%${_T}*}" "#17 my OWN lapsed claim -> MINE (the journal cannot launder your own dirt)"
+  _v="$(_dirt_author_verdict "$S/neverclaimed")"
+  chk "ORPHAN${_T}" "${_v%${_T}*}" "#18 never claimed, never journaled -> honest anonymous ORPHAN (the old behaviour, now the exception)"
+  # a LIVE claim still outranks the journal (present tense wins)
+  addses zzFreshClaimer 3600; add zzFreshClaimer gonerepo 3600
+  _v="$(_dirt_author_verdict "$S/gonerepo")"
+  chk "SIBLING${_T}zzFreshClaimer" "${_v%${_T}*}" "#19 a fresh live claim outranks an older journal author"
+  # fail-closed: a missing red-owner answers NOTHING (the sweep then falls through to the anonymous FAIL)
+  _RO_SAVED="$_RED_OWNER"; _RED_OWNER="$S/does-not-exist.py"
+  chk "" "$(_dirt_author_verdict "$S/gonerepo")" "#20 missing red-owner.py -> empty answer, no crash (sweep falls through to the anonymous FAIL)"
+  _RED_OWNER="$_RO_SAVED"
+  unset RED_OWNER_STATE
+fi
+
+# ── #21 · IS #22e WIRED INTO THE SWEEP? ──────────────────────────────────────────
+if [ -n "$SWEEP" ]; then
+  case "$SWEEP" in
+    *'_dirt_author_verdict "$repo"'*) ok "#21 the DIRTY branch asks the claim journal for the author before calling dirt anonymous (G-H#22e)" ;;
+    *) bad "#21 the DIRTY branch does not consult _dirt_author_verdict — dirt past claim TTL reads as anonymous again" ;;
+  esac
+  case "$SWEEP" in
+    *'ORPHAN)'*'FAILS+='*) ok "#21b ...and an ORPHAN is still a FAIL (attribution, not absolution)" ;;
+    *) bad "#21b the ORPHAN branch has no FAIL — the journal became an amnesty" ;;
+  esac
+fi
+
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
