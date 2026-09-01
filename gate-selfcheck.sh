@@ -28,6 +28,14 @@
 # =============================================================================
 set -uo pipefail
 
+# ONE IDENTITY (luxuryDesk-01, 2026-09-01): a session that joined the roster has ALREADY said who it
+# is. Ask the roster before declaring "no current session tag" — the unset export was the single
+# most-filed CEO complaint (G-AL NEVER RAN at wrap, day-9 friction #10). Explicit env still wins.
+if [ -z "${GATE_ROSTER_WHO:-}" ]; then
+  GATE_ROSTER_WHO="$("$HOME/Scripts/roster" whoami 2>/dev/null || true)"
+  [ -n "$GATE_ROSTER_WHO" ] && export GATE_ROSTER_WHO
+fi
+
 # CAPTURED AT LAUNCH, ON PURPOSE. The DoD block near the triad (search: "What this repo says
 # DONE looks like") originally asked git for the repo at the moment it printed -- and by then
 # this script has walked the whole estate and cwd is somewhere else entirely, so it silently
