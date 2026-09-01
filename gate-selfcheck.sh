@@ -673,6 +673,9 @@ if [ -f "$CANON_GATE" ]; then
     if ! bash "$HOME/Scripts/handoff-kit/propagate-gate.sh" --check >/dev/null 2>&1; then
       WARNS+=("G-L#35d: a scripts/handoff_gate.py copy DRIFTED from ~/Scripts/handoff-kit/handoff_gate.py — see: bash ~/Scripts/handoff-kit/propagate-gate.sh --check ; fix: propagate-gate.sh (no flag) then commit the copies. If a copy is AHEAD, port its fix into the canonical FIRST.")
     fi
+  else
+    printf '  WARN   CANNOT VERIFY: ~/Scripts/handoff-kit/propagate-gate.sh is missing -- no handoff_gate.py copy-drift check ran (G-L#35d)\n'
+    WARNS+=("G-L#35d CANNOT VERIFY: propagate-gate.sh missing — restore: git -C ~/Scripts checkout -- handoff-kit/propagate-gate.sh")
   fi
   # --- G-L#35c · the header version must have a changelog entry (born 2026-08-15,
   #     stateMachineRename-1). The gate's own standing rule is "header version and this entry
@@ -1972,6 +1975,8 @@ if [ -x "$HOME/Scripts/close-on-ship.py" ] && [ -n "${GATE_ROSTER_WHO:-}" ]; the
        WARNS+=("G-V#ship: a card named in this session's commits is STILL OPEN — shipped its fix? close it (bb-close.py, one line above each); partial ship? comment the remainder on the card so the next reader does not rebuild the shipped half.") ;;
     *) printf '  WARN   CANNOT VERIFY: close-on-ship.py rc=%s (Asana unreachable?)\n' "$_cos_rc" ;;
   esac
+else
+  printf '  WARN   CANNOT VERIFY: close-on-ship.py missing or no GATE_ROSTER_WHO -- G-V#ship did not run (restore: git -C ~/Scripts checkout -- close-on-ship.py; identity: roster join)\n'
 fi
 
 # -- G-AO . an exit code is never read through a pipe (born 2026-08-31, paintsSticks-9) ----
