@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RETIRED 2026-09-02 (smBacklog-1). This agent no longer exists on darwin; the plist was
+  renamed to RETIRED_com.braatz.sm-sweep.plist.disabled in ~/Library/LaunchAgents and booted out.
+  THE SWEEP STILL RUNS — n8n workflow SmValet000000001 ("State Machine Valet") schedules it at
+  09:50 CT and ssh-hops to darwin to run the same command. Moved because a Mac reboots for UI
+  updates and a plist that fails to reload is silent; the Linode does not.
+  To resurrect (n8n down for good): rename back, drop the RETIRED_ prefix, `launchctl bootstrap
+  gui/$(id -u) ~/Library/LaunchAgents/com.braatz.sm-sweep.plist`, and DISABLE SmValet000000001
+  first — two schedulers for one sweep is how you learn to distrust both.
+-->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   com.braatz.sm-sweep — the State Machine valet (bbCleanup-1, 2026-08-27).
