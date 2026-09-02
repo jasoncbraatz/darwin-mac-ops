@@ -15,3 +15,8 @@ export PATH="/Library/TeX/texbin:$HOME/bin:$PATH"
 # (ssh MCP, scripts) treat unmatched globs like bash — pass literally, never abort the line.
 # Interactive shells keep zsh's default. Rollback: restore ~/.zshenv.bak-nonomatch-20260714
 [[ -o interactive ]] || setopt no_nomatch
+
+# deskTenancy-04 (2026-09-02): ~/Scripts on PATH for NON-login shells too — dx runs `zsh -c`, which reads
+# .zshenv but not .zprofile, so every cloud session got 'command not found: architect-audit' until it
+# remembered the full path. One line here retires that tax for every future session.
+case ":$PATH:" in *":$HOME/Scripts:"*) ;; *) export PATH="$PATH:$HOME/Scripts" ;; esac
