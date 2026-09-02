@@ -1970,6 +1970,29 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       else
         FAILS+=("G-AL#board CANNOT VERIFY: neither $_ch_gen nor a board.py brief command in the charter registry -- so the board is a hand-maintained state doc, which ARCHITECTURE.md §12 forbids precisely because it rots with a straight face.")
       fi
+      # -- G-AL#done · a FINISHED charter is not a licence to keep working (luxuryDesk-18, 2026-09-02) --
+      # luxuryDesk's board closed 21/21 at session -01. Seventeen sessions then read that finished
+      # charter, stamped it, and passed G-AL -- the gate checked "did you read the finish line"
+      # and never "is the finish line already behind you". The mirror of acmeLedger-21..-25.
+      # ONE verdict, ONE helper: ~/Scripts/architect-audit (the architect bat's step 0 runs the
+      # same thing). Reads the COMMITTED checklist (--board-from), so no second board run at
+      # wrap and no recursion through a criterion that calls the audit. WARN, never FAIL:
+      # paperwork is not code, and the remedy (abridge close / a successor charter) is a ruling.
+      _aa="$HOME/Scripts/architect-audit"
+      _aa_board="$(dirname "$_ch_crit")/CHECKLIST-${_ch_row}.md"
+      [ -f "$_aa_board" ] || _aa_board="$(dirname "$_ch_crit")/CHECKLIST.md"
+      if [ -x "$_aa" ] && [ -f "$_aa_board" ]; then
+        _aa_out="$(/usr/bin/python3 "$_aa" "$_ch_row" --gate --board-from "$_aa_board" 2>&1)"; _aa_rc=$?
+        case "$_aa_rc" in
+          0) : ;;
+          1) bold "=== G-AL#done · the charter's paperwork has a finding ==="
+             printf '  WARN   %s\n' "$_aa_out"
+             WARNS+=("$_aa_out  (architect-audit ${_ch_row} for the table; the architect bat is the remedy checklist)") ;;
+          *) WARNS+=("G-AL#done CANNOT VERIFY: architect-audit exited $_aa_rc -- $_aa_out") ;;
+        esac
+      elif [ ! -x "$_aa" ]; then
+        WARNS+=("G-AL#done CANNOT VERIFY: ~/Scripts/architect-audit missing or not executable")
+      fi
     fi
   fi
 else
