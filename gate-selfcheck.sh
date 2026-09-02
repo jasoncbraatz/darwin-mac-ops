@@ -146,7 +146,22 @@ _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
   # Now: an UNKNOWN identity makes this MORE cautious, never less. With no identity we
   # cannot prove a claim is someone else's -- so we report every live claim and let the
   # human decide, rather than pretending there are none.
+  #
+  # ONE THRESHOLD (luxuryDesk-14, 2026-09-02). This used to be its own SQL -- `expires > now` and
+  # nothing else -- while `roster who` and red-owner.py both required the claim to be FRESH too
+  # (started < STALE_CLAIM_H=4h ago). Three readers of one row, two rules: a 20h-old 24h-TTL
+  # auto-claim on the everything folder printed as STALE on the board and as a LIVE-sibling WARN
+  # here, i.e. a dead claim kept the FAIL->WARN downgrade open for a day. The rule now lives in
+  # ONE place -- `roster live-claimant` -- and this function asks it. The sqlite fallback below
+  # (roster script missing) carries the same freshness clause; if you edit the threshold, edit
+  # roster, not this.
   [ -f "$_ROSTER_DB" ] || return 0
+  _rc_roster="${ROSTER_BIN:-$HOME/Scripts/roster}"
+  if [ -f "$_rc_roster" ] && command -v python3 >/dev/null 2>&1; then
+    ROSTER_DB="$_ROSTER_DB" python3 "$_rc_roster" live-claimant --resource "$1" \
+      ${GATE_ROSTER_WHO:+--not-me "$GATE_ROSTER_WHO"} 2>/dev/null
+    return 0
+  fi
   command -v sqlite3 >/dev/null 2>&1 || return 0
   _rc_base="$(basename "$1")"
   _rc_selfclause=""
@@ -155,10 +170,11 @@ _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
   fi
   sqlite3 "$_ROSTER_DB" \
     "SELECT who FROM roster WHERE kind='claim' AND expires > strftime('%s','now')
+       AND started > strftime('%s','now') - 4*3600
        $_rc_selfclause
        AND (resource='$(printf '%s' "$_rc_base" | sed "s/'/''/g")'
             OR resource='$(printf '%s' "$1" | sed "s/'/''/g")')
-     LIMIT 1;" 2>/dev/null
+     ORDER BY started DESC LIMIT 1;" 2>/dev/null
 }
 
 # ── G-H#drill · the sibling-downgrade control must still be a control (2026-08-15) ──
