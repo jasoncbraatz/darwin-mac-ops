@@ -294,5 +294,51 @@ if [ -n "$SWEEP" ]; then
   esac
 fi
 
+# ── #22 · G-H#22f, DIRT IS ATTRIBUTED BY MTIME TO THE SIBLING WHO WAS LIVE (deskTenancy-01) ──
+# luxuryDesk-18 hit it live: cekuC4JA wrote n8n-stack files 10:53–10:57 while on the roster with
+# no claim and no journal row, and the gate told -18 the dirt was YOURS. The function under test
+# is the gate's own, extracted at runtime; the roster is THIS scratch DB; the files are touched
+# to chosen mtimes so the windows are exact.
+sed -n '/^_dirt_mtime_sibling() {/,/^}/p' "$GATE" > "$S/fn4.sh"
+if ! grep -q 'kind=.session' "$S/fn4.sh"; then
+  bad "#22 could not extract _dirt_mtime_sibling() from $GATE — G-H#22f is unproven this run"
+else
+  . "$S/fn4.sh"
+  sqlite3 "$ROSTER_DB" "DELETE FROM roster WHERE kind='session';"
+  _now="$(date +%s)"
+  addses_at() { # addses_at <who> <started-seconds-ago> <expires-offset>
+    sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('$1','session','','t', $(( _now - $2 )), $(( _now + $3 )));"
+  }
+  addses_at zzMeDrill     3600  3600     # I sat down 1h ago
+  addses_at zzLiveSib     7200  3600     # the sibling sat down 2h ago, still live
+  addses_at zzGoneSib    10800 -600      # a sibling whose session EXPIRED 10 min ago
+  M="$S/mtrepo"; mkdir -p "$M"
+  _touch_ago() { touch -t "$(date -r $(( _now - $2 )) +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$(( _now - $2 ))" +%Y%m%d%H%M.%S)" "$1"; }
+  : > "$M/a.txt"; _touch_ago "$M/a.txt" 5400          # 90 min ago: inside zzLiveSib's window, BEFORE mine
+  GATE_ROSTER_WHO=zzMeDrill
+  _T=$'\t'
+  _v="$(_dirt_mtime_sibling "$M" "?? a.txt")"
+  chk "zzLiveSib" "${_v%%${_T}*}" "#22a THE CARD'S CASE: unclaimed, unjournaled dirt written while zzLiveSib was live -> attributed to zzLiveSib (WARN 'claim owed by', not YOURS)"
+  case "$_v" in *"inside YOURS too"*) bad "#22a2 the note blames my window for a file written before I sat down" ;; *) ok "#22a2 ...and the note does NOT say my window covers it (it was written before I sat down)" ;; esac
+  : > "$M/b.txt"; _touch_ago "$M/b.txt" 600           # 10 min ago: inside BOTH windows
+  _v="$(_dirt_mtime_sibling "$M" "?? b.txt")"
+  case "$_v" in "zzLiveSib${_T}"*"inside YOURS too"*) ok "#22b a file written while BOTH were live is still the sibling's WARN — and the note says my window covers it too (no laundering in silence)" ;; *) bad "#22b ambiguous-window note missing (got '$_v')" ;; esac
+  : > "$M/c.txt"; _touch_ago "$M/c.txt" 9000          # 150 min ago: BEFORE zzLiveSib sat down
+  chk "" "$(_dirt_mtime_sibling "$M" "?? c.txt")" "#22c dirt older than every live sibling's window -> nothing attributed (falls through to the FAIL)"
+  chk "" "$(_dirt_mtime_sibling "$M" "?? a.txt
+?? c.txt")" "#22d ONE unattributable path poisons the set -> nothing attributed (fail-closed, like #22c)"
+  chk "" "$(_dirt_mtime_sibling "$M" " D gone.txt")" "#22e a DELETED path has no mtime -> nothing attributed (fail-closed)"
+  sqlite3 "$ROSTER_DB" "DELETE FROM roster WHERE who='zzLiveSib';"
+  chk "" "$(_dirt_mtime_sibling "$M" "?? a.txt")" "#22f with the sibling gone (only an EXPIRED one left) -> nothing attributed; an expired session is not a window"
+  case "$SWEEP" in
+    *'_dirt_mtime_sibling "$repo" "$dirty"'*'claim owed by'*) ok "#22g the sweep asks _dirt_mtime_sibling before the anonymous FAIL and the WARN says 'claim owed by'" ;;
+    *) bad "#22g G-H#22f is not wired into the DIRTY branch (or the WARN lost its 'claim owed by' wording)" ;;
+  esac
+  case "$SWEEP" in
+    *'(G-H#22f), so it is being reported as YOURS'*) ok "#22h ...and the anonymous FAIL survives beneath it (attribution, not absolution)" ;;
+    *) bad "#22h the anonymous FAIL is gone — #22f became an amnesty" ;;
+  esac
+fi
+
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1

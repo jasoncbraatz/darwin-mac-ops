@@ -286,6 +286,61 @@ _dirt_author_verdict() {   # <repo-path> -> "VERDICT<TAB>author<TAB>note" or emp
     python3 "$_RED_OWNER" repo-owner "$1" ${GATE_ROSTER_WHO:+--who "$GATE_ROSTER_WHO"} 2>/dev/null | head -1
 }
 
+# G-H #22f (deskTenancy-01, 2026-09-02 — caught live by luxuryDesk-18: cloud-cekuC4JA's n8n-stack
+# files were written 10:53–10:57 while cekuC4JA was on the roster, no claim, no journal row, and
+# the gate told -18 the dirt was YOURS). ATTRIBUTION BY MTIME, when nobody claimed anything at all.
+# A live sibling's roster window is [started .. now]. If EVERY dirty path's mtime falls inside the
+# window of a live sibling, the dirt is that sibling's until proven otherwise: WARN "claim owed by
+# X" (they owe a `roster claim`), never the anonymous FAIL that tells this desk to commit it.
+#   · one unattributable path (deleted, unstat-able, older than every sibling) => attribute
+#     NOTHING (fail-closed; the FAIL below is unchanged)
+#   · several siblings cover it => name them all; still a WARN, still "claim owed by"
+#   · this desk's OWN window also covers it => said out loud in the note, because your dirt has
+#     the same mtimes; the journal (MINE) still outranks this (present tense wins, #22e first)
+# Answer shape: "<who[,who]><TAB><note>" or empty. Bash + sqlite3 + stat only (drillable by extract).
+_dirt_mtime_sibling() {   # <repo-path> <porcelain> -> "who[,who]<TAB>note" or empty
+  [ -f "$_ROSTER_DB" ] || return 0
+  command -v sqlite3 >/dev/null 2>&1 || return 0
+  local _now _rows _mine_start="" _who _st _line _p _mt _cands="" _all="" _first=1 _c _keep _note _in
+  _now="$(date +%s)"
+  _rows="$(sqlite3 -separator '|' "$_ROSTER_DB" \
+     "SELECT who, started FROM roster WHERE kind='session' AND expires > $_now;" 2>/dev/null)"
+  [ -n "$_rows" ] || return 0
+  while IFS='|' read -r _who _st; do
+    [ -n "$_who" ] || continue
+    if [ "$_who" = "${GATE_ROSTER_WHO:-}" ]; then _mine_start="$_st"; continue; fi
+    _all="$_all$_who=$_st "
+  done <<EOF_ROWS
+$_rows
+EOF_ROWS
+  [ -n "$_all" ] || return 0                     # no live sibling => nothing to attribute to
+  while IFS= read -r _line; do
+    [ -n "$_line" ] || continue
+    case "$_line" in " D "*|"D  "*) return 0 ;; esac   # a deleted path has no mtime: fail-closed
+    _p="${_line:3}"; _p="${_p##* -> }"; _p="${_p%\"}"; _p="${_p#\"}"
+    _mt="$(stat -f %m "$1/$_p" 2>/dev/null || stat -c %Y "$1/$_p" 2>/dev/null)"
+    [ -n "$_mt" ] || return 0                    # unstat-able => fail-closed
+    _keep=""
+    for _c in $_all; do
+      _st="${_c#*=}"; _who="${_c%%=*}"
+      [ "$_mt" -ge "$_st" ] || continue          # written BEFORE this sibling sat down
+      _in=0
+      if [ "$_first" = 1 ]; then _in=1; else case " $_cands " in *" $_who "*) _in=1 ;; esac; fi
+      [ "$_in" = 1 ] && _keep="$_keep $_who"     # a candidate must cover EVERY path (intersection)
+    done
+    _cands="${_keep# }"; _first=0
+    [ -n "$_cands" ] || return 0                 # one path nobody's window covers => nothing
+  done <<EOF_DIRT
+$2
+EOF_DIRT
+  [ -n "$_cands" ] || return 0
+  _note="every dirty path's mtime falls inside their live roster window"
+  if [ -n "$_mine_start" ] && [ -n "$_mt" ] && [ "$_mt" -ge "$_mine_start" ]; then
+    _note="$_note — and inside YOURS too: if this is your work, \`roster claim\` it and commit"
+  fi
+  printf '%s\t%s' "$(printf '%s' "$_cands" | tr ' ' ',')" "$_note"
+}
+
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
@@ -352,22 +407,34 @@ for repo in "${REPOS[@]}"; do
               flags="$flags DIRTY($nd,orphan:$_aauthor)"
               FAILS+=("$name: $nd uncommitted change(s) — author '$_aauthor' is NOT live ($_anote). NOT anonymous, NOT yours: it is an ORPHAN. Name an owner: ~/Scripts/ceo transfer --key repo:$(basename "$repo") --reason \"<why $_aauthor cannot be asked>\"  (a State Machine card; the red stays red for its taker). Do NOT commit a dead session's half-finished work as your own:
 $_paths")
+            elif _mts="$(_dirt_mtime_sibling "$repo" "$dirty")" && [ -n "$_mts" ]; then
+              _mtwho="${_mts%%${_T}*}"; _mtnote="${_mts#*${_T}}"
+              flags="$flags DIRTY($nd,mtime:$_mtwho)"
+              WARNS+=("$name: $nd uncommitted change(s) — claim owed by '$_mtwho' (G-H#22f attribution by mtime: $_mtnote). No claim, no journal row, but they were live when it was written. Do NOT commit it. Verify: ~/Scripts/roster who")
+              [ "$level" = ok ] && level="WARN"
             else
               flags="$flags DIRTY($nd)"
-              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, and the claim journal has NO author for it (G-H#22e), so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, the claim journal has NO author for it (G-H#22e), and no live sibling's window covers its mtimes (G-H#22f), so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
 $_paths")
-            fi
-            level="FAIL" ;;
+              level="FAIL"
+            fi ;;
           MINE)
             flags="$flags DIRTY($nd,mine)"
             FAILS+=("$name: $nd uncommitted change(s) — YOURS: the claim journal says you claimed this repo ($_anote). Commit it or stash it before the handoff:
 $_paths")
             level="FAIL" ;;
           *)
-            flags="$flags DIRTY($nd)"
-            FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo and G-H#22c could not attribute every path by filename, so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+            if _mts="$(_dirt_mtime_sibling "$repo" "$dirty")" && [ -n "$_mts" ]; then
+              _mtwho="${_mts%%${_T}*}"; _mtnote="${_mts#*${_T}}"
+              flags="$flags DIRTY($nd,mtime:$_mtwho)"
+              WARNS+=("$name: $nd uncommitted change(s) — claim owed by '$_mtwho' (G-H#22f attribution by mtime: $_mtnote). Do NOT commit it. Verify: ~/Scripts/roster who")
+              [ "$level" = ok ] && level="WARN"
+            else
+              flags="$flags DIRTY($nd)"
+              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, and no live sibling's window covers its mtimes (G-H#22f), so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
 $_paths")
-            level="FAIL" ;;
+              level="FAIL"
+            fi ;;
         esac
       fi
     fi
