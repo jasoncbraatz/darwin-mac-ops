@@ -975,7 +975,9 @@ if [ -d "$BB/.git" ]; then
   # already leaked into a live config. Two overlapping leaves drift, and the next Claude believes
   # whichever it greps first. So: SHOW today's leaves. If you didn't write one, READ IT before
   # you add yours — then defer + cross-link, or curate the ONE leaf.
-  TODAY_LEAVES="$(ls -1 "$BB"/lessons/*/"$(date +%F)"-*.md 2>/dev/null)"
+  # date -u, not date: lessons.py stamps the filename in UTC and desk-check.sh:38 counts in
+  # UTC. Reading local time here gave G-U the mirror image of the bug it was meant to catch.
+  TODAY_LEAVES="$(ls -1 "$BB"/lessons/*/"$(date -u +%F)"-*.md 2>/dev/null)"
   if [ -n "$TODAY_LEAVES" ]; then
     printf '  \033[1mLeaves banked TODAY (yours AND any concurrent session'"'"'s):\033[0m\n'
     printf '%s\n' "$TODAY_LEAVES" | while read -r L; do
