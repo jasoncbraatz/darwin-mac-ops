@@ -88,6 +88,22 @@ chk "" "$(_roster_other_claimant "$REPO")" "#3 your OWN claim does not exempt yo
 GATE_ROSTER_WHO=me
 chk "" "$(_roster_other_claimant "$S/expired-repo")" "#4 an expired claim does not downgrade"
 
+# 4b — an UNEXPIRED but STALE claim is not a live one either (luxuryDesk-14, 2026-09-02).
+# `join` auto-claims the everything folder for 24h; a desk that died at hour 1 leaves a claim
+# that is "live" by expiry for another 23h. The board (`roster who`) and red-owner.py call a
+# claim >4h old STALE; this function called it LIVE and held the FAIL->WARN downgrade open.
+# One threshold, one reader: the function asks `roster live-claimant` now. Both halves pinned:
+sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('parity01','claim','stale-live-repo','t',
+  strftime('%s','now')-20*3600, strftime('%s','now')+4*3600);"
+chk "" "$(_roster_other_claimant "$S/stale-live-repo")" "#4b a 20h-old claim with 4h of TTL left does NOT downgrade (fresh, not merely unexpired)"
+sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('parity02','claim','fresh-repo','t',
+  strftime('%s','now')-3*3600, strftime('%s','now')+4*3600);"
+chk "parity02" "$(_roster_other_claimant "$S/fresh-repo")" "#4c ...and a 3h-old claim still does (the threshold is 4h, the roster's STALE_CLAIM_H)"
+case "$(sed -n '/^_roster_other_claimant() {/,/^}/p' "$GATE")" in
+  *'live-claimant'*) ok "#4d the gate ASKS roster (live-claimant) rather than carrying its own liveness SQL" ;;
+  *) bad "#4d the gate no longer calls 'roster live-claimant' — a second copy of the threshold is back" ;;
+esac
+
 # 5 — an unclaimed repo still fails.
 chk "" "$(_roster_other_claimant "$S/unclaimed")" "#5 unclaimed dirty repo is untouched (still a FAIL)"
 
