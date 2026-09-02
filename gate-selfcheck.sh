@@ -1992,6 +1992,8 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
         esac
       elif [ ! -x "$_aa" ]; then
         WARNS+=("G-AL#done CANNOT VERIFY: ~/Scripts/architect-audit missing or not executable")
+      else
+        WARNS+=("G-AL#done CANNOT VERIFY: no committed checklist next to $_ch_crit (looked for CHECKLIST-${_ch_row}.md and CHECKLIST.md) -- regenerate the board, then the audit can read it")
       fi
     fi
   fi
