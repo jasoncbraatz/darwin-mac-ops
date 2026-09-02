@@ -43,9 +43,10 @@ add() { # add <who> <resource> <expires-offset-seconds>
   # The FIXTURE has to escape too. First cut of this drill did not, and #8 "failed"
   # on a broken INSERT rather than on the function under test — a fixture bug wearing
   # a finding's clothes. Worth keeping the memory: an assertion is only as trustworthy
-  # as the setup that feeds it.
+  # as the setup that feeds it. (deskTenancy-02: and NAME the columns -- the real roster
+  # migrated the scratch DB to 7 columns mid-drill and every positional INSERT broke, 9 FAILs.)
   _aw="$(printf '%s' "$1" | sed "s/'/''/g")"; _ar="$(printf '%s' "$2" | sed "s/'/''/g")"
-  sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('$_aw','claim','$_ar','t',
+  sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster(who,kind,resource,task,started,expires) VALUES('$_aw','claim','$_ar','t',
     strftime('%s','now'), strftime('%s','now')+$3);"
 }
 _ROSTER_DB="$ROSTER_DB"
@@ -93,10 +94,10 @@ chk "" "$(_roster_other_claimant "$S/expired-repo")" "#4 an expired claim does n
 # that is "live" by expiry for another 23h. The board (`roster who`) and red-owner.py call a
 # claim >4h old STALE; this function called it LIVE and held the FAIL->WARN downgrade open.
 # One threshold, one reader: the function asks `roster live-claimant` now. Both halves pinned:
-sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('parity01','claim','stale-live-repo','t',
+sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster(who,kind,resource,task,started,expires) VALUES('parity01','claim','stale-live-repo','t',
   strftime('%s','now')-20*3600, strftime('%s','now')+4*3600);"
 chk "" "$(_roster_other_claimant "$S/stale-live-repo")" "#4b a 20h-old claim with 4h of TTL left does NOT downgrade (fresh, not merely unexpired)"
-sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('parity02','claim','fresh-repo','t',
+sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster(who,kind,resource,task,started,expires) VALUES('parity02','claim','fresh-repo','t',
   strftime('%s','now')-3*3600, strftime('%s','now')+4*3600);"
 chk "parity02" "$(_roster_other_claimant "$S/fresh-repo")" "#4c ...and a 3h-old claim still does (the threshold is 4h, the roster's STALE_CLAIM_H)"
 case "$(sed -n '/^_roster_other_claimant() {/,/^}/p' "$GATE")" in
@@ -134,7 +135,7 @@ fi
 . "$S/fn2.sh"
 addses() { # addses <who> <expires-offset>
   _sw="$(printf '%s' "$1" | sed "s/'/''/g")"
-  sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('$_sw','session','','t',
+  sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster(who,kind,resource,task,started,expires) VALUES('$_sw','session','','t',
     strftime('%s','now'), strftime('%s','now')+$2);"
 }
 GATE_ROSTER_WHO="opus-acmeLedger-25"
@@ -307,7 +308,7 @@ else
   sqlite3 "$ROSTER_DB" "DELETE FROM roster WHERE kind='session';"
   _now="$(date +%s)"
   addses_at() { # addses_at <who> <started-seconds-ago> <expires-offset>
-    sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster VALUES('$1','session','','t', $(( _now - $2 )), $(( _now + $3 )));"
+    sqlite3 "$ROSTER_DB" "INSERT OR REPLACE INTO roster(who,kind,resource,task,started,expires) VALUES('$1','session','','t', $(( _now - $2 )), $(( _now + $3 )));"
   }
   addses_at zzMeDrill     3600  3600     # I sat down 1h ago
   addses_at zzLiveSib     7200  3600     # the sibling sat down 2h ago, still live
@@ -330,6 +331,18 @@ else
   chk "" "$(_dirt_mtime_sibling "$M" " D gone.txt")" "#22e a DELETED path has no mtime -> nothing attributed (fail-closed)"
   sqlite3 "$ROSTER_DB" "DELETE FROM roster WHERE who='zzLiveSib';"
   chk "" "$(_dirt_mtime_sibling "$M" "?? a.txt")" "#22f with the sibling gone (only an EXPIRED one left) -> nothing attributed; an expired session is not a window"
+  # #22i/#22j (deskTenancy-02): `expires` is a 24h TTL; LIVENESS is last_seen (THE ONE RULE,
+  # `roster constants`). The handoff's case: a quiet-6h sibling inside its TTL counted as a
+  # window here while `roster who` called it quiet. Scratch schema pre-dates the column, so
+  # add it the way the real migration does.
+  # (the scratch DB may already carry the column: any `roster` call above migrates it)
+  sqlite3 "$ROSTER_DB" "PRAGMA table_info(roster);" | grep -q '|last_seen|' || sqlite3 "$ROSTER_DB" "ALTER TABLE roster ADD COLUMN last_seen INTEGER;"
+  addses_at zzQuietSib 28800 57600     # sat down 8h ago, 16h of TTL left, never seen since
+  sqlite3 "$ROSTER_DB" "UPDATE roster SET last_seen=started WHERE who='zzQuietSib';"
+  chk "" "$(_dirt_mtime_sibling "$M" "?? a.txt")" "#22i a sibling QUIET >QUIET_H but inside its TTL is NOT a window -> nothing attributed (roster who and #22f agree)"
+  sqlite3 "$ROSTER_DB" "UPDATE roster SET last_seen=$(( _now - 300 )) WHERE who='zzQuietSib';"
+  _v="$(_dirt_mtime_sibling "$M" "?? a.txt")"
+  chk "zzQuietSib" "${_v%%${_T}*}" "#22j ...and the same sibling SEEN 5 min ago is a window again (its 8h-old start still covers a.txt)"
   case "$SWEEP" in
     *'_dirt_mtime_sibling "$repo" "$dirty"'*'claim owed by'*) ok "#22g the sweep asks _dirt_mtime_sibling before the anonymous FAIL and the WARN says 'claim owed by'" ;;
     *) bad "#22g G-H#22f is not wired into the DIRTY branch (or the WARN lost its 'claim owed by' wording)" ;;

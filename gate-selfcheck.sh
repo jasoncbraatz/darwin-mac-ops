@@ -303,8 +303,17 @@ _dirt_mtime_sibling() {   # <repo-path> <porcelain> -> "who[,who]<TAB>note" or e
   command -v sqlite3 >/dev/null 2>&1 || return 0
   local _now _rows _mine_start="" _who _st _line _p _mt _cands="" _all="" _first=1 _c _keep _note _in
   _now="$(date +%s)"
+  # deskTenancy-02 (#22i): a window is a LIVE sibling's by THE ONE LIVENESS RULE -- seen within
+  # QUIET_H -- not merely an unexpired one. `expires` is a 24h TTL: a sibling quiet for 7h still
+  # "covered" every mtime here while `roster who` called it quiet in the same breath. Ask roster
+  # for the number (never copy it); an older DB without last_seen falls back to started.
+  local _qh _seen_col
+  _qh="$(python3 "$HOME/Scripts/roster" constants 2>/dev/null | python3 -c 'import json,sys; print(int(json.load(sys.stdin)["QUIET_H"]))' 2>/dev/null)"
+  [ -n "$_qh" ] || _qh=6
+  if sqlite3 "$_ROSTER_DB" "PRAGMA table_info(roster);" 2>/dev/null | grep -q '|last_seen|'; then
+    _seen_col="COALESCE(last_seen,started)"; else _seen_col="started"; fi
   _rows="$(sqlite3 -separator '|' "$_ROSTER_DB" \
-     "SELECT who, started FROM roster WHERE kind='session' AND expires > $_now;" 2>/dev/null)"
+     "SELECT who, started FROM roster WHERE kind='session' AND expires > $_now AND $_seen_col > $_now - $_qh*3600;" 2>/dev/null)"
   [ -n "$_rows" ] || return 0
   while IFS='|' read -r _who _st; do
     [ -n "$_who" ] || continue
