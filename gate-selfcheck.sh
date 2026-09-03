@@ -2198,6 +2198,52 @@ else
 fi
 
 
+# -- G-AP . every declared verdict has been SEEN TO FIRE (born 2026-09-03, smBacklog-9) --
+# Card 1218126670100000: seven lying instruments in two sessions, every one failing in the
+# FLATTERING direction. The worst -- flowers-sms-sender-watch.sh v1 -- shipped a PASS branch
+# that was structurally unreachable and sat in front of a proven security fix for a session
+# and a half, READING AS CAUTION the whole time. "Nothing observed" and "no results" are the
+# two readings nobody argues with, and they are exactly the two a broken instrument produces.
+# So: a script that gates a decision declares its exit-code contract, and a drill PROVES, by
+# running, that every declared code can fire. The census reads an EXECUTED fact (the drill's
+# VERDICTS-EXERCISED line), never a grep -- measured 2026-09-03, a grep over the whole estate
+# found ONE of the sender watch's three exit codes, because `exit "$rc"` is invisible to it.
+VERDICT_CENSUS="${VERDICT_CENSUS:-$HOME/code/darwin-mac-ops/verdict-contract-census.sh}"
+if [ -x "$VERDICT_CENSUS" ]; then
+  _vc_out="$(bash "$VERDICT_CENSUS" </dev/null 2>&1)"; _vc_rc=$?
+  case "$_vc_rc" in
+    0) : ;;  # every declared verdict was seen to fire. Success is silent.
+    1) bold "=== G-AP . every declared verdict has been SEEN TO FIRE ==="
+       printf '%s\n' "$_vc_out" | sed 's/^/         /'
+       FAILS+=("G-AP: a script declares a verdict its drill never fired, or its drill is missing, silent or failing. An unproven branch is a claim, not a control. Run: bash ~/code/darwin-mac-ops/verdict-contract-census.sh") ;;
+    2) bold "=== G-AP . every declared verdict has been SEEN TO FIRE ==="
+       printf '%s\n' "$_vc_out" | sed 's/^/         /'
+       FAILS+=("G-AP CANNOT VERIFY: zero contracts were found, the drills were skipped, or the subject list was truncated. Exit 2 is NOT a pass -- an opt-in census with no subjects is an unentered room. Run: bash ~/code/darwin-mac-ops/verdict-contract-census.sh") ;;
+    *) FAILS+=("G-AP CANNOT VERIFY: verdict-contract-census.sh exited unexpectedly ($_vc_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  bold "=== G-AP . every declared verdict has been SEEN TO FIRE ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- ZERO verdict contracts were proven\n' "${VERDICT_CENSUS/#$HOME/~}"
+  FAILS+=("G-AP CANNOT VERIFY: $VERDICT_CENSUS is missing or not executable. Restore it: git -C ~/code/darwin-mac-ops checkout -- verdict-contract-census.sh")
+fi
+
+# -- G-AP#drill . the census can still go red (run its controls, do not trust them) -------
+VERDICT_DRILL="${VERDICT_DRILL:-$HOME/code/darwin-mac-ops/verdict-contract-census-drill.sh}"
+if [ -x "$VERDICT_DRILL" ]; then
+  _vd_out="$(bash "$VERDICT_DRILL" </dev/null 2>&1)"; _vd_rc=$?
+  case "$_vd_rc" in
+    0) : ;;
+    *) bold "=== G-AP#drill . the verdict census can still go red ==="
+       printf '%s\n' "$_vd_out" | sed 's/^/         /'
+       FAILS+=("G-AP#drill: the verdict census failed its own controls ($_vd_rc). A control that can no longer report an unproven verdict is decorative, and decorative is indistinguishable from passing. Run: bash ~/code/darwin-mac-ops/verdict-contract-census-drill.sh") ;;
+  esac
+else
+  bold "=== G-AP#drill . the verdict census can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- the census went unproven this run\n' "${VERDICT_DRILL/#$HOME/~}"
+  FAILS+=("G-AP#drill CANNOT VERIFY: $VERDICT_DRILL is missing or not executable, so nothing proved the census can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- verdict-contract-census-drill.sh")
+fi
+
+
 if gate_verdict_is_pass; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
   # The gate RANGE in the triad below was a COPY, and it rotted to "G-A->G-Z" while the gate
