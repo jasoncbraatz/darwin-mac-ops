@@ -279,6 +279,31 @@ EOF_DIRT
 # Fail-closed: red-owner missing/broken -> empty answer -> the anonymous FAIL below, unchanged.
 # RED_OWNER is honoured so gate-roster-drill.sh can point at a scratch journal (same ROSTER_DB dirname).
 _RED_OWNER="${RED_OWNER:-$HOME/repos/ceo-desk/red-owner.py}"
+_gv_owner_verdict() {   # -> "SIBLING<TAB>who[,who]" iff EVERY open non-repo red is a sibling's or transferred; else empty
+  [ -f "$_RED_OWNER" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  ROSTER_DB="$_ROSTER_DB" python3 "$_RED_OWNER" attribute ${GATE_ROSTER_WHO:+--who "$GATE_ROSTER_WHO"} --days 7 --json 2>/dev/null \
+    | python3 -c '
+import json, sys
+data = None
+for line in sys.stdin:                      # red-owner prints its human table on stdout too
+    s = line.strip()
+    if s.startswith("["):
+        try:
+            data = json.loads(s); break
+        except Exception:
+            pass
+if not data:
+    sys.exit(0)                             # fail-closed: no answer -> caller keeps the FAIL
+rows = [r for r in data if not str(r.get("key", "")).startswith("repo:")]
+if not rows:
+    sys.exit(0)                             # repos are G-H#22e s business, not G-V s
+if all(r.get("verdict") in ("SIBLING", "TRANSFERRED") for r in rows):
+    owners = sorted({(r.get("owner") or r.get("reason") or "?") for r in rows})
+    print("SIBLING\t" + ",".join(owners))
+' 2>/dev/null | head -1
+}
+
 _dirt_author_verdict() {   # <repo-path> -> "VERDICT<TAB>author<TAB>note" or empty
   [ -f "$_RED_OWNER" ] || return 0
   command -v python3 >/dev/null 2>&1 || return 0
@@ -1079,7 +1104,25 @@ else
     0) : ;;  # pass, stay quiet
     1) bold "=== G-V · AAR/RCA obligation ==="
        echo "$AAR_OUT" | sed 's/^/  /'
-       FAILS+=("G-V: a Batter's Box card was completed with no AAR link and no NO-AAR reason -- see above") ;;
+       # G-V#22g (superCEODesk-10, 2026-09-03). G-H#22e's own comment block says red-owner
+       # "feeds the dirty repo through the SAME table the AAR family uses" -- but the AAR
+       # family itself, which is G-V, was never wired to it. So REPOS got the escape hatch
+       # of SM 1217971802676167 ("a desk blocked by a sibling has no escape hatch, so it
+       # circles the runway burning tokens") and the gate this contract was WRITTEN for did
+       # not. Result: superCEODesk -06, -07, -08, -09 and -10 each read a FAIL for a
+       # sibling's paperwork while desk-check, two feet away, correctly printed SIBLING.
+       # Same table, same verdicts, same asymmetry as repos: SIBLING/TRANSFERRED -> WARN
+       # that NAMES them (their wrap owes it); MINE/ORPHAN -> the FAIL, unchanged. This
+       # loosens NOTHING that is yours, and it is fail-closed: red-owner missing, broken,
+       # silent, or reporting even ONE red that is not a sibling's leaves the FAIL exactly
+       # as it was.
+       _GV_OWN="$(_gv_owner_verdict)"
+       case "$_GV_OWN" in
+         SIBLING*)
+           WARNS+=("G-V: the open AAR obligation is a SIBLING's (${_GV_OWN#*	}) -- red-owner attributes EVERY open G-V red to a live sibling or a State Machine card, so their desk-out owes it, not yours. G-H#22e's contract applied to the family it was written for. Verify: ~/Scripts/ceo reds") ;;
+         *)
+           FAILS+=("G-V: a Batter's Box card was completed with no AAR link and no NO-AAR reason -- see above") ;;
+       esac ;;
     2) bold "=== G-V · AAR/RCA obligation ==="
        echo "$AAR_OUT" | sed 's/^/  /'
        FAILS+=("G-V CANNOT VERIFY: the AAR gate could not run (token/network). Exit 2 is NOT a pass") ;;
