@@ -2675,14 +2675,19 @@ _htc_in="${HTC_INBOUND:-}"; _htc_out="${HTC_OUTBOUND:-}"
 if [ -z "$_htc_out" ] && [ -n "${_ch_tag:-}" ]; then
   # `opus-smBacklog-13` / `smBacklog-13` -> project smBacklog, n 13. Same tag G-AL resolved,
   # asked once and reused -- a second copy of that resolution is how G-AL grew two matchers.
-  _htc_slug="$(printf '%s' "$_ch_tag" | sed -E 's/^(orchestrator|opus|big|mid|fast|cloud|local)-//')"
-  _htc_proj="$(printf '%s' "$_htc_slug" | sed -E 's/-[0-9]+[a-z]?$//')"
-  _htc_n="$(printf '%s' "$_htc_slug" | sed -E 's/^.*-([0-9]+)[a-z]?$/\1/')"
-  case "$_htc_n" in
-    ''|*[!0-9]*) : ;;
-    *) _htc_out="$HTC_DIR/HANDOFF-$_htc_proj-$_htc_n.md"
-       [ "$_htc_n" -gt 1 ] && _htc_in="$HTC_DIR/HANDOFF-$_htc_proj-$((_htc_n-1)).md" ;;
-  esac
+  # NO hard-coded tier list here (gate-charter-drill control: the list drifted once already, and
+  # this copy had no `fable`). Strip ONE leading <word>- exactly as G-AL does, and let the
+  # handoff file's EXISTENCE decide between the stripped and the raw tag. (multInfra-01)
+  for _htc_slug in "${_ch_tag#*-}" "$_ch_tag"; do
+    _htc_proj="$(printf '%s' "$_htc_slug" | sed -E 's/-[0-9]+[a-z]?$//')"
+    _htc_n="$(printf '%s' "$_htc_slug" | sed -E 's/^.*-([0-9]+)[a-z]?$/\1/')"
+    case "$_htc_n" in
+      ''|*[!0-9]*) continue ;;
+      *) _htc_out="$HTC_DIR/HANDOFF-$_htc_proj-$_htc_n.md"
+         [ "$_htc_n" -gt 1 ] && _htc_in="$HTC_DIR/HANDOFF-$_htc_proj-$((_htc_n-1)).md"
+         [ -f "$_htc_out" ] && break ;;
+    esac
+  done
 fi
 if [ ! -x "$HTC_CHECK" ]; then
   bold "=== G-AQ . an inherited thread survives the handoff ==="
