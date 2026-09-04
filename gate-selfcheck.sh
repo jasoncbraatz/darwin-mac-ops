@@ -2455,6 +2455,78 @@ else
   FAILS+=("G-AL#registry CANNOT VERIFY: $CLC is missing or not executable, so nothing checked whether every criteria ledger on this machine resolves to a charter row. Restore it: git -C ~/code/darwin-mac-ops checkout -- criteria-ledger-census.sh")
 fi
 
+# -- G-AL#census · REGISTERED IS NOT MEASURED (smDrainHandoff-17, SM 1217904193313336) --
+# G-AL#board grades ONE board: the one belonging to whichever project this session is. It
+# resolves that subject through project-charters.tsv, and a check that resolves its subject
+# through a registry can only ever grade the row it landed on. Nineteen projects are
+# registered; on any given wrap eighteen of them are green by OMISSION -- not passing, not
+# failing, never asked. And the project whose sessions have stopped happening is exactly the
+# one whose board nobody will ever check again.
+#
+# G-AL#registry above asks the neighbouring question -- which criteria ledger has no ROW.
+# This asks the one after it: which ROW has no READER. Both holes are invisible from inside
+# a session; you only see them by enumerating the registry from outside.
+#
+# MEASURED BEFORE IT WAS WIRED, and the measurement killed the cheap version. A git
+# commit-date proxy (board committed before its criteria => stale) costs nothing and
+# reported all nineteen rows GREEN. Running the real board engine on the first three found
+# voiceBox, mcpMirror AND wealthTensor STALE in the same minute -- a board rots because a
+# `cmd:` criterion changed status OUT IN THE WORLD, and nothing in git history moves when
+# that happens. The cheap axis is not a weaker version of the real one; it is
+# indistinguishable from health.
+#
+# SO IT ROTATES, AND THE ROTATION IS THE COMPROMISE, NAMED. A full pass is ~19 board runs at
+# 3-11 s each -- minutes, at wrap, which is how a control gets switched off (smDrainHandoff-15
+# left G-E's PAN sweep unwired for exactly this cost and said so out loud). --rotate 1 pays
+# ONE board run per wrap and covers the registry over the next twenty. Weaker than "measured
+# every run"; enormously stronger than "never measured at all".
+#
+# WARN, NEVER FAIL -- and this is the line to think twice about before changing. The stale
+# board belongs to SOMEBODY ELSE'S project. Failing this session's gate for it makes every
+# wrap on this machine red for rot the session cannot fix, and an always-red light is a light
+# that gets removed, at which point its true-positive rate is zero too (the Diners-38 lesson
+# in a new costume). The DRILL below is a FAIL, because a control that can no longer go red
+# is decorative and that IS this session's business.
+CBC="${CBC:-$HOME/code/darwin-mac-ops/charter-board-census.sh}"
+if [ -x "$CBC" ]; then
+  bold "=== G-AL#census · a registered board nobody measures (1 row per wrap, rotating) ==="
+  # THE WRAP BUDGET IS PART OF THE INVOCATION. Measured 2026-09-04: acmeLedger's row is a
+  # per-project gen-done.py that did not finish in 45 s, so at the census's own 300 s default
+  # ONE unlucky rotation row could add five minutes to every wrap it lands on -- and a gate
+  # step that sometimes takes five minutes is a gate step somebody starts skipping. Capped at
+  # 90 s here (the census enforces +30 s of slack around it). A row too slow to measure inside
+  # a wrap then reports CANNOT VERIFY, which is the honest answer and still a WARN: "this
+  # board cannot be measured in the time a wrap has" is real information about the board.
+  _cbc_out="$(CBC_TIMEOUT="${CBC_TIMEOUT:-90}" bash "$CBC" --rotate 1 2>&1)"; _cbc_rc=$?
+  printf '%s\n' "$_cbc_out" | sed 's/^/         /'
+  case "$_cbc_rc" in
+    0) : ;;
+    1) WARNS+=("G-AL#census: a REGISTERED project's board is stale or unreadable and no session was ever going to notice -- G-AL#board only grades the current session's row. It is not yours to fix; it is yours to have seen. Detail: bash ~/code/darwin-mac-ops/charter-board-census.sh --rotate 1") ;;
+    2) FAILS+=("G-AL#census CANNOT VERIFY: the charter-board census could not enumerate project-charters.tsv (missing, or ZERO rows -- a broken reader, not an empty estate). Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/charter-board-census.sh --list") ;;
+    *) FAILS+=("G-AL#census: charter-board-census.sh exited unexpectedly ($_cbc_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  bold "=== G-AL#census · a registered board nobody measures ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- no registered board was measured\n' "${CBC/#$HOME/~}"
+  FAILS+=("G-AL#census CANNOT VERIFY: $CBC is missing or not executable, so nothing asked whether any registered board other than this session's still describes the world. Restore: git -C ~/code/darwin-mac-ops checkout -- charter-board-census.sh")
+fi
+
+# -- G-AL#census#drill · the census can still go red ------------------------------------
+CBC_DRILL="${CBC_DRILL:-$HOME/code/darwin-mac-ops/charter-board-census-drill.sh}"
+if [ -x "$CBC_DRILL" ]; then
+  _cbcd_out="$(bash "$CBC_DRILL" 2>&1)"; _cbcd_rc=$?
+  case "$_cbcd_rc" in
+    0) : ;;
+    *) bold "=== G-AL#census#drill · the board census can still go red ==="
+       printf '%s\n' "$_cbcd_out" | sed 's/^/         /'
+       FAILS+=("G-AL#census#drill: the board census failed its own controls ($_cbcd_rc). A census that can no longer report a stale board is decorative -- and it is the ONLY thing measuring eighteen of the nineteen registered projects. Run: bash ~/code/darwin-mac-ops/charter-board-census-drill.sh") ;;
+  esac
+else
+  bold "=== G-AL#census#drill · the board census can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing -- G-AL#census ran uncontrolled this session\n' "${CBC_DRILL/#$HOME/~}"
+  FAILS+=("G-AL#census#drill CANNOT VERIFY: $CBC_DRILL is missing or not executable, so nothing proved G-AL#census can still go red. Restore: git -C ~/code/darwin-mac-ops checkout -- charter-board-census-drill.sh")
+fi
+
 # -- G-AL#drill · the charter check can still go red -----------------------------------
 CHARTER_DRILL="${CHARTER_DRILL:-$HOME/code/darwin-mac-ops/gate-charter-drill.sh}"
 if [ -x "$CHARTER_DRILL" ]; then
