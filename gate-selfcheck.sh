@@ -469,6 +469,60 @@ EOF_DIRT
   printf '%s\t%s' "$(printf '%s' "$_cands" | tr ' ' ',')" "$_note"
 }
 
+# G-H #22g-unrostered (smDrainHandoff inning 2, 2026-09-03 — SM 1218125780430801, found by
+# big_worker-smBacklog-5 at its own wrap). ATTRIBUTION WHEN THE ACTOR IS NOT ON THE ROSTER AT ALL.
+# #22c (filename), #22c-content (signature), #22e (claim journal) and #22f (live sibling's mtime
+# window) all ask the ROSTER, in four different voices, who a dirty path belongs to. Every one of
+# them is blind to the same actor: a session doing consequential work on darwin WITHOUT running
+# `roster join`. The roster cannot see it by construction, so all four decline — and the fallback
+# beneath them asserts "so it is being reported as YOURS", which is not a weaker answer, it is a
+# WRONG one. Measured 2026-09-02T22:20Z: ~/repos/book-typeset failed smBacklog-5's wrap with 6
+# uncommitted changes and 1 unpushed commit, HEAD 846a4d3 authored NINE MINUTES earlier by a
+# session with no roster row at all (`roster who` listed exactly one session: smBacklog-5, which
+# had never opened that repo).
+# WHY IT IS WORSE THAN NOISE, and why this rung exists: a FAIL is doctrine-blocking, so the only
+# move the gate leaves the wrapping session is to COMMIT AND PUSH A SIBLING'S IN-FLIGHT WORK —
+# a half-finished state under the wrong author, racing the sibling's own commit. The gate's
+# remedy is more dangerous than the condition it reports. smBacklog-5 refused and carded it.
+# THE EVIDENCE THIS RUNG ADDS, and it is the one thing none of the four look at: a repo cannot
+# commit itself. If HEAD landed inside the live window (QUIET_H, the ONE liveness rule, asked of
+# `roster constants` — never copied) then SOMEBODY was working here minutes ago, and every roster
+# rung above just said it knows of nobody who holds this repo — including you. So the honest
+# verdict is UNATTRIBUTED, and it is a WARN that names the commit and hands the reader BOTH
+# branches, rather than a FAIL that picks the wrong one for them.
+# NARROW ON PURPOSE — this is a FAIL->WARN downgrade, the most dangerous direction a control can
+# move, so it buys exactly the case it was carded for and nothing else:
+#   · HEAD older than QUIET_H => NOTHING is attributed and the anonymous FAIL stands unchanged.
+#     That is deliberate: weeks of uncommitted work in a repo nobody has touched is the bite the
+#     check was BUILT for (Jason's), and it has no recent actor to point at.
+#   · it never absolves. The WARN says out loud that if the dirt IS yours you owe a `roster claim`
+#     and a commit before you wrap — the rung declines to guess, it does not grant an amnesty.
+#   · fail-closed on every missing tool, non-repo, empty log or unparseable timestamp.
+# NOT FIXED HERE, on purpose (see the handoff): the UNPUSHED branch keeps its unconditional FAIL.
+# Its message never asserts ownership — it says "$ahead unpushed commit(s)" and stops — so it is
+# not telling the lie this card is about, and freshly-unpushed work is exactly what that check is
+# for. Card fix 3 (the roster should NOTICE an unrostered author) is upstream of this file.
+# Answer shape: "<note>" or empty. git + date only, so the drill can extract and execute it.
+_dirt_recent_unrostered() {   # <repo-path> -> "<note>" or empty
+  command -v git >/dev/null 2>&1 || return 0
+  local _l _h _ct _an _now _qh _age _mins
+  _l="$(git -C "$1" log -1 --format='%h	%ct	%an' 2>/dev/null)" || return 0
+  [ -n "$_l" ] || return 0                       # no commits at all => no actor to point at
+  _h="${_l%%	*}"; _l="${_l#*	}"
+  _ct="${_l%%	*}"; _an="${_l#*	}"
+  case "$_ct" in ''|*[!0-9]*) return 0 ;; esac    # unparseable timestamp => fail-closed
+  _qh="$(python3 "$HOME/Scripts/roster" constants 2>/dev/null \
+         | python3 -c 'import json,sys; print(int(json.load(sys.stdin)["QUIET_H"]))' 2>/dev/null)"
+  case "$_qh" in ''|*[!0-9]*) _qh=6 ;; esac       # roster unavailable => the same default #22f uses
+  _now="$(date +%s)"
+  _age=$(( _now - _ct ))
+  [ "$_age" -ge 0 ] || return 0                   # a clock-skewed future commit proves nothing
+  [ "$_age" -le $(( _qh * 3600 )) ] || return 0   # stale HEAD => no recent actor => FAIL stands
+  _mins=$(( _age / 60 ))
+  printf 'HEAD %s was authored by "%s" %s min ago — inside the live window (QUIET_H=%sh) — in a repo NO live roster session claims, including you' \
+    "$_h" "$_an" "$_mins" "$_qh"
+}
+
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
@@ -544,6 +598,11 @@ $_paths")
               flags="$flags DIRTY($nd,mtime:$_mtwho)"
               WARNS+=("$name: $nd uncommitted change(s) — claim owed by '$_mtwho' (G-H#22f attribution by mtime: $_mtnote). No claim, no journal row, but they were live when it was written. Do NOT commit it. Verify: ~/Scripts/roster who")
               [ "$level" = ok ] && level="WARN"
+            elif _ur="$(_dirt_recent_unrostered "$repo")"; [ -n "$_ur" ]; then
+              flags="$flags DIRTY($nd,unattributed)"
+              WARNS+=("$name: $nd uncommitted change(s) — UNATTRIBUTED, which is the answer, not a softer way of saying YOURS: $_ur. (G-H#22g-unrostered; #22c, #22c-content, #22e and #22f all declined, and every one of them can only see the roster.) A repo does not commit itself, so somebody was working here — most likely a sibling that never ran `roster join`, the one actor the roster is blind to by construction. Do NOT commit it blind: committing a sibling's in-flight work under your name is worse than the dirty tree it clears. If it IS yours, you owe a claim: ~/Scripts/roster claim $(basename "$repo") — then commit it before you wrap. Verify: git -C $repo log -1 --format='%h %an %ad' --date=iso
+$_paths")
+              [ "$level" = ok ] && level="WARN"
             else
               flags="$flags DIRTY($nd)"
               FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, the claim journal has NO author for it (G-H#22e), and no live sibling's window covers its mtimes (G-H#22f), so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
@@ -560,6 +619,11 @@ $_paths")
               _mtwho="${_mts%%${_T}*}"; _mtnote="${_mts#*${_T}}"
               flags="$flags DIRTY($nd,mtime:$_mtwho)"
               WARNS+=("$name: $nd uncommitted change(s) — claim owed by '$_mtwho' (G-H#22f attribution by mtime: $_mtnote). Do NOT commit it. Verify: ~/Scripts/roster who")
+              [ "$level" = ok ] && level="WARN"
+            elif _ur="$(_dirt_recent_unrostered "$repo")"; [ -n "$_ur" ]; then
+              flags="$flags DIRTY($nd,unattributed)"
+              WARNS+=("$name: $nd uncommitted change(s) — UNATTRIBUTED, which is the answer, not a softer way of saying YOURS: $_ur. (G-H#22g-unrostered; #22c, #22c-content, #22e and #22f all declined, and every one of them can only see the roster.) A repo does not commit itself, so somebody was working here — most likely a sibling that never ran `roster join`, the one actor the roster is blind to by construction. Do NOT commit it blind: committing a sibling's in-flight work under your name is worse than the dirty tree it clears. If it IS yours, you owe a claim: ~/Scripts/roster claim $(basename "$repo") — then commit it before you wrap. Verify: git -C $repo log -1 --format='%h %an %ad' --date=iso
+$_paths")
               [ "$level" = ok ] && level="WARN"
             else
               flags="$flags DIRTY($nd)"
