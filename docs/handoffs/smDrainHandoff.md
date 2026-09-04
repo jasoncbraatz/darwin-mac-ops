@@ -73,7 +73,12 @@ EVIDENCE, run, not asserted:
     GATE_ROSTER_WHO=cloud-atxFanoutConfirm \
     GATE_UNCHARTERED="9am ATX fan-out confirmation (scheduled routine, not a chartered project)" \
       bash gate-selfcheck.sh --quiet
-    -> G-AL n/a, G-AL#board n/a, SKIPPED no longer carries G-AL#board
+    -> FAIL (5 issue(s))  -- note: NO "check(s) NEVER RAN" clause any more
+       n/a  G-AL does not apply here -- unchartered by design (...)
+       n/a  G-AL#board does not apply here -- no charter, so no generated DONE board
+       the same 5 issues as before, none of them G-AL's: which IS the card's own
+       done-when ("exits non-zero for reasons OTHER than G-AL/G-AL#board, and says
+       out loud that the charter check was N/A rather than failed").
 
     GATE_SELFCHECK=$PWD/gate-selfcheck.sh bash gate-charter-drill.sh
     -> drill: PASS — 34 controls
