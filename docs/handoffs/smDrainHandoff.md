@@ -3,8 +3,8 @@ project: smDrainHandoff
 session_n: 3
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "PENDING"
-updated: "2026-09-03"
+gh_sha: "6278cc3e21345a230c2f02f6944b74b510a1b498"
+updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 lessons_consulted: ["2026-09-03-contract-built-fix-class-problem-check", "2026-08-15-attribution-shared-machine-s-dirty-files"]
 live_theme: "the gate is right that something is wrong and wrong about WHOSE it is — six of the fourteen remaining cards are that one sentence"
