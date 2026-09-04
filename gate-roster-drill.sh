@@ -428,6 +428,24 @@ if [ -n "$SWEEP" ]; then
   # that counts PROSE would go green on a rung that had been reduced to a comment about itself.
   _f="$(printf '%s\n' "$SWEEP" | grep -c 'FAILS+=.*so it is being reported as YOURS')"
   chk "2" "$_f" "#24e both anonymous FAILs survive beneath the new rung (attribution, not absolution)"
+  # --- SM 1218147386804343 · the ORPHAN remediation must survive its own failure mode ---
+  # The gate FAILs an orphan by telling the reader to run `red-owner.py transfer`. That command has
+  # two ways to answer "is not a live red right now" that mean opposite things (a root red-owner does
+  # not scan = a dead end; a tree that went clean = nothing owed), and the carding session could not
+  # tell them apart. Anchored on FAILS+= for the same reason #24e is: the comment above the rung
+  # quotes the remediation, and a prose-counting control goes green on a rung reduced to prose.
+  _rem="$(printf '%s\n' "$SWEEP" | grep -c 'FAILS+=.*red-owner.py transfer')"
+  chk "1" "$_rem" "#25 the ORPHAN FAIL still names red-owner.py transfer as the remediation"
+  case "$SWEEP" in
+    *'SCOPE gap'*'CLEAN = the dirt cleared'*)
+      ok "#25a ...and it tells the reader how to read that command's refusal — SCOPE gap (remediation can never succeed) vs CLEAN (red cleared, nothing owed)" ;;
+    *) bad "#25a the ORPHAN remediation no longer distinguishes red-owner's two refusals, so a session that hits one is back to guessing (SM 1218147386804343)" ;;
+  esac
+  case "$SWEEP" in
+    *"Do NOT commit a dead session's half-finished work as your own"*)
+      ok "#25b NEGATIVE CONTROL: the new sentence did not displace the doctrine line it sits beside" ;;
+    *) bad "#25b the ORPHAN FAIL lost 'do NOT commit a dead session's half-finished work' — the remediation grew and the prohibition went with it" ;;
+  esac
 fi
 
 echo "=== drill: $PASS passed, $FAIL failed ==="
