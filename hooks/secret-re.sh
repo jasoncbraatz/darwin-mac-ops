@@ -74,3 +74,114 @@ ge_allowed() {
 ge_mask() {
   printf '%s' "$1" | grep -oE "$SECRET_RE" | head -1 | sed -E 's/(.{10}).*/\1…MASKED/'
 }
+
+# =============================================================================
+# THE SECOND SHAPE: a PRIMARY ACCOUNT NUMBER  (S15 smDrainHandoff, SM 1217561601836055)
+#
+# SECRET_RE above is a set of VENDOR-PREFIX needles. A card number has no vendor
+# prefix and no high-entropy tail — it is sixteen digits — so G-AF could report
+# 114 of 114 repos protected while every one of them accepted a live PAN without
+# a murmur. That is the coverage-vs-capability gap in its purest form: coverage
+# (N of N repos wired) and capability (the scanner can SEE the thing) read
+# IDENTICALLY when green, and only one of them was ever measured.
+# (Global lesson 2026-08-17-secret-scanning-gate-reports-coverage-n, filed from
+# the AAR of a real PAN written into a wisdom repo while this hook was green.)
+#
+# A DIGIT-RUN REGEX IS NOT A CARD-NUMBER DETECTOR (global lesson 2026-08-07):
+# 'a run of >=12 digits' fires on timestamps, order ids, phone strings and shas.
+# Three independent constraints turn it into one, and all three are required:
+#   1. LENGTH   — exactly 13..19 digits after separators are stripped
+#   2. IIN      — a real issuer prefix, at a length that issuer actually issues
+#   3. LUHN     — the mod-10 check digit is correct (1 in 10 random runs survive)
+# Regex can only do (1). So the grep below is a cheap SHORTLIST and the verdict
+# is ge_pan_token()'s; a caller that greps PAN_RE and reports the hit WITHOUT
+# calling ge_pan_token has built the false-positive machine this comment warns
+# about, and it fails closed on every commit in the estate.
+#
+# ⚠ SELF-INDICT, same rule as SECRET_RE: nothing below is a Luhn-valid 13..19
+# digit run. '5[1-5]' and '6011' are prefixes, not cards. NEVER paste a
+# card-shaped literal here or into gate-secret-sweep.allow — synthesize it at
+# runtime the way hooks-drill.sh synthesizes the shpat_ needle.
+# =============================================================================
+
+# Cheap ERE shortlist: 13..19 digits with optional single space/dash separators.
+# Deliberately a SUPERSET — it is wrong on its own and is never the verdict.
+# The flanking [^0-9] guards are not cosmetic: without them this matches the first
+# 19 digits of a 40-digit blob and hands ge_pan_token a substring of a nonce. They
+# also carry most of the shortlist's SPEED -- an untethered run matched a large
+# fraction of every minified/lockfile line in the estate.
+PAN_RE='(^|[^0-9])[2-6]([ -]?[0-9]){12,18}([^0-9]|$)'
+
+# ge_luhn <digits> -- 0 iff the mod-10 check digit is correct.
+ge_luhn() {
+  local d="$1" n=${#1} sum=0 i=0 dbl=0 v
+  i=$((n-1))
+  while [ "$i" -ge 0 ]; do
+    v=$(( 10#${d:i:1} ))
+    if [ "$dbl" -eq 1 ]; then v=$(( v * 2 )); [ "$v" -gt 9 ] && v=$(( v - 9 )); fi
+    sum=$(( sum + v )); dbl=$(( 1 - dbl )); i=$(( i - 1 ))
+  done
+  [ $(( sum % 10 )) -eq 0 ]
+}
+
+# ge_pan_brand <digits> -- 0 iff the IIN is a real issuer AND the length is one
+# that issuer actually issues. The length pairing is doing real work: a 16-digit
+# run starting '34' is NOT an Amex, it is an order id, and accepting it would
+# roughly triple the false-positive surface for no detection gained.
+ge_pan_brand() {
+  local d="$1" n=${#1} p4="${1:0:4}"
+  case "$d" in
+    4*)                     [ "$n" -eq 13 ] || [ "$n" -eq 16 ] || [ "$n" -eq 19 ] ;; # Visa
+    34*|37*)                [ "$n" -eq 15 ] ;;                                        # Amex
+    5[1-5]*)                [ "$n" -eq 16 ] ;;                                        # Mastercard
+    2[2-7]*)                [ "$n" -eq 16 ] && [ "$((10#$p4))" -ge 2221 ] \
+                                            && [ "$((10#$p4))" -le 2720 ] ;;          # Mastercard 2-series
+    6011*|65*|64[4-9]*)     [ "$n" -eq 16 ] ;;                                        # Discover
+    35*)                    [ "$n" -eq 16 ] ;;                                        # JCB
+    # Diners is 36 and 300-305/3095, at 14 digits. '38'/'39' are DELIBERATELY absent:
+    # they were reassigned decades ago and no issuer uses them, but they matched 109
+    # of the 169 estate-wide hits in the S15 measurement -- every one a Shopify
+    # Metafield GID ("gid://shopify/Metafield/38466447245480"). Carrying a dead IIN
+    # range costs zero detection and buys a false-positive class big enough to get
+    # the whole hook uninstalled.
+    30[0-5]*|3095*|36*)     [ "$n" -eq 14 ] ;;                                        # Diners
+    *) return 1 ;;
+  esac
+}
+
+# ge_pan_token <line> -- print the first CONFIRMED PAN on the line, masked to the
+# PCI-permitted first-6/last-4 display form, and return 0. Print nothing, rc 1,
+# if the line carries no PAN.
+#
+# Tokenizing, and why it is not a regex: every character that cannot appear
+# INSIDE a written card number becomes a separator, leaving chunks of
+# [0-9 -]. A chunk whose digit count exceeds 19 is NOT a PAN — it is a sha, a
+# nonce or a concatenated id — and skipping it is the single largest
+# false-positive reduction available. But a long chunk can still CONTAIN a PAN as
+# one of its space/dash-delimited words ("4111... 20260904"), so an over-long
+# chunk is re-tried word by word rather than dropped.
+ge_pan_token() {
+  local line="$1" chunk d n w
+  while IFS= read -r chunk || [ -n "$chunk" ]; do
+    [ -z "$chunk" ] && continue
+    d="${chunk//[^0-9]/}"; n=${#d}
+    if [ "$n" -ge 13 ] && [ "$n" -le 19 ]; then
+      if ge_pan_brand "$d" && ge_luhn "$d"; then
+        printf '%s……%s' "${d:0:6}" "${d: -4}"; return 0
+      fi
+    elif [ "$n" -gt 19 ]; then
+      for w in $(printf '%s' "$chunk" | tr ' -' '\n\n'); do
+        d="${w//[^0-9]/}"; n=${#d}
+        [ "$n" -ge 13 ] && [ "$n" -le 19 ] || continue
+        if ge_pan_brand "$d" && ge_luhn "$d"; then
+          printf '%s……%s' "${d:0:6}" "${d: -4}"; return 0
+        fi
+      done
+    fi
+  # `|| [ -n "$chunk" ]` is load-bearing, not defensive: a PAN at END OF LINE
+  # produces a final chunk with no trailing newline, which plain `read` DISCARDS.
+  # Measured, not guessed -- the detector silently missed every unbroken 16-digit
+  # run that ended a line while happily catching the same number mid-line.
+  done < <(printf '%s\n' "$line" | tr -c '0-9 -' '\n')
+  return 1
+}

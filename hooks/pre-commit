@@ -106,7 +106,7 @@ if [ "${#PATHS[@]}" -eq 0 ]; then
   ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
 fi
 
-hits=0
+hits=0; pan_hits=0
 while IFS= read -r line; do
   [ -z "$line" ] && continue
   f="$(printf '%s' "$line" | cut -d: -f1)"
@@ -121,6 +121,34 @@ while IFS= read -r line; do
   printf '    %s: %s  [match: %s]\n' "$BASE" "$floc" "$(ge_mask "$line")" >&2
   hits=$((hits+1))
 done < <(git grep --cached -nIE "$SECRET_RE" -- "${PATHS[@]}" 2>/dev/null)
+
+# --- the PAN layer (S15 2026-09-04, SM 1217561601836055) ---------------------------
+# THIRD axis, same index, same allowlist. SECRET_RE matches vendor SHAPES and
+# leakguard.py matches this box's own LITERALS; a customer's card number is
+# neither. It has no prefix to key on and no entropy to measure, so both layers
+# above were structurally blind to it while G-AF reported 114 of 114 repos green
+# -- coverage without capability, which is the one failure mode that looks exactly
+# like success. (A real PAN reached a wisdom repo this way; AAR 2026-08-17.)
+#
+# Two-stage on purpose: PAN_RE shortlists, ge_pan_token() decides. Reporting a
+# raw PAN_RE hit would block commits on every order id in the estate.
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  f="$(printf '%s' "$line" | cut -d: -f1)"
+  body="${line#*:}"; body="${body#*:}"          # strip file:line:, keep the content
+  tok="$(ge_pan_token "$body")" || continue     # the VERDICT — not the grep
+  if ge_allowed "$BASE/$f"; then
+    GE_SUPPRESSED=$((GE_SUPPRESSED+1)); continue
+  fi
+  if [ "$hits" -eq 0 ]; then
+    echo "" >&2
+    echo "estate pre-commit: BLOCKED — card number(s) in the staged index" >&2
+  fi
+  floc="$(printf '%s' "$line" | cut -d: -f1-2)"
+  printf '    %s: %s  [PAN: %s]\n' "$BASE" "$floc" "$tok" >&2
+  hits=$((hits+1))
+  pan_hits=$((pan_hits+1))
+done < <(git grep --cached -nIE "$PAN_RE" -- "${PATHS[@]}" 2>/dev/null)
 
 # Suppression is NEVER silent — a reader has to be able to see what the allowlist ate.
 # A silent cap reads as "covered everything" when it did not (S44).
@@ -148,6 +176,20 @@ if [ "$hits" -gt 0 ]; then
                    mandatory. "It's in a fork" is not a reason.
   If you are sure: git commit --no-verify   (deliberate, this commit only)
 WHY
+  # A PAN is not a credential you can rotate, and that changes what the next step is:
+  # nobody can issue you a new copy of a customer's card number, so the only remedies
+  # are scrub-and-rewrite-history and telling whoever owns the incident process.
+  if [ "$pan_hits" -gt 0 ]; then
+    cat >&2 <<'PANWHY'
+  One or more hits above are CARD NUMBERS (first-6/last-4 shown; the rest is masked).
+  A PAN is not rotatable — there is no "issue a new one and move on". If it is real:
+    * do NOT amend it away and carry on; the blob survives the amend, and the commit
+      may already exist in a clone. Scrub the file, then treat the history as suspect.
+    * a PAN in a repo is a PCI-scope event, not a hygiene nit. Say so out loud.
+  If it is a TEST card (4111…, 4242…, the published Visa/Amex fixtures), it is still
+  a real detection — allowlist the FIXTURE PATH with a reason, do not widen the needle.
+PANWHY
+  fi
   exit 1
 fi
 
