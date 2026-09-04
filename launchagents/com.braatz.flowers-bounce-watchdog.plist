@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.flowers-bounce-watchdog — notice when a customer-facing flowers
+  email bounces, DETECT-ONLY (State Machine card 1217841023495108, ruling #126
+  SPLIT 2026-09-03). Nothing else watches this: the incident this exists for
+  (order NVRC2-8833, 2026-08-25) was only found because the customer texted in.
+
+  Runs hourly, not daily like the DR watchdog — a bounced tracking link is
+  time-sensitive for same-day delivery in a way a stale backup is not, and the
+  gateway query is cheap when scoped to one inbox.
+
+  Healthy = SILENT. On a bounce it files ONE State Machine card per DISTINCT
+  failure (deduped by bb-card.py's --key, so a mailbox stuck full for a week is
+  still one card) — never the Batter's Box. This is DETECTION ONLY: it never
+  retries a send and never emails staff or a customer. See the script header
+  and card 1217841023495108 / ruling #126 for why the retry ladder and the
+  staff escalation are deliberately NOT wired yet.
+
+  Install:   ~/repos/flowers/scripts/flowers-bounce-watchdog.sh --install
+  Disarm:    ~/repos/flowers/scripts/flowers-bounce-watchdog.sh --uninstall
+  Run now:   launchctl kickstart -k gui/$(id -u)/com.braatz.flowers-bounce-watchdog
+  Safe test: ~/repos/flowers/scripts/flowers-bounce-watchdog.sh --dryrun
+             ~/repos/flowers/scripts/flowers-bounce-watchdog.sh --selftest
+  Log:       ~/Library/Logs/flowers-bounce-watchdog.log
+             /tmp/flowers-bounce-watchdog.err   (stderr safety net)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.braatz.flowers-bounce-watchdog</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jasoncbraatz/repos/flowers/scripts/flowers-bounce-watchdog.sh</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>3600</integer>
+
+    <!-- Do NOT run at load — arming the agent is not evidence about the mailbox,
+         and a watchdog that fires on every bootstrap trains you to ignore it. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/flowers-bounce-watchdog.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/flowers-bounce-watchdog.err</string>
+
+    <!-- launchd hands jobs a minimal PATH; curl and node/python3 are spread
+         across all of these. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

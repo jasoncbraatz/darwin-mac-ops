@@ -11,12 +11,12 @@ FROZEN at 2026-09-03T20:48:03+00:00 (rule 1 of `backlog.work`: never count again
 board — an honest session FILES cards, so a live denominator makes good work look like
 failure; measured 201 -> 203, ADR-state-machine-divide §10).
 
-This lane is one **cluster** of that freeze — the handoff/gate is advisory where it should be mechanical, plus the gate checks that grade on things they never measure — and clusters are the unit
+This lane is one **cluster** of that freeze — everything whose fix surface is gate-selfcheck.sh / the gate drills / the handoff kit in darwin-mac-ops (seven inherited from gateAttrib by rulings #128 and #130) — and clusters are the unit
 because a cluster is one system, which is one repo, which is one claim.
 
 ## Definition of done — one sentence someone can mark right or wrong
 
-> Every one of the 10 cards below is closed on the State Machine with a
+> Every one of the 17 cards below is closed on the State Machine with a
 > `bb-close.py` receipt, and `verify-smdrain.sh handoff` exits 0.
 
 ## The cards (frozen — do NOT add to this list; a moved ruler refuses to grade)
@@ -33,6 +33,13 @@ because a cluster is one system, which is one repo, which is one claim.
 | `1217561601836055` | NEXT | Pre-commit secret hook does not detect PANs — G-AF is green at 114/114 and a live Visa number went through |
 | `1217527164868214` | NEXT | G-AK follow-on: a ratification can still MATCH and no longer be RIGHT |
 | `1217904193313336` | NEXT | [near-miss] Registered is not measured: voice-box and mcpMirror boards are stale too, and G-AL#board only ever checks the CURRENT session's project |
+| `1218126486445244` | NOW | [process] gate-selfcheck blamed roster-ghost-drill.sh for roster-identity-drill.sh's failure — the summary names the wrong drill |
+| `1218054982400791` | NOW | [process] gate-selfcheck can never go green for a scheduled/unchartered session (G-AL + G-AL#board) |
+| `1217341652482828` | NEXT | [process] gate-selfcheck.sh FLAPS: PASS/FAIL/PASS on identical clean state (network-dependent ssh probes) |
+| `1218125780430801` | NEXT | [process] gate-selfcheck blames the WRAPPING session for an unrostered sibling's dirty repo — G-H#22c/e/f all miss, and the fallback is "reported as Y |
+| `1218147386804343` | NEXT | [process] gate-selfcheck orphan reds: repo:auto-bridge and repo:strike-zone aren't registered as "live reds" so red-owner.py transfer refuses them |
+| `1218153310094177` | NEXT | [process] Gate G-V + G-AE red on 2026-09-03 — both items belong to live sibling lanes (shellac AAR, restore-drill plist) |
+| `1217721634749933` | NEXT | [process] G-AL accepts a SIBLING's charter stamp and passes — should it fail closed? |
 
 ## How to close one
 
