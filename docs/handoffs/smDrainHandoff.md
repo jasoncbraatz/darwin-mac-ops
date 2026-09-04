@@ -1,18 +1,18 @@
 ---
 project: smDrainHandoff
-session_n: 24
+session_n: 25
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
 gh_sha: "aea945f264d9f5efdaf79401b44b1cd32566e536"
 updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
-lessons_consulted: ["2026-08-28-rail-project-blocked-open-ruling-many"]
-lessons_banked: ["2026-09-04-gate-prose-escape-hatch-converts-machine", "2026-09-04-ruling-sits-open-too-long-check"]
-live_theme: "#131 WAS ALREADY RULED — IN PROSE, IN THE CEO'S OWN DAY-LOG — AND THE LEDGER ROW WAS NEVER WRITTEN. Sessions 20-22 modelled the referee's LATENCY (median-to-rule, burst structure, has-anything-jumped-me) and each concluded correctly-from-its-premise that waiting was right. The premise was wrong. `ceo-desk/DAY-LOG.md` line 1833, commit `cc4c704`, dated 2026-09-04T04:04:44Z and signed `opus-smDrainDesk-01` — the very desk that scoped this lane — says under **What I ruled: #121-#132**: *\"#131, closing a card on its own two verified items because its written close line was a whole-gate colour third parties keep moving — a card may only be bound to something its owner can discharge.\"* That is a ruling: a verdict AND a rationale, in the CEO's own hand. The `rulings` table still reads `#131 status=OPEN, ruled_at NULL, ruled_by NULL`. `rail.py complete` reads the TABLE, so four consecutive innings (fences 20, 21, 22, 23) were refused `open-needs-ceo` by a blocker its own author believed he had cleared. MECHANISM, and it is the generalizable half: `ceo-desk/desk-check.sh:467` discharges the open-needs-ceo obligation with **\"rule them OR hand them to the next CEO in DAY-LOG\"**. The desk took the DAY-LOG half and went out clean. A prose escape hatch on a mechanical gate converts a machine-readable obligation into an unreadable one. Session 23 opened **ruling #133** asking a CEO to transcribe #131; that is the whole remaining act."
-phase: "COMPLETE ON THE WORK, BLOCKED ON A MISSING RECEIPT — NOT ON A MISSING DECISION. 17 frozen cards, **17 closed**, every one with a bb-close receipt. `verify-smdrain.sh handoff` -> RULER GREEN, rc 0, re-run and re-confirmed in session 23 (~1 s, no tail risk on `complete`). `rail.py complete --project smDrainHandoff --fence 23 --allow-dirty ...` was RUN as the first act of session 23 and REFUSED, correctly, `open-needs-ceo` #131 — the fourth consecutive refusal. What session 23 adds is the ROOT CAUSE, which is not latency: #131's ruling exists in `ceo-desk/DAY-LOG.md:1833` and was never written to the ledger. Session 23 could not record it — `abridge.py decision rule --by {gm,ceo,jason}` has no worker value, and that enum IS the tier gate — so it opened **#133** (needs-ceo) carrying the DAY-LOG text verbatim and recommending a CEO run one `decision rule --id 131` command. Two open rulings now (#131, #133); both clear with that single command plus a rule on #133."
+lessons_consulted: ["2026-09-04-ruling-sits-open-too-long-check", "2026-08-29-drill-whose-expected-width-literal-goes"]
+lessons_banked: ["2026-09-04-ruling-open-blocker-cannot-take-back", "2026-09-04-ruling-sits-open-too-long-check (CORRECTED in place)"]
+live_theme: "#133 — THE RULING SESSION 23 OPENED TO COMPLAIN THAT #131 WAS UNRECORDED — IS NOW THE ONLY BLOCKER, AND ITS PREMISE WAS ALREADY FALSE WHEN IT WAS FILED. Session 24 ran `complete` as its first act, was refused, and read the refusal carefully instead of inheriting the handoff: the refused ruling id had CHANGED. #131 is `RULED by ceo at 2026-09-04T04:03:24Z`, option D, exactly as this lane recommended. `rail.py status` shows open-decisions=1, not 2. Then the timestamps: `SELECT id,status,opened_at,ruled_at FROM rulings` gives **#131 opened 03:32:28Z, RULED 04:03:24Z** and **#133 opened 04:06:11Z**. #131 was ruled **2m47s BEFORE #133 was opened to report it unruled**, and the LEDGER row (04:03:24) predates the ceo-desk DAY-LOG prose (04:04:44, cc4c704) that session 23 took as proof of the ledger row missing. **THERE WAS NEVER A LOST RECEIPT.** There was a 31-minute service time — inside the ~25 min median sessions 21 and 22 measured — so the latency model was RIGHT, and the innings that waited were RIGHT. What went wrong is a STALE READ: session 23 read `status=OPEN` as its first act, investigated for ~34 minutes, and filed #133 on that opening read without re-reading it. Because `abridge.py decision` is open|rule|list|show with **no withdraw verb**, and `complete` refuses on ANY open needs-ceo ruling, #133 is a worker-irretractable self-inflicted block, and it has now cost a fifth inning on a project that is 17/17 with the ruler GREEN. Banked global as `2026-09-04-ruling-open-blocker-cannot-take-back`; session 23's leaf `2026-09-04-ruling-sits-open-too-long-check` was materially wrong and has been CORRECTED in place (.bak-s24 alongside)."
+phase: "COMPLETE ON THE WORK; BLOCKED ON A VOID RULING THIS TIER CANNOT RETRACT. 17 frozen cards, **17 closed**, every one with a bb-close receipt. `verify-smdrain.sh handoff` -> `LANE handoff (darwin-mac-ops) — 17/17 closed / RULER GREEN`, rc 0, re-run and re-confirmed in session 24 (~1 s, no tail risk on `complete`). `rail.py complete --project smDrainHandoff --fence 24 --allow-dirty ...` was RUN as the first act of session 24 and REFUSED — the FIFTH consecutive refusal, but **for a different ruling than the previous four**: `open-needs-ceo` now names **#133 only**. #131 is RULED. The single remaining act is ONE `abridge.py decision rule --id 133 --by ceo` from a CEO — and because `complete` gates on OPEN-ness, not on the verdict, **any** ruling on #133 clears it, including 'moot, no action, #131 was already ruled'. No worker may write it: `--by` accepts only {gm,ceo,jason} and that enum IS the tier gate."
 gate_passed: true
-next_at_bat: "**STEP 1, FIRST ACT, UNCONDITIONAL: `python3 ~/repos/pitching-machine/rail.py complete --project smDrainHandoff --fence <n> --allow-dirty 'repo: checkout carries a sibling lane modified docs/HANDOFF.md and untracked launchagents plists; neither is this lane work'`.** verify_cmd is ~1 s. If it prints `ok: true` the project is CLOSED — write two sentences and stop. **STEP 2, IF IT STILL PRINTS `open-needs-ceo`: run ONE command and one only — `python3 ~/repos/auto-bridge/abridge.py decision show --id 133` — and read whether a CEO has ruled it.** If #133 is RULED and #131 is still OPEN, the ruling will say who transcribes; do exactly what it says and nothing more. If #133 is still OPEN, **STOP THERE AND WRITE NOTHING NEW.** Sessions 20-23 have each burned an inning on this and the state is now fully diagnosed: the decision is MADE (DAY-LOG:1833, cc4c704), only the ledger row is missing, and #133 is the request to write it. **DO NOT** re-run the latency/burst/median ledger queries — sessions 21 and 22 ran them, they were arithmetically correct and diagnostically useless, and session 23 explains why. **DO NOT** open a fourth ruling. **DO NOT** rule #131 or #133 yourself: `--by` accepts only `{gm,ceo,jason}`, and a worker that can write the ruling unblocking its own project is the pmRuler failure in another suit. **DO NOT** edit `desk-check.sh` — the prose-escape-hatch fix is real and is teed up below, but its fix surface is `ceo-desk`, it is NOT in this lane's frozen manifest, and it cannot move the ruler. Card it; do not smuggle it into a drain inning. Three items remain teed up for OTHER lanes: (1) **desk-check.sh:467's prose escape hatch** — 'rule them OR hand them to the next CEO in DAY-LOG' lets a desk discharge a machine-readable obligation in prose; the DAY-LOG half should also require the ledger row, or the line should stop offering it. Fix surface ceo-desk. verify: `command grep -n 'hand them to the next CEO' ~/repos/ceo-desk/desk-check.sh`. (2) `rail.py ruler freeze` records ZERO files for `~`-prefixed verify_cmds (`ruler show` -> files_json `{}`), root-caused to `ruler_digest()` at rail.py ~2038 not calling expanduser while a sibling at ~2709 does; fix surface pitching-machine. (3) `rail.py complete`'s refusal text says 'Get the ruling (or withdraw it)' and **there is no withdraw verb** (`decision` is open|rule|list|show), so a worker tier has zero legal moves on its own blocking call. **NOTE the ledger column is `project_id`, NOT `project`. USE `command grep`, not `grep`.**"
+next_at_bat: "**STEP 1, FIRST ACT, UNCONDITIONAL: `python3 ~/repos/pitching-machine/rail.py complete --project smDrainHandoff --fence <n> --allow-dirty 'repo: checkout carries a sibling lane modified docs/HANDOFF.md and untracked launchagents plists; neither is this lane work'`.** verify_cmd is ~1 s, so there is no tail risk — run it even at minute 40. If it prints `ok: true` the project is CLOSED: write two sentences and stop. **STEP 2, IF IT STILL REFUSES: READ WHICH RULING IDS IT NAMES — do not assume they are the same ones.** That single act is what session 24 contributed; sessions 20-23 each inherited the id from the handoff. If the refusal names anything OTHER than #133, the situation has changed again and you should diagnose the NEW id from the ledger (`sqlite3 ~/.local/state/auto-bridge/ledger.db \"SELECT id,status,opened_at,ruled_at,ruled_by FROM rulings WHERE project_id='smDrainHandoff'\"`) before anything else. **STEP 3, IF IT NAMES #133 AND ONLY #133: STOP. WRITE NOTHING NEW, OPEN NOTHING NEW, MEASURE NOTHING NEW.** The state is fully diagnosed and the remaining act is not a worker act. **DO NOT open a ruling to report that #133 is moot** — that is precisely the move that created #133, it would be a fifth open needs-ceo call, and it would make the block strictly worse. **DO NOT rule #131 or #133 yourself** (`--by {gm,ceo,jason}`; a worker that can write the ruling unblocking its own project is pmRuler in another suit). **DO NOT re-run the latency/median/burst queries** — sessions 21 and 22 ran them, they were arithmetically correct, and session 24 showed they were also SUBSTANTIVELY RIGHT (31 min, inside the median); there is nothing left there. **DO NOT edit `desk-check.sh`** — see the demoted item below. Teed up for OTHER lanes, in priority order: (1) **`abridge.py decision` has no `withdraw`/`moot` verb, and `rail.py complete`'s own refusal text says 'Get the ruling (or withdraw it)' — naming a verb that does not exist.** This lane is now the proof case: a worker filed a ruling on a premise that went stale 2m47s earlier and has no legal move to retract it, blocking a green project indefinitely. Fix surface auto-bridge + pitching-machine; note the design tension honestly — a withdraw verb a worker can drive is also a self-unblock vector, so it likely needs `--by` provenance and a rule that you may only withdraw a ruling YOU opened. Needs a ruling of its own. verify: `python3 ~/repos/auto-bridge/abridge.py decision --help` -> {open,rule,list,show}. (2) **DEMOTED by session 24: desk-check.sh:467's prose escape hatch.** Session 23 filed this as the root cause; the timestamps say the desk wrote the LEDGER row FIRST (04:03:24) and the DAY-LOG prose SECOND (04:04:44), so it did NOT take the escape hatch and this did not cause the stall. The `or` on that line is still a latent weakness worth tightening, but it is now a small hygiene item, not a root cause — do not let the next reader inherit the stronger claim. Fix surface ceo-desk. verify: `command grep -n 'hand them to the next CEO' ~/repos/ceo-desk/desk-check.sh`. (3) `rail.py ruler freeze` records ZERO files for `~`-prefixed verify_cmds (`ruler show` -> files_json `{}`), root-caused to `ruler_digest()` at rail.py ~2038 not calling expanduser while a sibling at ~2709 does; fix surface pitching-machine. **NOTE the ledger column is `project_id`, NOT `project`. USE `command grep`, not `grep` — plain grep is shadowed in this shell.**"
 blockers: []
 drift_flags: []
 parking_lot: ["NEW (session 15), teed up not taken and THE MOST URGENT THING IN THIS FILE: **the new PAN detector finds 35 confirmed card numbers in tracked files across the estate, and they are not all fixtures.** The benign ones are published test cards (`flowers-sms-concierge/daemon/test_redact.py`, and -- with a straight face -- `claude-blackbook/aars/2026-08-17-pan-written-into-wisdom-repo.md`, the AAR of the incident this very card was filed from). The ones that need a human are **`auto-bridge/ledger-dump.sql` (7 hits)** and **`braatz-ledger-snapshots/ledger.sql` (1 hit)**: distinct IINs across Visa/MC/Discover, in SQL dumps, which is the shape of a real cardholder table rather than a fixture. TRIAGE IS INCIDENT WORK, NOT DRAIN WORK -- it is not in this lane\u0027s frozen manifest and it must not be smuggled into a drain inning. It also is not something to sit on. reproduce: source `hooks/secret-re.sh`, then `git grep -nIE \"$PAN_RE\"` in the repo and pipe each line through `ge_pan_token`.", "NEW (session 15), teed up not taken: **G-E -- the WRAP-TIME reader -- is still blind to PANs, so the two readers now DISAGREE about what a secret is.** That divergence is the exact S44 failure `secret-re.sh` was created to make impossible (\u0027two readers, one needle\u0027 is in its own header), so this is a real debt and not a nice-to-have. It was left undone for a measured reason: `ge_pan_token` is bash-per-line, and G-E sweeps every tracked file in every repo -- a full estate pass ran >2 minutes and was still going when it was killed, against a pre-commit pass that only ever sees the staged index and is instant. Wiring it as-is would put minutes onto every gate run. The fix is probably to push the verify into one `awk`/python pass instead of a bash loop, which is its own card with its own controls.", "NEW (session 15): **a dead IIN range is not free.** The first PAN IIN table included Diners `38`/`39`, which were reassigned decades ago and match no live issuer. They matched **109 of 169** estate-wide hits, every one a Shopify Metafield GID (`gid://shopify/Metafield/38466447245480`). Dropping them cost ZERO detection and cut the false-positive rate by 64%. Generalise: in a detector keyed on an allocation table, an entry that no longer allocates contributes only false positives -- and a security control with a visible false-positive class gets uninstalled, at which point its true-positive rate is also zero.", "NEW (session 15): **`while IFS= read -r x` SILENTLY DROPS a final line with no trailing newline**, and for a scanner that is a blind spot shaped like \u0027the last thing on the line\u0027 -- which is exactly where a card number usually sits. The first build of `ge_pan_token` caught `4242-4242-...` mid-line and missed the identical number at end-of-line, and it looked like a brand/Luhn bug for several minutes. Use `while IFS= read -r x || [ -n \"$x\" ]`. hooks-drill.sh #20 is now a permanent control for it.", "NEW (session 14), teed up not taken: **ratification-census.sh is rc 1 on pristine main and it is a TRUE red** -- `bb-writers-allowlist.json` pattern `~/Scripts/cogs-mover/n8n/*.workflow.json` matches no file today (`~/Scripts/cogs-mover` exists; the `n8n/` subpath does not). So **G-AK is RED in the gate right now**, and it was red BEFORE session 14 touched the census (verified against `ratification-census.sh.bak-s14-retirewhen`). The census own instruction is `Delete it.` -- a one-line TIGHTENING, safe and reversible -- but the file lives in claude-blackbook, so it is a cross-repo commit and its own card. verify: `bash ratification-census.sh | tail -4`.", "NEW (session 14), teed up not taken: **phase 4 cannot see a RETIRE-WHEN clause that was simply DELETED from an entry.** It checks the clauses that are there; removing one silently returns the entry to unaudited, and the FLOOR count moving by one is the only trace. Same class as any allowlist edit (nothing guards those either), so it is a record-integrity card, not a census card. The FLOOR line is deliberately a number, not a verdict: 65 of 66 entries carry no clause today and failing them would be tightening a ratchet with no rollout -- somebody owns that rollout or the floor becomes wallpaper, exactly like G-AP.", "NEW (session 14): **the census reads its record files from `$HOME/code/darwin-mac-ops/...`, i.e. the `repo:` checkout, never your worktree** -- same hard-coded-path trap the README section already documents for `gate-roster-drill.sh`. Session 14 edited `launchd-divergence-allowlist.txt` in the lane, ran the census, and phase 4 reported 66 of 66 uncovered because it had read the UNEDITED file two directories over. Override with `RC_DIVERGE=$PWD/launchd-divergence-allowlist.txt` (and friends: RC_BB_ALLOW, RC_FOREIGN, RC_GE_ALLOW) to test a worktree edit -- but note the override then makes the real file at the default path read as an `UNKNOWN EXCEPTION RECORD`, which is a harness artifact, not a finding.", "NEW (session 13), teed up not taken: **gate-charter-drill.sh is 1-of-40 RED on pristine main (c626f4a) and it is a FALSE red** — 'a hard-coded tier list is back'. Its negative control greps the WHOLE gate-selfcheck.sh for `_ch_tag` near a tier alternation and fires on line 2583's `_htc_slug`, an unrelated (handoff-thread-continuity) consumer whose tier-strip is legitimate and DOES include `opus`. Narrowing it is a control being LOOSENED — its own card, its own negative controls. Not in this lane's frozen manifest, so it cannot move the ruler. verify: `command grep -nE '_ch_(tag|cands).*(orchestrator\\|big\\|mid\\|fast\\|cloud|big\\|mid)' gate-selfcheck.sh` -> one hit, 2583.", "NEW (session 13): **plain `grep` is SHADOWED in the rail worker's shell** and silently returns nothing on a file that plainly matches — `grep -n G-AL gate-selfcheck.sh` returned zero lines for a file with 40 of them. The handoff's house style already writes `command grep` everywhere and now you know why. Use `command grep`, always.", "NEW (session 11), teed up not taken: **HANDOFF-GATE.md has no G-AQ and gate-selfcheck.sh has 19 references to one.** That is SM card **1218165043650153** (the G-AQ doc-parity item session 8 filed), and session 11 measured it from the other side while choosing a letter: the doc's MAXG is derived from `^## G-[A-Z]{1,2}` headings, so a check that lives only in the script is invisible to the gate's own ceiling. Until that card is played the doc documents G-A..G-AR with a real hole at AQ. NOT in this lane's frozen manifest, so it cannot move the ruler. verify: `command grep -c G-AQ ~/Desktop/downloads/HANDOFF-GATE.md` -> 0 and `... gate-selfcheck.sh` -> 19.", "NEW (session 10), teed up not taken: the census FLOOR is now **340** undeclared scripts carrying an exit code >=2 (was 305 when card 1218149975342086 was filed on 2026-09-03). That is G-AP's stated non-job and it grew 35 in a day. Somebody owns the rollout of G-AP or the floor becomes wallpaper. verify: `bash ~/code/darwin-mac-ops/verdict-contract-census.sh | command grep FLOOR`.", "DISCHARGED by session 8: the G-AQ doc-parity item is now SM card **1218165043650153** (verified still owed first — `command grep -c 'G-AQ' ~/Desktop/downloads/HANDOFF-GATE.md` -> 0). Carded, not smuggled: it raises MAXG AP->AQ and cascades into four documents' front-door range refs, in a file stale-claimed by a dead sibling. NOT in this lane's frozen manifest, so it cannot move the ruler.", "NEW (session 8), teed up not taken: claude-blackbook START-HERE.md STEP 0 / student-in does not point a cold session at `rail <project>`, so the WHO WAS HERE BEFORE YOU block shipped for 1218142549980676 is discoverable only by someone who already knows the verb — which is the exact NORTH-STAR 2.4 failure that made ~/Scripts/rail exist in the first place. Cross-repo doc edit. verify: `command grep -c 'rail <project>' ~/repos/claude-blackbook/START-HERE.md` -> 0 today.", "G-AQ resolves the handoff pair from ~/Desktop/downloads/HANDOFF-<project>-<n>.md, which is the COWORK naming convention. Rail lanes write docs/handoffs/<project>.md and get an honest N/A. Wiring the rail lane's own handoff pair into G-AQ needs a notion of the PREVIOUS revision of a file that is rewritten in place (git show HEAD~1:docs/handoffs/X.md), which is a different mechanism, not a bigger regex. verify: run a rail-lane gate and confirm the G-AQ line reads n/a, not ok.", "gate-charter-drill.sh hard-codes its own negative-control count in its summary line (\"18 of them negative\"). Session 6 corrected it 16 -> 18 by hand, and that is the second time a number nobody checks has rotted in a drill footer. Making it self-counting is a change to a drill's REPORTING and deserves its own card and its own control; do not smuggle it into a drain inning. verify: `command grep -n 'of them negative' gate-charter-drill.sh` and count the FAIL-direction controls by hand.", "gate-flap-probe.sh has NO per-run timeout. Session 6's run 3 of 5 overran its ~182 s budget by >6x and emitted nothing, which is what forced the probe to be killed. A probe that can hang is a probe you cannot start at minute 0 and trust, which is the whole reason it exists. verify: `command grep -n timeout ~/Scripts/gate-flap-probe.sh` returns nothing today.", "gate-flap-probe.sh runs ~/Scripts/gate-selfcheck.sh, i.e. THROUGH THE SYMLINK into the repo: checkout, never your worktree. Correct for a flap question, wrong for anything you are editing. And do NOT run a second gate concurrently with a live probe: a gate run mutates the estate the probe is measuring. verify: `readlink ~/Scripts/gate-selfcheck.sh`.", "THE G-T#44 crontab probe is still TWO-STATE and session 5 left it that way on purpose: it is parsed from an EXIT CODE (rc 2 = drift, anything else = skip), not from text, so a timeout (rc 124) is already distinguishable from an answer and the truncation bug cannot reach it. If you ever change it to parse output, it needs _probe_field() like the other three.", "gate-probe-tristate-drill.sh is NOT wired into gate-selfcheck.sh as a G-x#drill check, unlike gate-roster-drill.sh. It is hermetic and sub-second, so it is a good candidate and session 5 simply ran out of clock. A drill that is not in a gate is a note, not a control — that sentence is already in gate-roster-drill.sh's own header.", "A THIRD false-positive class in the AAR sweep, found by s4 and deliberately NOT fixed: commit n8n-stack@b8c39779 is flagged as an incident-marker only because its subject QUOTES a card title containing 'sev-2' (`handoff: smDrainN8n session 3 — closed ... (COGS sev-2)`). It is a handoff commit, not an incident. Clearing it honestly means CALIBRATING SWEEP_NARROW_RE (a control being LOOSENED, which is the dangerous direction and needs its own card and its own negative controls), NOT an `aar.py adopt`, which would make a real AAR falsely claim a commit. Card it; do not smuggle it into a drain inning.", "The two [[SMOKE TEST]] cards holding G-V red (1218162752959495, 1218162743000102) are machine noise whose filer, cogs_mover.js, is not emitting bb-card.py's --autofiled marker. Same bug class as 1218153310094177 but the fix surface is the COGS bridge, not this lane. Card it against the bridge.", "The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
@@ -51,57 +51,115 @@ pathspec there too: `~/Scripts` is shared and was carrying a sibling's dirty `do
 ## Is the phase DONE?
 
 **THE WORK: YES — 17 of 17, ruler GREEN, merged to main and pushed.**
-**THE RAIL ROW: NOT CLOSED — because a ruling that was MADE was never RECORDED.**
-
-`rail.py complete` has now been RUN and REFUSED in four consecutive innings (fences 20-23):
-
-    {"ok": false, "closed": false, "reason": "open-needs-ceo", "rulings": [{"id": 131, ...}]}
-
-For three of those innings the working theory was that the referee had not got to #131 yet.
-**That theory is now dead.** Session 23 grepped the consumer's own output instead of modelling
-the queue, and found #131 ruled — in prose — 32 minutes after it opened:
-
-    ~/repos/ceo-desk/DAY-LOG.md:1833   (commit cc4c704, 2026-09-04T04:04:44Z, opus-smDrainDesk-01)
-
-    **What I ruled.** #121–#132. The two worth re-reading: ... and **#131**, closing a card on
-    its own two verified items because its written close line was a whole-gate colour third
-    parties keep moving — a card may only be bound to something its owner can discharge.
-
-That is a verdict *and* a rationale, signed and dated, by the desk that scoped this very lane.
-The ledger disagrees:
-
-    $ sqlite3 ~/.local/state/auto-bridge/ledger.db "SELECT id,status,ruled_at,ruled_by FROM rulings WHERE id=131"
-    131|OPEN||
-
-`rail.py complete` reads the table, not the prose. **The decision is not missing. The receipt is.**
-
-### Why the desk went out clean anyway — the generalizable finding
-
-`~/repos/ceo-desk/desk-check.sh:467`, on the desk-OUT path:
-
-    [ "${nc:-0}" -eq 0 ] && ok "no needs-ceo rulings left open" \
-      || bad "$nc needs-ceo rulings still open — rule them or hand them to the next CEO in DAY-LOG"
-
-Two things were checked and are NOT the bug, so nobody re-checks them: `nc` is assigned at
-line 166 in an **unguarded** block (mid + in + out), so it is live in `out` mode — this is not a
-false green; and `ceo status` does print `abridge decision list`, so the queue is visible. The bug
-is the **`or`**. The line offers a prose alternative to a mechanical act, the desk took it, and the
-obligation was discharged in a file `rail.py complete` cannot read. Banked global as
-`2026-09-04-gate-prose-escape-hatch-converts-machine`.
-
-### What session 23 did about it
-
-It could not record the ruling: `abridge.py decision rule --by {gm,ceo,jason}` has no worker
-value, and **that enum is the tier gate** — a worker able to write the ruling that unblocks its
-own project is pmRuler in another suit. So it opened **#133** (needs-ceo, smDrainHandoff), which
-is not a duplicate of #131: #131 asks *what the answer is* and has been answered; #133 asks
-*who transcribes an answer that already exists*, carries the DAY-LOG text verbatim, and
-recommends option A — one `decision rule --id 131 --by ceo` command, after which `complete`
-should pass on the first try.
+**THE RAIL ROW: NOT CLOSED — blocked by ruling #133, which this lane opened and cannot retract.**
 
     $ bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff
     LANE handoff (darwin-mac-ops) — 17/17 closed
-    RULER GREEN — every playable card in the lane is closed        (rc 0)
+    RULER GREEN — every playable card in the lane is closed        (rc 0, ~1 s)
+
+`rail.py complete` has now been RUN and REFUSED in five consecutive innings (fences 20-24). **The
+first four named #131. The fifth names #133, and nobody noticed the id had changed** because every
+inning inherited it from the handoff instead of reading the refusal:
+
+    {"ok": false, "closed": false, "reason": "open-needs-ceo", "rulings": [{"id": 133, ...}]}
+
+**#131 is RULED.** `by ceo at 2026-09-04T04:03:24Z`, option D — close 1218153310094177 on its own
+two verified items — with a full rationale and a Hall of Fame nomination for session 18's method.
+`rail.py status` prints `open-decisions=1`, not 2.
+
+### The timestamps, which invert session 23's diagnosis entirely
+
+    $ sqlite3 ~/.local/state/auto-bridge/ledger.db \
+        "SELECT id,status,needs_ceo,opened_at,ruled_at,ruled_by FROM rulings WHERE id IN (131,132,133)"
+    131|RULED|1|2026-09-04T03:32:28Z|2026-09-04T04:03:24Z|ceo
+    132|RULED|1|2026-09-04T04:02:24Z|2026-09-04T04:02:24Z|ceo
+    133|OPEN |1|2026-09-04T04:06:11Z||
+
+Read the two that matter together:
+
+- **#131 was RULED at 04:03:24Z.**
+- **#133 — whose entire question is "the rulings table still has #131 status=OPEN" — was opened at
+  04:06:11Z, two minutes and forty-seven seconds LATER.**
+
+And the ledger row (04:03:24) lands *before* the ceo-desk DAY-LOG prose (04:04:44, commit
+`cc4c704`) that session 23 offered as evidence the ledger row was missing. The desk ruled it
+mechanically first and summarised it in prose second — the correct order, the order that leaves a
+receipt.
+
+**So there was never a lost receipt.** #131 opened 03:32:28 and was ruled 04:03:24: a **31-minute**
+service time, sitting squarely inside the ~25 min median sessions 21 and 22 measured. The latency
+model was right. The sessions that waited were right. The one thing nobody did was read the table
+again at the end of the inning.
+
+### What actually went wrong: a stale read, filed as a blocker
+
+Session 23 read `#131 status=OPEN` as its first act, spent ~34 minutes on a genuinely careful
+investigation, and filed #133 on that opening read without re-reading it. By then the premise was
+void. And because `abridge.py decision` is `open|rule|list|show` — **there is no withdraw verb** —
+while `rail.py complete` refuses on *any* open needs-ceo ruling attached to the project, #133 is a
+self-inflicted block that the worker tier has no legal move against. It has now cost a fifth
+inning on a project that has been 17/17 and green since session 18.
+
+Banked global as `2026-09-04-ruling-open-blocker-cannot-take-back`: *a ruling you open is a
+blocker you cannot take back, so the read that justifies filing it must be the LAST thing you do
+before filing, not the first thing you did that inning.* Session 23's leaf
+`2026-09-04-ruling-sits-open-too-long-check` asserted the lost-receipt story as fact; it has been
+**corrected in place** (`.bak-s24` alongside, and the correction is committed and pushed in
+claude-blackbook).
+
+### What clears it
+
+One CEO command. Note that `complete` gates on the ruling's OPEN-ness, not on its verdict, so
+**any** ruling on #133 unblocks — including "moot, no action required, #131 was already ruled at
+04:03:24Z":
+
+    python3 ~/repos/auto-bridge/abridge.py decision rule --id 133 --by ceo \
+      --ruling "..." --rationale "..."
+
+No worker may write it, and should not want to: `--by {gm,ceo,jason}` is the tier gate, and a
+worker able to rule the call that unblocks its own project is pmRuler in another suit.
+
+---
+
+## Session 24 - the blocker changed id four innings ago and nobody read the refusal
+
+Session 24 ran `complete` as its first act (refused, fifth in a row) and then did the one thing
+the four previous innings had not: **it read which ruling the refusal actually named.** It was
+#133, not #131. Two more commands — `decision show 131` and one `SELECT` over `rulings` — turned a
+five-inning "the referee is slow / the receipt was lost" story into a two-line timestamp finding.
+
+Total cost: four commands. The tell was free and on the board the whole time — `rail.py status`
+prints `open-decisions=N` on the claim line, and it had dropped from 2 to 1.
+
+### The generalizable half
+
+Sessions 20-22 measured the queue. Session 23 read the consumer's prose. Both were reasonable
+moves and both missed it, because the thing that had changed was **the SSOT itself**, and every
+inning was carrying a value read from it minutes or days earlier. An investigation takes minutes;
+a queue moves in minutes. Any state you are about to file a finding *about* must be re-read
+immediately before you file — and when the filing is irreversible (an opened ruling, a filed card,
+a paged human), that re-read is not diligence, it is the only brake.
+
+### What session 24 did NOT do, on purpose
+
+- **Did not open a ruling to report that #133 is moot.** That is the exact move that produced
+  #133: a worker, blocked, filing a needs-ceo call about its blocker. It would be a fifth open
+  needs-ceo ruling on this project and would make the block strictly worse, not better.
+- **Did not rule #131 or #133.** `--by` accepts only `{gm,ceo,jason}`.
+- **Did not edit the rulings table directly.** Same act as the above with the audit trail removed.
+- **Did not build a `withdraw` verb**, though this lane is now its proof case. Fix surface is
+  auto-bridge/pitching-machine, it is not in the frozen manifest, it cannot move the ruler, and a
+  retract verb a worker can drive is also a self-unblock vector — it needs a ruling and a
+  provenance design, not a drain inning. Teed up first in `next_at_bat`.
+- **Did not re-run the latency queries.** They were right.
+
+### State at end of session 24
+
+- 17 of 17 cards closed, every one receipted; `verify-smdrain.sh handoff` rc 0, re-confirmed.
+- `complete` run at fence 24, refused `open-needs-ceo` **#133** — *this sentence is written after
+  the command ran, and the `complete` row in `rail_log` is the evidence.*
+- #131 RULED (ceo, 04:03:24Z). #133 OPEN and void on its face. `open-decisions=1`.
+- Lessons: 2 used, 1 banked, 1 corrected.
 
 ---
 
