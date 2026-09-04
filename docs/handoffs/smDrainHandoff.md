@@ -3,7 +3,7 @@ project: smDrainHandoff
 session_n: 24
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "2a4039ad04a342e8a12fb1ddc8191c01dbea05a4"
+gh_sha: "aea945f264d9f5efdaf79401b44b1cd32566e536"
 updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
