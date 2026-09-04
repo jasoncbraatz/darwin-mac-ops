@@ -56,12 +56,20 @@ _issue_keys() {
   if [ "${_v:-0}" -eq 0 ]; then
     command grep -qE 'GATE SELF-CHECK' "$_f" 2>/dev/null || return 2
   fi
-  # Issues are the summary block's '  - ' lines; NEVER-RAN checks are '  ! '.
+  # ONLY the SUMMARY BLOCK counts, i.e. everything from the verdict line down to
+  # the handoff-lint section. This is not tidiness: the gate's body prints its own
+  # '  - ' detail lines for G-H#22, and its self-review triad prints 4-space '    - '
+  # advice bullets. Harvesting those made the first cut of this drill report 16
+  # "issues" for a 5-issue run, and worse, it would have called a reworded piece of
+  # ADVICE a flap. The summary block is ${FAILS[@]} + ${SKIPPED[@]} and nothing else.
+  #
+  # Issues are '  - ' (exactly two spaces, as printf emits); NEVER-RAN checks are '  ! '.
   # A skipped check is part of the run's identity: a run that skipped G-AL and a
   # run that executed it did not do the same work, even if both exited 1.
-  command grep -hE '^[[:space:]]*[-!][[:space:]]' "$_f" 2>/dev/null \
-  | sed -E 's/^[[:space:]]*([-!])[[:space:]]+/\1 /' \
-  | sed -E 's/\x1b\[[0-9;]*m//g' \
+  sed -E 's/\x1b\[[0-9;]*m//g' "$_f" 2>/dev/null \
+  | awk '/GATE SELF-CHECK/{inblk=1} /handoff-lint/{inblk=0} inblk' \
+  | command grep -hE '^  [-!] ' \
+  | sed -E 's/^  ([-!]) +/\1 /' \
   | awk '{
       line=$0; mark=substr(line,1,1); rest=substr(line,3);
       if (match(rest, /G-[A-Z]+(#[A-Za-z0-9]+)?/))
@@ -199,6 +207,22 @@ for _p in "fail_v fail_ae" "pass_v fail_v" "fail_v fail_skip"; do
 done
 chk 3 "$_neg" "12 all three FLAP controls are genuinely negative (an always-SAME comparator fails 3 of them)"
 
+# --- the SUMMARY BLOCK is the subject, not every dash in the transcript ---------
+# Pins the bug this drill shipped with for one commit: the gate's BODY prints its
+# own '  - ' detail lines and its self-review triad prints 4-space '    - ' advice
+# bullets. Both are outside the summary block, and neither is a finding. Without
+# this control, a reworded piece of ADVICE reads as a flap.
+fixture noisy_v "  - ~/repos/foo: 7 uncommitted change(s) — LIVE roster claim by another session
+    - >2 tool calls to learn a fact? -> a leaf NOW.
+GATE SELF-CHECK: FAIL ❌  (1 issue(s) — fix before writing the handoff)
+  - G-V: ~/repos/foo has 3 uncommitted line(s)"
+fixture noisy_v_reworded "  - ~/repos/foo: 9 uncommitted change(s) — LIVE roster claim by another session
+    - a FAILURE MODE surfaced? -> a leaf (failure-now is the cheap kind).
+GATE SELF-CHECK: FAIL ❌  (1 issue(s) — fix before writing the handoff)
+  - G-V: ~/repos/foo has 3 uncommitted line(s)"
+chk 0 "$(verdict noisy_v fail_v)"          "15 pre-verdict detail lines and 4-space advice bullets are NOT issues"
+chk 0 "$(verdict noisy_v noisy_v_reworded)" "16 the gate's ADVICE prose changing is not a flap  <-- pins the summary-block scope"
+
 # --- worst-verdict precedence -------------------------------------------------
 _out="$(_compare_many "$S/fail_v" "$S/fail_v" "$S/garbage" 2>/dev/null)"; _r=$?
 chk 2 "$_r" "13 across 3 runs, CANNOT VERIFY outranks a SAME pair"
@@ -207,7 +231,7 @@ chk 1 "$_r" "14 across 3 runs, one FLAP outranks a SAME pair"
 
 echo
 if [ "$FAIL" -eq 0 ]; then
-  echo "=== drill: PASS — $PASS controls (0 skipped), 7 of them negative or anti-gaming ==="
+  echo "=== drill: PASS — $PASS controls (0 skipped), 9 of them negative or anti-gaming ==="
   echo "VERDICTS-EXERCISED: 0,1,2"
   exit 0
 fi
