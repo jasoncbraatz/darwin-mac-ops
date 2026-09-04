@@ -1197,12 +1197,36 @@ if [ -f "$CANON_GATE" ]; then
         continue
       fi
       if [ "$RF" = "$CANON_GATE" ]; then CONTENT=$(awk '/^## Changelog/{exit} {print}' "$RF"); else CONTENT=$(cat "$RF"); fi
+      # Collect every range endpoint in this door first, THEN judge -- because the canonical
+      # gate and the other five doors need different verdicts from the same evidence.
+      ENDPS=()
       while IFS= read -r m; do
         # The END of the range is whatever follows the SEPARATOR -- not the last letter (which
         # broke on two-letter steps) and not the last "G-xx" token either, because the common
         # written form "G-A..Z" leaves the endpoint unprefixed, so a G--anchored search finds
         # "G-A" and reports the START as the end. Strip through the separator instead.
         endp=$(printf '%s' "$m" | sed -E 's/.*(\.\.|->|→|through)+ *(G-)?//' | tr -d ' ')
+        [ -n "$endp" ] && ENDPS+=("$endp")
+      done < <(printf '%s\n' "$CONTENT" | grep -hoE 'G-A *(\.\.|->|→|through)+ *(G-)?[A-Z]{1,2}')
+
+      # THE GATE'S OWN BODY NARRATES HISTORY (fixed 2026-09-04, darlishCaddyInode-1). Excluding
+      # only "## Changelog" was too narrow: §G-AQ's backfill note quotes "v2.68 already carried
+      # the refs to G-A→G-AR", and older sections cite the range current when they were written.
+      # Those are correct AS HISTORY. Judging every occurrence made this BLOCKER unclearable by
+      # any session without falsifying the record -- and a gate that can never pass is a gate
+      # everyone learns to scroll past, which is precisely what the S42 note below argues
+      # against. So for THIS file judge the HIGHEST range claim: the rot being hunted is a front
+      # door that tells a zero-memory session to walk a gate ending SHORT, and a door whose top
+      # claim reaches the live max is not doing that. The other five doors carry ONE live range
+      # statement each, so they stay per-occurrence strict and lose no strength.
+      if [ "$RF" = "$CANON_GATE" ] && [ "${#ENDPS[@]}" -gt 0 ]; then
+        BESTE=""; BESTR=0
+        for endp in "${ENDPS[@]}"; do
+          r=$(gstep_rank "$endp"); [ "$r" -gt "$BESTR" ] && { BESTR=$r; BESTE="$endp"; }
+        done
+        ENDPS=("$BESTE")
+      fi
+      for endp in ${ENDPS[@]+"${ENDPS[@]}"}; do
         if [ -n "$endp" ] && [ "$(gstep_rank "$endp")" -lt "$MAXR" ]; then
           # BLOCKER, not a warning (S42, 2026-08-07). This check was born in v2.19 for exactly
           # this rot, it WARNed correctly when v2.41 added G-AC, and the session that added
@@ -1217,7 +1241,7 @@ if [ -f "$CANON_GATE" ]; then
           # excluded by design, since it quotes historical ranges on purpose.
           FAILS+=("gate range-ref drift: ${RF/#$HOME/~} cites 'G-A..$endp' but the gate documents through G-$MAXG — update the live range statement (one perl -pi -e per front door; BLOCKER since S42)")
         fi
-      done < <(printf '%s\n' "$CONTENT" | grep -hoE 'G-A *(\.\.|->|→|through)+ *(G-)?[A-Z]{1,2}')
+      done
     done
   fi
 fi
