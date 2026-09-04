@@ -1,20 +1,20 @@
 ---
 project: smDrainHandoff
-session_n: 11
+session_n: 12
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
 gh_sha: "b58edb54fbab652fd8c37fa865eaa3cebb59d9a2"
 updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
-lessons_consulted: ["2026-09-04-drill-extracts-function-from-big-script", "2026-09-04-fixture-anchored-fixed-past-timestamp-must", "2026-08-15-drill-s-verdict-must-depend-ran"]
-live_theme: "the gate is right that something is wrong and wrong about WHOSE it is — and session 10's sharpening: a control that is GREEN can still be green BY LUCK, and the way you find out is to ask what future fact would flip it"
-phase: "DRAINING. 17 cards frozen, **9 closed**. Session 10 CLOSED **1218149975342086** (G-AP orphan) — FIVE closes in five innings, all obeying the rule sessions 6-9 found: take the at-bat whose move is WORKING, never the one whose move is WAITING. Not done — 8 open. Ask again every inning."
+lessons_consulted: ["2026-08-19-handoff-can-report-red-sweep-green", "2026-09-04-pick-new-gate-letter-measuring-both"]
+live_theme: "the gate is right that something is wrong and wrong about WHOSE it is — session 10's sharpening (a GREEN control can still be green BY LUCK) and session 11's: a check that DISCOVERS its own scope reports the scope it managed to PARSE, not the scope that exists, and from the outside those two are the same picture"
+phase: "DRAINING. 17 cards frozen, **10 closed**. Session 11 CLOSED **1217654200494124** (G-AM/G-AR — the handoff-claims leg) — SIX closes in six innings, all obeying the rule sessions 6-9 found: take the at-bat whose move is WORKING, never the one whose move is WAITING. Not done — 7 open. Ask again every inning."
 gate_passed: false
-next_at_bat: "**1217654200494124** — *HANDOFF-GATE.md G-AM: a handoff that ASSERTS an exit code must have it re-run*. Session 9 named it the second choice and it stayed there through session 10; it is the best remaining WORKING at-bat and its fix surface is the handoff kit, which sessions 7, 8 and 9 mapped in this file. SECOND CHOICE: **1217564707330383** (a §N range named in HANDOFF.md must exist in the paper) — same shape as the G-AQ work session 7 did, hermetic, no network. THIRD: **1218153310094177** (G-V + G-AE red, items belong to live siblings) — but read the parking lot first, its fix surface is the COGS bridge, not this lane. DO NOT take **1217341652482828** (the flap) unless you are prepared to spend the inning waiting: sessions 4, 5 and 6 all shaped an inning around its ~182 s x5 probe and none of them got a verdict out of it."
+next_at_bat: "**1217564707330383** — *[process] Gate check: a §N range named in HANDOFF.md must exist in the paper*. Session 9 named it, sessions 10 and 11 left it standing, and it is now the best remaining WORKING at-bat: same shape as the G-AQ work session 7 did, hermetic, no network, fix surface already mapped in this file. DONE = a control exists that FAILS when a HANDOFF.md cites a §N the paper does not contain, with a negative control proving it can fire, and the card carries a bb-close receipt. SECOND CHOICE (context, not a menu): **1217805451663111** (session-out --record DESTROYS the tag G-AL needs) — a real ordering defect with a named reproducer, but its fix surface is ~/Scripts and it may need a decision about who owns the tag lifecycle. THIRD: **1217527164868214** (G-AK follow-on: a ratification can still MATCH and no longer be RIGHT). DO NOT take **1217341652482828** (the flap) unless you are prepared to spend the inning waiting: sessions 4, 5 and 6 all shaped an inning around its ~182 s x5 probe and none of them got a verdict out of it."
 blockers: []
 drift_flags: []
-parking_lot: ["NEW (session 10), teed up not taken: the census FLOOR is now **340** undeclared scripts carrying an exit code >=2 (was 305 when card 1218149975342086 was filed on 2026-09-03). That is G-AP's stated non-job and it grew 35 in a day. Somebody owns the rollout of G-AP or the floor becomes wallpaper. verify: `bash ~/code/darwin-mac-ops/verdict-contract-census.sh | command grep FLOOR`.", "DISCHARGED by session 8: the G-AQ doc-parity item is now SM card **1218165043650153** (verified still owed first — `command grep -c 'G-AQ' ~/Desktop/downloads/HANDOFF-GATE.md` -> 0). Carded, not smuggled: it raises MAXG AP->AQ and cascades into four documents' front-door range refs, in a file stale-claimed by a dead sibling. NOT in this lane's frozen manifest, so it cannot move the ruler.", "NEW (session 8), teed up not taken: claude-blackbook START-HERE.md STEP 0 / student-in does not point a cold session at `rail <project>`, so the WHO WAS HERE BEFORE YOU block shipped for 1218142549980676 is discoverable only by someone who already knows the verb — which is the exact NORTH-STAR 2.4 failure that made ~/Scripts/rail exist in the first place. Cross-repo doc edit. verify: `command grep -c 'rail <project>' ~/repos/claude-blackbook/START-HERE.md` -> 0 today.", "G-AQ resolves the handoff pair from ~/Desktop/downloads/HANDOFF-<project>-<n>.md, which is the COWORK naming convention. Rail lanes write docs/handoffs/<project>.md and get an honest N/A. Wiring the rail lane's own handoff pair into G-AQ needs a notion of the PREVIOUS revision of a file that is rewritten in place (git show HEAD~1:docs/handoffs/X.md), which is a different mechanism, not a bigger regex. verify: run a rail-lane gate and confirm the G-AQ line reads n/a, not ok.", "gate-charter-drill.sh hard-codes its own negative-control count in its summary line (\"18 of them negative\"). Session 6 corrected it 16 -> 18 by hand, and that is the second time a number nobody checks has rotted in a drill footer. Making it self-counting is a change to a drill's REPORTING and deserves its own card and its own control; do not smuggle it into a drain inning. verify: `command grep -n 'of them negative' gate-charter-drill.sh` and count the FAIL-direction controls by hand.", "gate-flap-probe.sh has NO per-run timeout. Session 6's run 3 of 5 overran its ~182 s budget by >6x and emitted nothing, which is what forced the probe to be killed. A probe that can hang is a probe you cannot start at minute 0 and trust, which is the whole reason it exists. verify: `command grep -n timeout ~/Scripts/gate-flap-probe.sh` returns nothing today.", "gate-flap-probe.sh runs ~/Scripts/gate-selfcheck.sh, i.e. THROUGH THE SYMLINK into the repo: checkout, never your worktree. Correct for a flap question, wrong for anything you are editing. And do NOT run a second gate concurrently with a live probe: a gate run mutates the estate the probe is measuring. verify: `readlink ~/Scripts/gate-selfcheck.sh`.", "THE G-T#44 crontab probe is still TWO-STATE and session 5 left it that way on purpose: it is parsed from an EXIT CODE (rc 2 = drift, anything else = skip), not from text, so a timeout (rc 124) is already distinguishable from an answer and the truncation bug cannot reach it. If you ever change it to parse output, it needs _probe_field() like the other three.", "gate-probe-tristate-drill.sh is NOT wired into gate-selfcheck.sh as a G-x#drill check, unlike gate-roster-drill.sh. It is hermetic and sub-second, so it is a good candidate and session 5 simply ran out of clock. A drill that is not in a gate is a note, not a control — that sentence is already in gate-roster-drill.sh's own header.", "A THIRD false-positive class in the AAR sweep, found by s4 and deliberately NOT fixed: commit n8n-stack@b8c39779 is flagged as an incident-marker only because its subject QUOTES a card title containing 'sev-2' (`handoff: smDrainN8n session 3 — closed ... (COGS sev-2)`). It is a handoff commit, not an incident. Clearing it honestly means CALIBRATING SWEEP_NARROW_RE (a control being LOOSENED, which is the dangerous direction and needs its own card and its own negative controls), NOT an `aar.py adopt`, which would make a real AAR falsely claim a commit. Card it; do not smuggle it into a drain inning.", "The two [[SMOKE TEST]] cards holding G-V red (1218162752959495, 1218162743000102) are machine noise whose filer, cogs_mover.js, is not emitting bb-card.py's --autofiled marker. Same bug class as 1218153310094177 but the fix surface is the COGS bridge, not this lane. Card it against the bridge.", "The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
+parking_lot: ["NEW (session 11), teed up not taken: **HANDOFF-GATE.md has no G-AQ and gate-selfcheck.sh has 19 references to one.** That is SM card **1218165043650153** (the G-AQ doc-parity item session 8 filed), and session 11 measured it from the other side while choosing a letter: the doc's MAXG is derived from `^## G-[A-Z]{1,2}` headings, so a check that lives only in the script is invisible to the gate's own ceiling. Until that card is played the doc documents G-A..G-AR with a real hole at AQ. NOT in this lane's frozen manifest, so it cannot move the ruler. verify: `command grep -c G-AQ ~/Desktop/downloads/HANDOFF-GATE.md` -> 0 and `... gate-selfcheck.sh` -> 19.", "NEW (session 10), teed up not taken: the census FLOOR is now **340** undeclared scripts carrying an exit code >=2 (was 305 when card 1218149975342086 was filed on 2026-09-03). That is G-AP's stated non-job and it grew 35 in a day. Somebody owns the rollout of G-AP or the floor becomes wallpaper. verify: `bash ~/code/darwin-mac-ops/verdict-contract-census.sh | command grep FLOOR`.", "DISCHARGED by session 8: the G-AQ doc-parity item is now SM card **1218165043650153** (verified still owed first — `command grep -c 'G-AQ' ~/Desktop/downloads/HANDOFF-GATE.md` -> 0). Carded, not smuggled: it raises MAXG AP->AQ and cascades into four documents' front-door range refs, in a file stale-claimed by a dead sibling. NOT in this lane's frozen manifest, so it cannot move the ruler.", "NEW (session 8), teed up not taken: claude-blackbook START-HERE.md STEP 0 / student-in does not point a cold session at `rail <project>`, so the WHO WAS HERE BEFORE YOU block shipped for 1218142549980676 is discoverable only by someone who already knows the verb — which is the exact NORTH-STAR 2.4 failure that made ~/Scripts/rail exist in the first place. Cross-repo doc edit. verify: `command grep -c 'rail <project>' ~/repos/claude-blackbook/START-HERE.md` -> 0 today.", "G-AQ resolves the handoff pair from ~/Desktop/downloads/HANDOFF-<project>-<n>.md, which is the COWORK naming convention. Rail lanes write docs/handoffs/<project>.md and get an honest N/A. Wiring the rail lane's own handoff pair into G-AQ needs a notion of the PREVIOUS revision of a file that is rewritten in place (git show HEAD~1:docs/handoffs/X.md), which is a different mechanism, not a bigger regex. verify: run a rail-lane gate and confirm the G-AQ line reads n/a, not ok.", "gate-charter-drill.sh hard-codes its own negative-control count in its summary line (\"18 of them negative\"). Session 6 corrected it 16 -> 18 by hand, and that is the second time a number nobody checks has rotted in a drill footer. Making it self-counting is a change to a drill's REPORTING and deserves its own card and its own control; do not smuggle it into a drain inning. verify: `command grep -n 'of them negative' gate-charter-drill.sh` and count the FAIL-direction controls by hand.", "gate-flap-probe.sh has NO per-run timeout. Session 6's run 3 of 5 overran its ~182 s budget by >6x and emitted nothing, which is what forced the probe to be killed. A probe that can hang is a probe you cannot start at minute 0 and trust, which is the whole reason it exists. verify: `command grep -n timeout ~/Scripts/gate-flap-probe.sh` returns nothing today.", "gate-flap-probe.sh runs ~/Scripts/gate-selfcheck.sh, i.e. THROUGH THE SYMLINK into the repo: checkout, never your worktree. Correct for a flap question, wrong for anything you are editing. And do NOT run a second gate concurrently with a live probe: a gate run mutates the estate the probe is measuring. verify: `readlink ~/Scripts/gate-selfcheck.sh`.", "THE G-T#44 crontab probe is still TWO-STATE and session 5 left it that way on purpose: it is parsed from an EXIT CODE (rc 2 = drift, anything else = skip), not from text, so a timeout (rc 124) is already distinguishable from an answer and the truncation bug cannot reach it. If you ever change it to parse output, it needs _probe_field() like the other three.", "gate-probe-tristate-drill.sh is NOT wired into gate-selfcheck.sh as a G-x#drill check, unlike gate-roster-drill.sh. It is hermetic and sub-second, so it is a good candidate and session 5 simply ran out of clock. A drill that is not in a gate is a note, not a control — that sentence is already in gate-roster-drill.sh's own header.", "A THIRD false-positive class in the AAR sweep, found by s4 and deliberately NOT fixed: commit n8n-stack@b8c39779 is flagged as an incident-marker only because its subject QUOTES a card title containing 'sev-2' (`handoff: smDrainN8n session 3 — closed ... (COGS sev-2)`). It is a handoff commit, not an incident. Clearing it honestly means CALIBRATING SWEEP_NARROW_RE (a control being LOOSENED, which is the dangerous direction and needs its own card and its own negative controls), NOT an `aar.py adopt`, which would make a real AAR falsely claim a commit. Card it; do not smuggle it into a drain inning.", "The two [[SMOKE TEST]] cards holding G-V red (1218162752959495, 1218162743000102) are machine noise whose filer, cogs_mover.js, is not emitting bb-card.py's --autofiled marker. Same bug class as 1218153310094177 but the fix surface is the COGS bridge, not this lane. Card it against the bridge.", "The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
 ---
 
 # smDrainHandoff — LIVING HANDOFF
@@ -48,12 +48,12 @@ thing with `ceo-desk`. The ruler grades CARDS CLOSED, so this is normal, not dri
 pathspec there too: `~/Scripts` is shared and was carrying a sibling's dirty `docs/HANDOFF.md`.
 
 ## Is the phase DONE?
-**No. 9 of 17, eight open.** Session 10 closed **1218149975342086**; session 9 closed
-**1217560480809492**; session 8 closed
+**No. 10 of 17, seven open.** Session 11 closed **1217654200494124**; session 10 closed
+**1218149975342086**; session 9 closed **1217560480809492**; session 8 closed
 **1218142549980676**; session 7 closed **1218152478656223**; session 6 closed
-**1217721634749933** — five innings, five cards, after a two-inning streak of
-innings that left a card one move from closed. Ask this question explicitly every inning — a
-milestone that is met but never declared keeps getting continued.
+**1217721634749933** — six innings, six cards, after a two-inning streak of innings that left a
+card one move from closed. Ask this question explicitly every inning — a milestone that is met
+but never declared keeps getting continued.
 
 **What actually broke the streak, because it is repeatable and it is not "worked harder".**
 Sessions 4 and 5 both ran out of clock on a last, cheap, *confirming* step. Session 5 diagnosed
@@ -65,7 +65,73 @@ overran at minute ~19 it **killed the probe** rather than let it eat the landing
 candidate at-bats by whether their move is WAITING or WORKING; background every wait; and never
 let a wait you started own your last fifteen minutes.**
 
-## Session 10 (2026-09-04, local-mbp2024-18253) — what moved
+## Session 11 (2026-09-04, local-mbp2024-18253) — what moved
+
+Closed, with a bb-close receipt: **1217654200494124** — *HANDOFF-GATE.md G-AM: a handoff that
+ASSERTS an exit code must have it re-run*. Shipped as **HANDOFF-GATE.md v2.68, step G-AR**.
+
+**THE LETTER WAS THE FIRST REAL FINDING, AND IT IS WHY THIS CARD HAD BEEN RE-AIMED TWICE.**
+The card was filed 2026-08-19 asking for *G-AM at v2.62*; both were consumed within a week. A
+2026-09-01 Kondo pass caught that and re-aimed it at *G-AP / v2.67* — which was consumed on
+2026-09-03, two days later, before the card was ever played. Session 11 nearly made the same
+mistake a third time in the other direction, because the obvious next letter is AQ:
+
+    command grep -c 'G-AQ' ~/Desktop/downloads/HANDOFF-GATE.md   -> 0
+    command grep -c 'G-AQ' ~/code/darwin-mac-ops/gate-selfcheck.sh -> 19
+
+**G-AQ is live in the script and absent from the doc.** The gate derives its own ceiling MAXG
+from `^## G-[A-Z]{1,2}` headings *in the doc*, so a step implemented only in the script is
+invisible to the instrument that guards the numbering. Taking AQ would have collided with a
+running check while every automated range-ref test stayed green. **G-AR** is the first letter
+free in BOTH, and the reasoning is written into the leg and the changelog rather than left in a
+commit message. The doc's AQ-shaped hole is real, named in the parking lot, and is SM card
+**1218165043650153** — not this lane's manifest, so it cannot move the ruler.
+
+**The leg itself**, in one paragraph, because the design constraint is the transferable part:
+a handoff **DECLARES** a machine-readable `claims:` registry in its front matter
+(`id / cmd / rc / count / count_re / slow / note`), the gate **re-runs every claim un-piped**,
+and the prose is read **only as an AUDIT of the registry**. It must not scrape the prose for its
+work list: `wealthTensor-95` shipped a self-discovering version that found **9 of 14** assertions
+and printed *FULL COVERAGE*. A check whose scope is inferred reports the scope it managed to
+parse, and from outside that is indistinguishable from the scope that exists. And
+**re-run-on-disagreement is built in from the start** — `verify-layout.sh` once went red with a
+real-looking message and would not reproduce across four further runs, so a mixed result is
+**FLAKY (exit 2)** naming both readings, never a FAIL attributed to an honest predecessor. A gate
+that cries liar is a gate somebody switches off.
+
+**G-AI compliance was the part easiest to fudge, so it is stated out loud in the leg:**
+mechanical **only** in `wealth-tensor` (`scripts/handoff_gate.py` G-CLAIMS at `f69555e`; 20-probe
+red-proof, 27 fast tests, live at 19 claims declared / 19 re-run / 19 agreed), and a hand-walked
+obligation everywhere else — `gate-selfcheck.sh` has no claims leg and **no test-suite leg at
+all** (its only `pytest` hit is a directory exclusion). Porting it globally is named as OPEN work.
+A doc-only leg that pretends to be mechanical is worse than one that admits it.
+
+EVIDENCE, measured not asserted:
+
+    header 2.67 -> 2.68, changelog entry present in the SAME edit (G-L#35c re-checked: OK)
+    range refs G-A->G-AP swept to G-A->G-AR: 8 sites / 6 front doors
+      (gate x2, lessons.py, CLAUDE.md, AGENTS.md, STANDING-BRIEF-CURRENT.md, HANDOFF-PROMPT.md x2)
+    the gate's OWN G-L#35b detector re-run afterwards -> MAXG=AR, 0 stale refs
+    mirror-handoff-gate.sh -> "synced + pushed -> claude-blackbook (v2.68)"
+
+**I drafted "7 occurrences" and the sweep measured 8.** The count was corrected in the changelog
+before the commit. v2.67's entry records its own bump regex rewriting the sentence that described
+the bump; this pass rewrote the range **token only** and left the changelog prose alone, which is
+that lesson acted on rather than repeated.
+
+**Fixed in passing (find it, fix it):** `STANDING-BRIEF-CURRENT.md` carried **"v2.66"** beside its
+range ref while hedging *"the version moves; trust the file, not this line"*. The gate's own v2.56
+entry already says a hedge is not a detector; it now reads v2.68. Nothing derives that number, so
+it will rot again — a candidate card, not smuggled in here.
+
+**Commits (three repos, by pathspec, all pushed).** This lane's rule holds: the lane is defined by
+its CARDS, not its repo, so the gate work does NOT ride the §6 merge.
+`~/Desktop/downloads` (darwin-everything-meta) · `~/repos/claude-blackbook` ·
+`~/repos/strike-zone`. **Undo:** `.bak-smDrainHandoff11-20260903-2127` beside each of the six
+front doors. `roster-brake` warned that all six paths were last written by `opus-smDrainDesk-01`
+(a claim STALE by 5.7 h); pathspec commits are never blocked and the edits are this session's.
+
+## Session 10 (2026-09-04## Session 10 (2026-09-04, local-mbp2024-18253) — what moved
 
 Closed, with a bb-close receipt: **1218149975342086** — *[process] G-AP orphan:
 flowers-sms-sender-watch.sh declares a verdict its own drill FAILS (exit 1).*
