@@ -2556,6 +2556,88 @@ else
 fi
 
 
+# -- G-AQ . an inherited thread survives the handoff (born 2026-09-03, smDrainHandoff-7) ---
+# Card 1218152478656223. HANDOFF-GATE.md v2.23 has required a one-line `verify:` on every
+# carried-over OPEN item since 2026-06-29 and it was PROSE ONLY for 66 days: nothing in this
+# file ever read the INBOUND handoff at all. The estate built G-AL to catch drift away from
+# the definition of DONE, and had nothing catching drift away from the definition of what is
+# OPEN. Measured, from real history: smBacklog-11 handed -12 three live threads plus the
+# project's own drain scoreboard; -12's handoff carried ONE. Every claim -12 made was true.
+# It was an OMISSION, which is the one defect a narrative cannot self-detect.
+#
+# The unit is the 16-digit State Machine gid, not the sentence -- machine-checkable, and
+# already how every card in this estate is cited. Gids are read from PROSE only (fenced
+# blocks and blockquotes stripped from both sides) or the check would enforce copy-paste.
+#
+# WHEN THIS DOES NOT APPLY, and why that is an N/A rather than a pass. Most sessions -- every
+# rail lane, every scheduled run -- do not write a numbered HANDOFF-<project>-<n>.md into the
+# downloads folder, so there is no outbound document to grade. Say so out loud. But an
+# outbound that EXISTS with its predecessor missing is CANNOT VERIFY, never silence: an
+# unreadable inbound is the state in which a dropped thread is invisible.
+HTC_CHECK="${HTC_CHECK:-$HOME/code/darwin-mac-ops/handoff-thread-continuity.sh}"
+HTC_DIR="${HTC_DIR:-$HOME/Desktop/downloads}"
+_htc_in="${HTC_INBOUND:-}"; _htc_out="${HTC_OUTBOUND:-}"
+if [ -z "$_htc_out" ] && [ -n "${_ch_tag:-}" ]; then
+  # `opus-smBacklog-13` / `smBacklog-13` -> project smBacklog, n 13. Same tag G-AL resolved,
+  # asked once and reused -- a second copy of that resolution is how G-AL grew two matchers.
+  _htc_slug="$(printf '%s' "$_ch_tag" | sed -E 's/^(orchestrator|opus|big|mid|fast|cloud|local)-//')"
+  _htc_proj="$(printf '%s' "$_htc_slug" | sed -E 's/-[0-9]+[a-z]?$//')"
+  _htc_n="$(printf '%s' "$_htc_slug" | sed -E 's/^.*-([0-9]+)[a-z]?$/\1/')"
+  case "$_htc_n" in
+    ''|*[!0-9]*) : ;;
+    *) _htc_out="$HTC_DIR/HANDOFF-$_htc_proj-$_htc_n.md"
+       [ "$_htc_n" -gt 1 ] && _htc_in="$HTC_DIR/HANDOFF-$_htc_proj-$((_htc_n-1)).md" ;;
+  esac
+fi
+if [ ! -x "$HTC_CHECK" ]; then
+  bold "=== G-AQ . an inherited thread survives the handoff ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${HTC_CHECK/#$HOME/~}"
+  FAILS+=("G-AQ CANNOT VERIFY: $HTC_CHECK is missing or not executable, so no handoff continuity was checked. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-thread-continuity.sh")
+elif [ -z "$_htc_out" ] || [ ! -f "$_htc_out" ]; then
+  bold "=== G-AQ . an inherited thread survives the handoff ==="
+  gate_na "G-AQ" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} to grade (rail lanes and scheduled runs write elsewhere) -- point it at one with HTC_INBOUND=/path HTC_OUTBOUND=/path"
+elif [ -z "$_htc_in" ]; then
+  bold "=== G-AQ . an inherited thread survives the handoff ==="
+  gate_na "G-AQ" "$(basename "$_htc_out") is a FIRST handoff -- there is no predecessor whose threads could have been dropped"
+else
+  _htc_o="$(bash "$HTC_CHECK" --inbound "$_htc_in" --outbound "$_htc_out" </dev/null 2>&1)"; _htc_rc=$?
+  case "$_htc_rc" in
+    0) # Success is silent EXCEPT for the v2.23 half: a carried thread with no liveness
+       # check is a WARN, never a FAIL. Option-(b) shape, same as G-AL#borrow -- the finding
+       # is made visible and the exit code is left alone, so a future tightening has to
+       # argue with card 1218152478656223 instead of quietly with ${#FAILS[@]}.
+       _htc_nv="$(printf '%s\n' "$_htc_o" | grep -c '^NOVERIFY ')"
+       if [ "$_htc_nv" -gt 0 ]; then
+         bold "=== G-AQ . an inherited thread survives the handoff ==="
+         printf '%s\n' "$_htc_o" | sed 's/^/         /'
+         WARNS+=("G-AQ#verify: $_htc_nv carried thread(s) in $(basename "$_htc_out") ship no one-line \`verify:\` liveness check (HANDOFF-GATE v2.23, anti-string-of-pearls). The next session then inherits a worry as GOSPEL instead of confirming-or-dropping it in one cheap call. Dropping a carried at-bat after a 1-command liveness check is a WIN.")
+       fi ;;
+    1) bold "=== G-AQ . an inherited thread survives the handoff ==="
+       printf '%s\n' "$_htc_o" | sed 's/^/         /'
+       FAILS+=("G-AQ: $(basename "$_htc_out") silently DROPS a thread it inherited from $(basename "$_htc_in") -- the gid appears nowhere in it. An inbound gid must land in the outbound as CARRIED (with a verify: line), CLOSED (with a receipt) or DROPPED (with the liveness check that justified it). Absent is not one of those: it is a decision nobody made. Re-run: bash ~/code/darwin-mac-ops/handoff-thread-continuity.sh --inbound $_htc_in --outbound $_htc_out") ;;
+    2) bold "=== G-AQ . an inherited thread survives the handoff ==="
+       printf '%s\n' "$_htc_o" | sed 's/^/         /'
+       FAILS+=("G-AQ CANNOT VERIFY: the inbound handoff $_htc_in could not be read or yielded zero gids, so nothing could tell whether a thread was dropped. An unreadable predecessor is exactly the state in which an omission is invisible -- it is not a pass.") ;;
+    *) FAILS+=("G-AQ CANNOT VERIFY: handoff-thread-continuity.sh exited unexpectedly ($_htc_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+fi
+
+# -- G-AQ#drill . the continuity check can still go red (run its controls, do not trust them)
+HTC_DRILL="${HTC_DRILL:-$HOME/code/darwin-mac-ops/handoff-thread-continuity-drill.sh}"
+if [ -x "$HTC_DRILL" ]; then
+  _htd_o="$(bash "$HTC_DRILL" </dev/null 2>&1)"; _htd_rc=$?
+  if [ "$_htd_rc" -ne 0 ]; then
+    bold "=== G-AQ#drill . the continuity check can still go red ==="
+    printf '%s\n' "$_htd_o" | sed 's/^/         /'
+    FAILS+=("G-AQ#drill: the thread-continuity check failed its own controls ($_htd_rc). A control that can no longer report a dropped thread is decorative, and decorative is indistinguishable from passing. Run: bash ~/code/darwin-mac-ops/handoff-thread-continuity-drill.sh")
+  fi
+else
+  bold "=== G-AQ#drill . the continuity check can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${HTC_DRILL/#$HOME/~}"
+  FAILS+=("G-AQ#drill CANNOT VERIFY: $HTC_DRILL is missing or not executable, so nothing proved the continuity check can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-thread-continuity-drill.sh")
+fi
+
+
 # The N/A ledger is printed in BOTH verdicts, above them, so a reader can tell "did not apply"
 # from "did not run" without reading the whole transcript back.
 if [ "${#NA[@]}" -gt 0 ]; then
