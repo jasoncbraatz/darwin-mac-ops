@@ -353,5 +353,82 @@ else
   esac
 fi
 
+# ── #23 · G-H#22g-unrostered, THE ACTOR THE ROSTER CANNOT SEE (smDrainHandoff-2) ──
+# SM 1218125780430801. #22c/#22c-content/#22e/#22f are four voices asking the SAME source —
+# the roster — and they are all blind to a session that never ran `roster join`. When they all
+# decline, the fallback beneath them said "reported as YOURS", which is a wrong answer, not a
+# weak one, and its only remedy is to commit a sibling's in-flight work. This rung looks at the
+# one thing none of them do: a repo does not commit itself, so a RECENT HEAD proves an actor.
+# Same extract-at-runtime discipline — the function under test is the gate's own.
+sed -n '/^_dirt_recent_unrostered() {/,/^}/p' "$GATE" > "$S/fn5.sh"
+if ! grep -q 'QUIET_H' "$S/fn5.sh"; then
+  bad "#23 could not extract _dirt_recent_unrostered() from $GATE — G-H#22g-unrostered is unproven this run"
+elif ! command -v git >/dev/null 2>&1; then
+  bad "#23 git not on PATH — G-H#22g-unrostered is unproven this run"
+else
+  . "$S/fn5.sh"
+  _mkrepo() { # _mkrepo <dir> <committer-date-or-empty>
+    mkdir -p "$1"
+    ( cd "$1" && git init -q . && git config user.email d@d && git config user.name "zzUnrostered" \
+      && printf 'x\n' > f.txt && git add f.txt \
+      && if [ -n "$2" ]; then GIT_AUTHOR_DATE="$2" GIT_COMMITTER_DATE="$2" git commit -qm init; else git commit -qm init; fi ) >/dev/null 2>&1
+  }
+  # POSITIVE, and it is THE CARD'S CASE: book-typeset's HEAD was authored nine minutes before
+  # smBacklog-5's wrap by a session with no roster row. A fresh HEAD in an unclaimed repo is an
+  # actor the roster cannot name -> UNATTRIBUTED, with the commit as the evidence.
+  U="$S/freshrepo"; _mkrepo "$U" ""
+  _v="$(_dirt_recent_unrostered "$U")"
+  case "$_v" in
+    *"authored by \"zzUnrostered\""*"min ago"*) ok "#23a THE CARD'S CASE: a HEAD inside the live window names the actor the roster cannot -> UNATTRIBUTED, not YOURS" ;;
+    *) bad "#23a a fresh HEAD in an unclaimed repo attributed nothing (got '$_v')" ;;
+  esac
+  case "$_v" in *"including you"*) ok "#23a2 ...and the note says the roster names nobody INCLUDING you — the whole point is that it stops guessing" ;; *) bad "#23a2 the note no longer says the roster cannot name you either (got '$_v')" ;; esac
+  # NEGATIVE, and the load-bearing one: a STALE HEAD attributes NOTHING. Weeks of uncommitted
+  # work in a repo nobody has touched is the bite this check was BUILT for (Jason's), and it has
+  # no recent actor to point at. If this control ever flips, the downgrade has eaten the check.
+  O="$S/oldrepo"; _mkrepo "$O" "2026-01-01T00:00:00+0000"
+  chk "" "$(_dirt_recent_unrostered "$O")" "#23b a HEAD older than QUIET_H attributes NOTHING -> the anonymous FAIL stands (the weeks-of-dirt bite is intact)"
+  # NEGATIVE: clock skew is not evidence. A commit dated in the future must not read as 'recent'.
+  F="$S/futurerepo"; _mkrepo "$F" "$(date -r $(( $(date +%s) + 7200 )) +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -d "@$(( $(date +%s) + 7200 ))" +%Y-%m-%dT%H:%M:%S)"
+  chk "" "$(_dirt_recent_unrostered "$F")" "#23c a future-dated (clock-skewed) commit proves nothing -> nothing attributed"
+  # NEGATIVE: fail-closed on a repo with NO commits, and on a directory that is not a repo at all.
+  E="$S/emptyrepo"; mkdir -p "$E"; ( cd "$E" && git init -q . ) >/dev/null 2>&1
+  chk "" "$(_dirt_recent_unrostered "$E")" "#23d a repo with no commits has no actor -> nothing attributed, no crash"
+  N="$S/notarepo"; mkdir -p "$N"
+  chk "" "$(_dirt_recent_unrostered "$N")" "#23e a non-repo path -> nothing attributed, no crash (fail-closed)"
+fi
+
+# ── #24 · IS #22g-unrostered WIRED IN, AT THE RIGHT RUNG? ────────────────────────
+# A predicate the sweep never calls is a note, not a control — and one called too EARLY is worse
+# than absent, because an anonymous "UNATTRIBUTED" would pre-empt #22f's answer, which actually
+# NAMES a live sibling. Both anonymous-FAIL sites (the ORPHAN-with-no-author branch and the
+# no-verdict default) had the same wrong fallback, so both must have the same new rung.
+if [ -n "$SWEEP" ]; then
+  _n="$(printf '%s\n' "$SWEEP" | grep -c '_dirt_recent_unrostered "\$repo"')"
+  chk "2" "$_n" "#24 BOTH anonymous-FAIL sites consult _dirt_recent_unrostered (G-H#22g-unrostered)"
+  case "$SWEEP" in
+    *'UNATTRIBUTED, which is the answer, not a softer way of saying YOURS'*) ok "#24b the WARN says UNATTRIBUTED out loud — the card's whole finding is that 'YOURS' was a wrong answer, not a weak one" ;;
+    *) bad "#24b the UNATTRIBUTED wording is gone — the WARN no longer distinguishes 'cannot tell' from 'yours'" ;;
+  esac
+  case "$SWEEP" in
+    *'Do NOT commit it blind'*'roster claim'*) ok "#24c ...and it hands the reader BOTH branches: do not commit a sibling's work, and if it IS yours you owe a claim (it declines to guess, it does not grant an amnesty)" ;;
+    *) bad "#24c the WARN lost one of its two branches — either the 'do not commit' instruction or the 'if it is yours, claim it' one" ;;
+  esac
+  # ORDERING: the mtime rung, which NAMES a live sibling, must be asked BEFORE the anonymous one.
+  _mt_at="$(printf '%s\n' "$SWEEP" | grep -n '_dirt_mtime_sibling "\$repo" "\$dirty"' | head -1 | cut -d: -f1)"
+  _ur_at="$(printf '%s\n' "$SWEEP" | grep -n '_dirt_recent_unrostered "\$repo"' | head -1 | cut -d: -f1)"
+  if [ -n "$_mt_at" ] && [ -n "$_ur_at" ] && [ "$_mt_at" -lt "$_ur_at" ]; then
+    ok "#24d #22f (names a live sibling) is asked BEFORE #22g-unrostered (names nobody) — a stronger answer is never pre-empted by a weaker one"
+  else
+    bad "#24d the anonymous UNATTRIBUTED rung is asked before #22f — an answer that NAMES a sibling is being pre-empted (mt=$_mt_at ur=$_ur_at)"
+  fi
+  # ...and the FAIL still exists beneath BOTH of them. #22h pins one; this pins that neither was
+  # swallowed, which is the failure mode a downgrade actually has.
+  # anchored on FAILS+= on purpose: the sweep's own comments quote the sentence, and a control
+  # that counts PROSE would go green on a rung that had been reduced to a comment about itself.
+  _f="$(printf '%s\n' "$SWEEP" | grep -c 'FAILS+=.*so it is being reported as YOURS')"
+  chk "2" "$_f" "#24e both anonymous FAILs survive beneath the new rung (attribution, not absolution)"
+fi
+
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
