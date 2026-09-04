@@ -128,6 +128,30 @@ gate_roster_line() {   # gate_roster_line <drill-path> <rc> -> "FAIL|<msg>" / "W
   esac
 }
 
+# -- G-AL's stamp verdict, derived once (smDrainHandoff-6, 2026-09-03, SM 1217721634749933) --
+# G-AL looks for this session's charter stamp under every name the session has (the slug it
+# opened with, the roster identity, the tier-stripped and case-normalised forms). If none of
+# those targeted lookups hit, it falls back to a BLIND scan of every warm (<12h) ledger and
+# accepts a stamp for the same project from any of them.
+#
+# That fallback is deliberate and stays: looking only under the roster identity once made
+# G-AL FAIL a session that had read its charter ten seconds after boot, and a confident
+# accusation about a thing that did happen is worse than silence. But it printed `ok`, and
+# on darwin -- where 2-3 sessions run on one project at once -- the borrow therefore ALWAYS
+# succeeds, so G-AL could not fail anyone. Verified live at wealthTensor-101:
+# GATE_ROSTER_WHO=big-wealthTensor-999, a session id that does not exist, passed by borrowing
+# wealthTensor-100.log. The step was vacuous for exactly the machine it runs on.
+#
+# So a borrow is a WARN naming the ledger it came from -- visible in the issue list, still
+# not a blocker, because the reason the fallback exists is untouched. That is option (b) of
+# the card, chosen over (c) fail-closed for that reason; gate-charter-drill.sh asserts the
+# non-blocking half by name, so promoting this to FAILS has to argue with the card first.
+gate_charter_stamp_line() {   # <borrowed 0|1> <hit-ledger> <session-tag> <project-row> -> "" / "WARN|<msg>"
+  local _b="${1:-0}" _hit="${2:-}" _tag="${3:-}" _row="${4:-}"
+  [ "$_b" = "1" ] || return 0   # the session's own stamp, under any of its names: silent success
+  printf "WARN|G-AL: session %s has no charter stamp of its OWN for project '%s' -- the read credited to it was BORROWED from %s, a different session ledger warm within 12h. That is evidence SOMEBODY read this project's definition of done, not that you did, and G-AL cannot tell a genuine sibling from a session that never opened it. Read it yourself (ten seconds): ~/Scripts/charter-read.sh %s" "$_tag" "$_row" "$_hit" "$_tag"
+}
+
 # THE VERDICT PREDICATE IS A NAMED FUNCTION so that gate-skipped-drill.sh can extract and
 # execute THIS text rather than a copy of it. A drill that reimplements the rule it checks
 # goes on passing forever on the day the rule changes -- the copied-not-derived family,
@@ -2213,7 +2237,7 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       # accusation about a thing that did happen. So: the exact ledger first, then any WARM
       # ledger (<12h) carrying a stamp for THIS project, and NAME the file when it is not the
       # expected one -- a stamp borrowed from a genuine sibling should be visible, not silent.
-      _ch_hitfile=""; _ch_anyfile=""
+      _ch_hitfile=""; _ch_anyfile=""; _ch_borrowed=0
       # THE WRITE PATH NORMALISES THE TIER PREFIX AND THIS READ PATH DID NOT, so every cloud
       # session that followed its handoff's `GATE_ROSTER_WHO=<tier>-<slug>` instruction missed
       # its OWN stamp. charter-read.sh writes `$SESSION_STATE/wealthTensor-101.log`; this gate
@@ -2261,7 +2285,10 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       elif ! grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null; then
         while IFS= read -r _f; do
           [ -n "$_f" ] || continue
-          if grep -q "^CHARTER $_ch_row $_ch_sha " "$_f" 2>/dev/null; then _ch_hitfile="$_f"; break; fi
+          # a hit HERE is a hit on somebody else's ledger -- the targeted lookups above have
+          # already tried every name this session answers to. Flag it; the verdict is
+          # produced by gate_charter_stamp_line and drilled by name.
+          if grep -q "^CHARTER $_ch_row $_ch_sha " "$_f" 2>/dev/null; then _ch_hitfile="$_f"; _ch_borrowed=1; break; fi
           # ...and remember a stamp at ANY version, so the stale-version branch below can
           # fire. Without this, a session that DID read the charter and then amended it gets
           # accused of never having read it -- the wrong finding, and the wrong remedy.
@@ -2269,10 +2296,13 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
         done < <(find "$SESSION_STATE" -name '*.log' -mmin -720 2>/dev/null)
       fi
       if [ -n "$_ch_hitfile" ]; then
-        if [ "$_ch_hitfile" != "$_ch_log" ]; then
-          bold "=== G-AL · the session knew what DONE looks like ==="
-          printf '  ok     charter read at the version in force (stamped in %s)\n' "$(basename "$_ch_hitfile")"
-        fi
+        _ch_verdict="$(gate_charter_stamp_line "$_ch_borrowed" "$(basename "$_ch_hitfile")" "$_ch_tag" "$_ch_row")"
+        case "$_ch_verdict" in
+          WARN\|*)
+            bold "=== G-AL · the session knew what DONE looks like ==="
+            printf '  WARN   charter stamp BORROWED from %s -- not this session'"'"'s own\n' "$(basename "$_ch_hitfile")"
+            WARNS+=("${_ch_verdict#WARN|}") ;;
+        esac
         : ;  # read the charter in force. Success is otherwise silent.
       elif grep -q "^CHARTER $_ch_row " "$_ch_log" 2>/dev/null || [ -n "$_ch_anyfile" ]; then
         bold "=== G-AL · the session knew what DONE looks like ==="
