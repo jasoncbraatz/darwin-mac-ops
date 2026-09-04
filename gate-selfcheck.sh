@@ -2123,6 +2123,27 @@ fi
 # criteria file's SHA. This checks the stamp. The SHA matters -- reading a charter that has
 # since been amended does not count, because you read a different document than the one now
 # in force.
+# -- G-AL#tag · the wrap order must not blind this check (smDrainHandoff-13, SM 1217805451663111) --
+# G-AL resolves "which project is this session?" from $SESSION_STATE/current below. That made it
+# silently killable from OUTSIDE this file: `session-out --record pass` deleted the pointer and
+# then printed "Now walk the gate: session-out", so on the wrap order session-out itself documents,
+# G-AL warned CANNOT VERIFY and G-AL#board was SKIPPED -- every local wrap, for a month. Cloud runs
+# set GATE_ROSTER_WHO and never saw it, which is exactly why nobody did.
+# The fix lives in ~/Scripts/session-out (darwin-scripts). This is the control that keeps it fixed:
+# a check whose subject lives in another repo is one `git pull` away from being a note again.
+_SOD="$HOME/Scripts/session-out-tag-drill.sh"
+if [ -x "$_SOD" ]; then
+  bold "=== G-AL#tag · the wrap order preserves the session tag (offline drill) ==="
+  _SOD_OUT="$("$_SOD" 2>&1)"; _SOD_RC=$?
+  printf '%s\n' "$_SOD_OUT" | tail -2
+  case "$_SOD_RC" in
+    0) : ;;
+    *) FAILS+=("G-AL#tag: the tag-lifecycle control FAILED -- something in the wrap path destroys or staleifies \$SESSION_STATE/current again, which mutes G-AL and G-AL#board without either of them going red. That is a check being switched off, not a check failing. Run: bash $_SOD --verbose") ;;
+  esac
+else
+  WARNS+=("G-AL#tag: $_SOD missing or not executable -- nothing proves the wrap order still leaves G-AL able to identify this session, and the failure mode is SILENCE, not a red light")
+fi
+
 CHARTER_READ="${CHARTER_READ:-$HOME/Scripts/charter-read.sh}"
 CHARTER_REG="${PROJECT_CHARTERS:-$HOME/code/darwin-mac-ops/project-charters.tsv}"
 if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
@@ -2142,8 +2163,10 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
     _ch_tag="$GATE_ROSTER_WHO"
   fi
   #   ...and if we DO fall back to the shared file, check that it is still warm.
-  # STALENESS GUARD (born 2026-08-16, ctxband-01). $SESSION_STATE/current is never cleared,
-  # so a session that skipped session-in silently inherits whoever ran it last. G-AL then
+  # STALENESS GUARD (born 2026-08-16, ctxband-01). $SESSION_STATE/current is cleared only by
+  # `session-out --abandon` (smDrainHandoff-13: --record used to clear it too, which muted this
+  # whole check on the documented wrap order -- see G-AL#drill above), so in the normal case
+  # a session that skipped session-in silently inherits whoever ran it last. G-AL then
   # reports a CONFIDENT FAIL about a STRANGER'S project -- "the definition of done was
   # amended after you read it, you have been working toward a finish line that moved" --
   # for a charter this session never opened. That is worse than silence: it burns a fresh
