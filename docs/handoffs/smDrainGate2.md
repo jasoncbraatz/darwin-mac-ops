@@ -3,7 +3,7 @@ project: smDrainGate2
 session_n: 1
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "08e5786"
+gh_sha: "b921f2474dc88f0ee28cc35cfc6b3884089a90c2"
 updated: "2026-09-04"
 definition_of_done: "Every one of the 2 cards in the frozen manifest lane-gate2.json is closed on the State Machine with a bb-close.py receipt, and `bash docs/verify-smDrainGate2.sh` exits 0."
 verify_cmd: "bash docs/verify-smDrainGate2.sh"
@@ -22,9 +22,10 @@ parking_lot: []
 ## Is the phase DONE?
 **Yes.** Both cards below are closed with `bb-close.py` receipts, and
 `bash docs/verify-smDrainGate2.sh` exits 0 (`RULER GREEN — every playable card in the lane is
-closed`, 2/2). `rail.py complete` was run this session after this handoff was pushed — see
-`rail_log` for the receipt rather than trusting this sentence (this file itself once warned the
-project against exactly that trust failure — see "DoD revised" below).
+closed`, 2/2). This commit and stamp are being pushed now; `rail.py complete` runs as the next
+act, per §6/§5's order. Check `rail_log` for the actual `complete` row rather than trusting a
+sentence written ahead of the act — this project has already lost a DoD once to exactly that
+trust failure (see "DoD revised" below).
 
 ## What this lane was
 Jason asked the CEO desk to drain **one third** of the State Machine backlog (frozen
