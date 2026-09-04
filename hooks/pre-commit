@@ -207,4 +207,37 @@ fi
 estate_leakguard    || exit 1
 estate_roster_brake || exit 1
 
+# --- the verify-all advisory (stealArtist S6, 2026-09-04) --------------------------
+# REGRESSION-AWARE PROMOTION. `rail.py complete` runs a project's frozen ruler once, at
+# close, and never again -- so the estate carries ~28 acceptance suites nobody re-runs, and
+# the first commit that moves a shared convention breaks some of them silently. A commit to
+# the pitching-machine repo is exactly the commit most able to do that, so it gets told.
+#
+# PRINTS, NEVER BLOCKS -- deliberately, and for a reason bigger than politeness: a RED here
+# may be someone else's repo, a half-finished sibling lane, or a box under load, and a gate
+# that blocks on another project's state trains people to --no-verify by reflex, which costs
+# the SECRET scan above its teeth. Blocking is a later ruling, not a default.
+#
+# Keyed on $BASE (the MAIN checkout's basename, computed above) so it fires from a lane
+# worktree too. Budgeted, because a pre-commit hook that can take four minutes is a hook
+# that gets uninstalled.
+estate_verify_all_advisory() {
+  [ "${ESTATE_VERIFY_ALL:-1}" = "1" ] || return 0
+  [ "${BASE:-}" = "pitching-machine" ] || return 0
+  [ -x "$HOME/Scripts/verify-all.sh" ] || return 0
+  printf 'estate pre-commit: replaying frozen rulers of done projects (advisory)...\n' >&2
+  # --budget, not `timeout <n> verify-all`: an outside kill exits non-zero and reads exactly
+  # like a regression, so the hook would cry wolf on every slow box. --budget stops the sweep,
+  # reports the remainder as SKIP, and reserves exit 1 for an actual RED.
+  if ! VERIFY_ALL_TIMEOUT_SEC="${VERIFY_ALL_TIMEOUT_SEC:-30}" \
+       "$HOME/Scripts/verify-all.sh" --quiet \
+       --budget "${ESTATE_VERIFY_ALL_BUDGET_SEC:-120}" >&2 2>&1; then
+    printf 'estate pre-commit: ^ a DONE project regressed -- its frozen ruler passed at close\n' >&2
+    printf '  and fails now. Advisory only: this commit PROCEEDS. Detail: ~/Scripts/verify-all.sh\n' >&2
+    printf '  Silence for one commit: ESTATE_VERIFY_ALL=0 git commit ...\n' >&2
+  fi
+  return 0
+}
+estate_verify_all_advisory
+
 ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
