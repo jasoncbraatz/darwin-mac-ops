@@ -13,7 +13,8 @@
 # still starts, and starts less safely, that is not a ratification — that is the bug, and the
 # fix is an installer that refuses to run without the missing piece.
 
-com.user.ttyd    # The live plist carries `-c jason:<secret>`; the committed copy in
+com.user.ttyd    # RETIRE-WHEN: "text-gone:~/repos/ttyd-darwin/install-ttyd.sh::is a WRITABLE shell with no user:pass credential" REVIEWED: 2026-09-03
+                 # The live plist carries `-c jason:<secret>`; the committed copy in
                  # ~/repos/ttyd-darwin must not. Ratified ONLY because install-ttyd.sh now
                  # refuses to install a `-W` (writable) shell without a credential, so a
                  # rebuild cannot reproduce the auth-less web shell the bare plist describes.

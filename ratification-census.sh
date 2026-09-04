@@ -57,7 +57,7 @@
 #   RC_GATE_FILE, RC_CARD_LINT, RC_ARL, RC_SCAN_ROOTS, RC_LAUNCHCTL, RC_NO_SWEEP
 set -uo pipefail
 exec /usr/bin/python3 - "$@" <<'PYEOF'
-import os, sys, re, json, glob, fnmatch, subprocess, fnmatch as fm
+import os, sys, re, json, glob, fnmatch, subprocess, datetime, fnmatch as fm
 
 HOME    = os.environ.get("RC_HOME", os.path.expanduser("~"))
 def H(*p): return os.path.join(HOME, *p)
@@ -81,6 +81,7 @@ SCAN_ROOTS   = [p for p in os.environ.get(
                                H("repos/claude-blackbook/scripts")])).split(":") if p]
 
 FAILS, NOTES, ROWS = [], [], []
+REASONS = []   # (record, entry, UNTRUNCATED reason) — phase 4's subject
 VERDICT_RC = [0]
 def cannot(msg):
     print("  CANNOT VERIFY: %s" % msg); VERDICT_RC[0] = 2
@@ -170,8 +171,12 @@ def entries_of(path):
             out.append((pat, s))
     return out
 
-def row(record, entry, n, why):
+def row(record, entry, n, why, full=None):
+    """`why` is what PRINTS (truncated to fit); `full` is what phase 4 PARSES. They must be
+    separate: a RETIRE-WHEN: clause written past column 44 would otherwise be invisible to the
+    only check that reads it, and a control that cannot see its subject is not a control."""
     ROWS.append((record, entry, n, why))
+    REASONS.append((record, entry, full if full is not None else why))
     print("      %-5s n=%-4d %-46s %s" % ("live" if n else "STALE", n, entry[:46], why))
 
 # --- 2a. bb-writers-allowlist.json (consumer: bb-writers-audit.py, gate G-AD) ---
@@ -193,7 +198,7 @@ else:
     for e in bb:
         pat = e["pattern"]
         n = sum(1 for f in bbfiles if fnmatch.fnmatch(f, pat))
-        row("bb-writers", pat, n, (e.get("reason", "") or "")[:44])
+        row("bb-writers", pat, n, (e.get("reason", "") or "")[:44], full=e.get("reason", "") or "")
         if not n:
             stale("bb-writers-allowlist.json: pattern '%s' matches NO file today. It ratifies "
                   "nothing — and pre-ratifies whatever lands at that path next, carrying a "
@@ -227,7 +232,8 @@ else:
             # Deliberately narrow — it is not an excuse for a job that simply died. (2026-08-24)
             m = re.match(r"TRANSIENT:\s*(.+)", why)
             transient = bool(m) and len(m.group(1).strip()) >= 25
-            row(name, pat, n, ("transient · " + m.group(1).strip())[:44] if transient else why[:44])
+            row(name, pat, n, ("transient · " + m.group(1).strip())[:44] if transient else why[:44],
+                full=why)
             if not n and not transient:
                 stale("%s: '%s' matches NO loaded launchd label today — it excuses a job that is "
                       "no longer running. Delete it, or say in the file why it is kept "
@@ -277,7 +283,8 @@ else:
             print("      sweep hits before suppression: %d (across %d repos)" % (len(keys), len(repos)))
             for pat, line in ge:
                 n = sum(1 for k in keys if fnmatch.fnmatch(k, pat))
-                row("gate-secret-sweep", pat, n, line.split("#", 1)[-1].strip()[:44])
+                reason = line.split("#", 1)[-1].strip()
+                row("gate-secret-sweep", pat, n, reason[:44], full=reason)
                 if not n:
                     stale("gate-secret-sweep.allow: '%s' suppresses NOTHING in today's sweep. "
                           "G-E prints one aggregate count, so a dead rule is invisible there — "
@@ -318,7 +325,8 @@ else:
                       "exit %d, no output" % p.returncode))
             continue
         n = 0 if gone else 1
-        row("repo-doctor", nwo, n, line.split("#", 1)[-1].strip()[:44])
+        rd_reason = line.split("#", 1)[-1].strip()
+        row("repo-doctor", nwo, n, rd_reason[:44], full=rd_reason)
         if gone:
             stale("repo-doctor.allow: '%s' returns 404 on GitHub — the exemption outlived "
                   "its subject, and the reason line said to drop it when the repo went. Drop it."
@@ -428,11 +436,155 @@ assert_logic("fda-canary G-X",   FDA_CANARY, r"--update-baseline",
              "hash baseline is compared to reality every run (self-invalidating)")
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PHASE 4 — RIGHTNESS. A ratification can still MATCH and no longer be RIGHT.
+#
+# Phases 1-3 answer "does this entry still suppress something?". That is a MECHANICAL
+# question and it is the only one a matcher can answer. The semantic question — "is the
+# reason written beside it still TRUE?" — is not decidable from the pattern, ever: a glob
+# can go on matching a live file for years after the fork got vendored, the fixture became
+# production, or the guarantee the exception leaned on was quietly deleted.
+#
+# There is exactly ONE thing a machine can check here, and the estate already had one honest
+# instance of it before this phase existed: repo-doctor.allow's entry writes its own
+# retirement condition into its reason ("drop this line when the repo goes"). So the rule is
+# not "let the census guess at rightness" — it is "make the AUTHOR write down, at authoring
+# time, the observable fact that would END the exception", and then check that fact every run.
+#
+#   RETIRE-WHEN: <verb>:<arg>     in the reason text of any entry, in any record.
+#
+#     path-gone:<glob>            retire when nothing matches this path any more
+#     path-here:<glob>            retire when something DOES land at this path
+#     text-gone:<path>::<needle>  retire when <path> stops containing <needle> — the shape
+#                                 for "this divergence is ratified ONLY because <guard>
+#                                 still exists". The guard leaving is the retirement.
+#     after:<YYYY-MM-DD>          a time-boxed exception; retire on that date
+#
+# An unknown verb is a FAIL, not a shrug — same doctrine as phase 1. A predicate whose
+# SUBJECT cannot be read (the named file is missing) is CANNOT VERIFY, never a retirement:
+# absence of evidence is not evidence of absence, which this file already learned the
+# expensive way from gh in 2e.
+#
+#   REVIEWED: <YYYY-MM-DD>        the weak, cheap companion. Past RC_REVIEW_MAX_DAYS this
+#                                 WARNS (rc unchanged) — it catches "nobody has looked at
+#                                 this since S44", which no matching test can. A date in
+#                                 the FUTURE is a FAIL: nobody reviewed anything on it.
+#
+# COVERAGE IS A FLOOR, NOT A VERDICT. On the day this shipped, 1 of ~55 entries carried a
+# RETIRE-WHEN. Failing the other 54 would be tightening a ratchet with no rollout, and the
+# estate has just watched a census floor (G-AP's 340 undeclared scripts) grow 35 in a day
+# by being wallpaper. So the uncovered count PRINTS, every run, as a number that is supposed
+# to fall — and the rollout is a card, not a silent red.
+# ─────────────────────────────────────────────────────────────────────────────
+print()
+print("=== phase 4 · rightness (matching is mechanical; rightness must be WRITTEN DOWN) ===")
+
+REVIEW_MAX_DAYS = int(os.environ.get("RC_REVIEW_MAX_DAYS", "180"))
+TODAY = os.environ.get("RC_TODAY", "") or datetime.date.today().isoformat()
+
+# The predicate may be double-quoted, because text-gone's needle is prose and prose has
+# spaces. A bare \S+ form is kept for the short verbs (path-gone, after) where it reads better.
+RETIRE_RX   = re.compile(r'RETIRE-WHEN:\s*(?:"([^"]+)"|(\S+))')
+REVIEWED_RX = re.compile(r"REVIEWED:\s*(\S+)")
+RETIRE_VERBS = ("path-gone", "path-here", "text-gone", "after")
+
+def _p(path):
+    path = path.strip()
+    return H(path[2:]) if path.startswith("~/") else os.path.expanduser(path)
+
+def retires(pred):
+    """-> (True retire now | False still right | None cannot verify, one-line detail)."""
+    verb, _, arg = pred.partition(":")
+    if verb not in RETIRE_VERBS or not arg.strip():
+        return "BAD", "unknown or empty verb"
+    if verb == "path-gone":
+        hits = glob.glob(_p(arg))
+        return (not hits), ("nothing at %s" % arg) if not hits else ("%d path(s) still there" % len(hits))
+    if verb == "path-here":
+        hits = glob.glob(_p(arg))
+        return bool(hits), ("%d path(s) landed at %s" % (len(hits), arg)) if hits else ("still nothing at %s" % arg)
+    if verb == "text-gone":
+        f, _, needle = arg.partition("::")
+        if not needle.strip():
+            return "BAD", "text-gone needs <path>::<needle>"
+        fp = _p(f)
+        if not os.path.exists(fp):
+            return None, "cannot read %s" % f
+        try:
+            txt = open(fp, errors="ignore").read()
+        except OSError as e:
+            return None, "cannot read %s (%s)" % (f, e)
+        return (needle not in txt), ("%s no longer contains it" % f) if needle not in txt \
+               else ("%s still contains it" % f)
+    # after:
+    try:
+        datetime.date.fromisoformat(arg.strip())
+    except ValueError:
+        return "BAD", "after: needs YYYY-MM-DD"
+    return (TODAY > arg.strip()), ("expired %s (today %s)" % (arg.strip(), TODAY))
+
+covered = 0
+for record, entry, reason in REASONS:
+    reason = reason or ""
+    m = RETIRE_RX.search(reason)
+    r = REVIEWED_RX.search(reason)
+    if m:
+        covered += 1
+        pred = m.group(1) or m.group(2)
+        verdict, detail = retires(pred)
+        if verdict == "BAD":
+            print("    BAD   %-20s %-30s %s" % (record, entry[:30], pred))
+            stale("%s: '%s' carries an unreadable RETIRE-WHEN (%s — %s). The census does not "
+                  "know how to check it, so the entry is unaudited while LOOKING audited, which "
+                  "is worse than carrying no clause at all. Verbs: %s."
+                  % (record, entry, pred, detail, ", ".join(RETIRE_VERBS)))
+        elif verdict is None:
+            print("    ?     %-20s %-30s %s" % (record, entry[:30], detail))
+            cannot("%s: '%s' has RETIRE-WHEN %s but its subject could not be read (%s). NOT a "
+                   "retirement finding — an unreadable subject is not a satisfied condition."
+                   % (record, entry, pred, detail))
+        elif verdict:
+            print("    RETIRE %-19s %-30s %s" % (record, entry[:30], detail))
+            stale("%s: '%s' STILL MATCHES but its author's own retirement condition is now MET "
+                  "(RETIRE-WHEN %s — %s). The pattern is live and the reason is dead: this is "
+                  "the exact rot no matching test can see. Delete the entry, or write down what "
+                  "makes it right TODAY." % (record, entry, pred, detail))
+        else:
+            print("    right %-20s %-30s %s" % (record, entry[:30], detail))
+    if r:
+        covered += 0 if m else 1
+        try:
+            d = datetime.date.fromisoformat(r.group(1).strip())
+        except ValueError:
+            stale("%s: '%s' has an unparseable REVIEWED: '%s' — use YYYY-MM-DD."
+                  % (record, entry, r.group(1)))
+            continue
+        age = (datetime.date.fromisoformat(TODAY) - d).days
+        if age < 0:
+            stale("%s: '%s' is REVIEWED: %s, which is in the FUTURE (today %s). Nobody reviewed "
+                  "anything on that date." % (record, entry, d.isoformat(), TODAY))
+        elif age > REVIEW_MAX_DAYS:
+            print("    WARN  %-20s %-30s last reviewed %s (%d d ago)" % (record, entry[:30], d, age))
+            NOTES.append("%s: '%s' has not been re-read in %d days." % (record, entry, age))
+        else:
+            print("    fresh %-20s %-30s reviewed %s" % (record, entry[:30], d))
+
+uncovered = len(REASONS) - covered
+print("  FLOOR: %d of %d entr(ies) carry NO machine-checkable rightness clause "
+      "(RETIRE-WHEN:/REVIEWED:). This number is supposed to fall." % (uncovered, len(REASONS)))
+if REASONS and covered == 0:
+    print("      note: zero entries are covered — phase 4 is proved only by its drill today.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 print()
 live  = sum(1 for r in ROWS if r[2])
 dead  = sum(1 for r in ROWS if not r[2])
 print("=" * 78)
 print("  entries checked: %d   still true: %d   stale: %d" % (len(ROWS), live, dead))
+if NOTES:
+    print("  WARN — %d entr(ies) are matching but unreviewed (rc unaffected, deliberately):" % len(NOTES))
+    for n in NOTES:
+        print("    ~ %s" % n)
 if FAILS:
     print("  FAIL — %d finding(s):" % len(FAILS))
     for f in FAILS:
