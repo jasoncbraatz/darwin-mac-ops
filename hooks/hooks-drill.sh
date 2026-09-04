@@ -217,5 +217,99 @@ ESTATE_HOOK_ROOTS="$SCRATCH/fakeroot" bash "$HOOKS_DIR/install-estate-hooks.sh" 
 chk "$SCRATCH/foreign-hooks" "$(git config --global --get core.hooksPath)" "#18b ...and --uninstall leaves it alone"
 git config --global --unset core.hooksPath 2>/dev/null || true
 
+# -----------------------------------------------------------------------------
+# #19-#26 — THE PAN LAYER (S15 2026-09-04, SM 1217561601836055). G-AF was green at
+# 114 of 114 repos while every one of them accepted a card number, because coverage
+# and capability read identically when green and only coverage was ever measured.
+# These are the capability assertions: they ask whether the scanner can SEE a PAN,
+# which is a different question from whether the scanner is installed.
+#
+# ⚠ SAME SYNTHESIS RULE AS $NEEDLE, and it bites harder here: a card-shaped literal
+# in this file makes the estate's own secret sweep bite the test that proves it
+# works, and the "fix" is to blind the scanner to it. Every PAN below is assembled
+# at runtime from fragments that are individually not card-shaped.
+# -----------------------------------------------------------------------------
+V16="411111111111""1111"      # Visa test PAN, Luhn-valid, split literal
+AX15="37828224631""0005"      # Amex test PAN
+MC16="555555555555""4444"     # Mastercard test PAN
+
+# 19 — a staged PAN is BLOCKED. This is THE assertion the card was filed for; it
+# fails on every build of this hook before S15.
+r="$(newrepo pan)"; install_into "$r"
+printf 'customer card %s\n' "$V16" > "$r/order.txt"; git -C "$r" add order.txt
+rc="$(commit_rc "$r" pan)"
+[ "$rc" -ne 0 ] && ok "#19 staged card number is BLOCKED (rc=$rc)" \
+                || bad "#19 staged card number was NOT blocked — the hook is blind to PANs"
+
+# 19b — the block NAMES it as a PAN and MASKS it. A scanner that prints the card it
+# just refused has written the card into a terminal, a log and a CI transcript.
+grep -q "PAN:" "$SCRATCH/out.$$" && ok "#19b the block reports it as a PAN" \
+                                || bad "#19b the block does not say the hit is a card number"
+grep -q "$V16" "$SCRATCH/out.$$" \
+  && bad "#19c the hook PRINTED THE FULL CARD NUMBER — the control leaked what it refused" \
+  || ok "#19c the card number is masked in the block output (first-6/last-4 only)"
+
+# 20 — a PAN at END OF LINE is caught. Its own control because it is exactly the bug
+# the first build of ge_pan_token had: `read` drops a final chunk with no trailing
+# newline, so a card ending a line was silently invisible while the same card
+# mid-line was caught. A detector with a blind spot shaped like "last thing on the
+# line" is worse than none, because card numbers are usually the last thing on the line.
+r="$(newrepo paneol)"; install_into "$r"
+printf 'card=%s' "$V16" > "$r/eol.txt"; git -C "$r" add eol.txt
+[ "$(commit_rc "$r" paneol)" -ne 0 ] && ok "#20 a PAN at end-of-line (no trailing newline) is BLOCKED" \
+                                     || bad "#20 a PAN at END OF LINE slipped through"
+
+# 21 — SEPARATED forms are caught. Humans write cards with spaces and dashes; a
+# detector that only sees the unbroken form misses the way the number is actually typed.
+r="$(newrepo pansep)"; install_into "$r"
+printf 'on file: 4242 4242 4242 4242 (exp 12/28)\n' > "$r/notes.md"; git -C "$r" add notes.md
+[ "$(commit_rc "$r" pansep)" -ne 0 ] && ok "#21 a space-separated PAN is BLOCKED" \
+                                     || bad "#21 a space-separated PAN slipped through"
+r="$(newrepo pandash)"; install_into "$r"
+printf 'card 4242-4242-4242-4242\n' > "$r/notes.md"; git -C "$r" add notes.md
+[ "$(commit_rc "$r" pandash)" -ne 0 ] && ok "#21b a dash-separated PAN is BLOCKED" \
+                                      || bad "#21b a dash-separated PAN slipped through"
+
+# 22 — a 15-digit Amex is caught. Length-agnostic-within-the-brand-set, not "16 digits".
+r="$(newrepo panamex)"; install_into "$r"
+printf 'amex %s\n' "$AX15" > "$r/a.txt"; git -C "$r" add a.txt
+[ "$(commit_rc "$r" panamex)" -ne 0 ] && ok "#22 a 15-digit Amex PAN is BLOCKED" \
+                                      || bad "#22 a 15-digit Amex PAN slipped through"
+
+# -----------------------------------------------------------------------------
+# #23-#25 — NEGATIVE CONTROLS. These are the reason the detector is Luhn + IIN +
+# length and not "a run of >=12 digits" (global lesson 2026-08-07). A secret gate
+# that fails closed on order ids and timestamps does not get tightened; it gets
+# UNINSTALLED, and then the estate has no gate at all. Each of these MUST pass.
+# -----------------------------------------------------------------------------
+# 23 — a 16-digit run that fails Luhn is NOT a card. One digit off $V16.
+r="$(newrepo panluhn)"; install_into "$r"
+printf 'order_id = 411111111111111''2\n' > "$r/o.txt"; git -C "$r" add o.txt
+chk 0 "$(commit_rc "$r" panluhn)" "#23 a Luhn-INVALID 16-digit run commits freely (not a card)"
+
+# 24 — a long digit blob is NOT a card, even though it contains Luhn-valid substrings.
+# The over-19-digit rule is the single largest false-positive reduction available.
+r="$(newrepo panblob)"; install_into "$r"
+printf 'nonce 9814072356124093871665204391\ntimestamp 20260904215600123456\n' > "$r/b.txt"
+git -C "$r" add b.txt
+chk 0 "$(commit_rc "$r" panblob)" "#24 a >19-digit blob commits freely (nonce/timestamp, not a card)"
+
+# 25 — a sha, a uuid and a phone number commit freely. The everyday shapes.
+r="$(newrepo panshapes)"; install_into "$r"
+printf 'sha a1b2c3d4e5f60718293a4b5c6d7e8f9012345678\nuuid 550e8400-e29b-41d4-a716-446655440000\nphone +1 512 555 0134\nepoch 1788482629\n' > "$r/s.txt"
+git -C "$r" add s.txt
+chk 0 "$(commit_rc "$r" panshapes)" "#25 sha / uuid / phone / epoch commit freely"
+
+# 26 — a PAN is allowlistable by PATH through the SAME allowlist as every other hit,
+# and the suppression is reported. A fixture repo that legitimately holds a published
+# test card needs an exit that is not "widen the needle".
+r="$(newrepo panallow)"; install_into "$r"
+printf 'fixture %s\n' "$MC16" > "$r/fixtures.json"; git -C "$r" add fixtures.json
+printf 'panallow/fixtures.json   # drill fixture, published test card, no cardholder exists\n' > "$SCRATCH/panallow.allow"
+GE_ALLOW="$SCRATCH/panallow.allow" git -C "$r" commit -q -m panallow >"$SCRATCH/o26" 2>&1; rc=$?
+chk 0 "$rc" "#26 an allowlisted PAN path commits"
+grep -q "suppressed by" "$SCRATCH/o26" && ok "#26b the PAN suppression is reported, never silent" \
+                                       || bad "#26b the PAN suppression was SILENT"
+
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
