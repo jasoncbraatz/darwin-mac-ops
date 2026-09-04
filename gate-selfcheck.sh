@@ -591,7 +591,7 @@ for repo in "${REPOS[@]}"; do
           ORPHAN)
             if [ -n "$_aauthor" ]; then
               flags="$flags DIRTY($nd,orphan:$_aauthor)"
-              FAILS+=("$name: $nd uncommitted change(s) — author '$_aauthor' is NOT live ($_anote). NOT anonymous, NOT yours: it is an ORPHAN. Name an owner: ~/Scripts/ceo transfer --key repo:$(basename "$repo") --reason \"<why $_aauthor cannot be asked>\"  -- or, NOT a CEO session (ceo says no identity): python3 ~/repos/ceo-desk/red-owner.py transfer --who ${GATE_ROSTER_WHO:-<you>} --key repo:$(basename "$repo") --reason \"...\"  (a State Machine card; the red stays red for its taker). Do NOT commit a dead session's half-finished work as your own:
+              FAILS+=("$name: $nd uncommitted change(s) — author '$_aauthor' is NOT live ($_anote). NOT anonymous, NOT yours: it is an ORPHAN. Name an owner: ~/Scripts/ceo transfer --key repo:$(basename "$repo") --reason \"<why $_aauthor cannot be asked>\"  -- or, NOT a CEO session (ceo says no identity): python3 ~/repos/ceo-desk/red-owner.py transfer --who ${GATE_ROSTER_WHO:-<you>} --key repo:$(basename "$repo") --reason \"...\"  (a State Machine card; the red stays red for its taker). If that command answers \"is not a live red right now\", read WHICH state it names before you card anything by hand: SCOPE gap = red-owner does not scan this root and the remediation can never succeed (fix GATE_ROOTS in red-owner.py); CLEAN = the dirt cleared between this gate run and now, so re-run the gate and nothing is owed. Do NOT commit a dead session's half-finished work as your own:
 $_paths")
             elif _mts="$(_dirt_mtime_sibling "$repo" "$dirty")" && [ -n "$_mts" ]; then
               _mtwho="${_mts%%${_T}*}"; _mtnote="${_mts#*${_T}}"
