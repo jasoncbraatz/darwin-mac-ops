@@ -109,10 +109,60 @@ run "$E"; check "missing self-policing consumer speaks" 2 "cannot confirm" "$RC"
 E="$T/clean2"; mkestate "$E"; run "$E"
 check "clean run actually checked entries" 0 "entries checked: [1-9]" "$RC" "$OUT"
 
+# ── PHASE 4 · rightness. These are the controls for the claim a matcher CANNOT make:
+#    that the reason beside a still-matching pattern is still true. Every one of them
+#    plants an entry whose GLOB IS LIVE — the launchd label really is listed — so a
+#    finding here can only have come from the reason text, never from the matching.
+
+# 10. the load-bearing one: the author's own retirement condition has come true, and the
+#     pattern still matches. Phases 1-3 are green on this fixture; only phase 4 can see it.
+E="$T/retire"; mkestate "$E"
+printf 'com.fixture.live.*   # RETIRE-WHEN: path-gone:~/Scripts/card-lint.py — drop this when the linter goes\n' \
+    > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+rm -f "$E/Scripts/card-lint.py"; printf 'MUT_RATCHET_RETIRE = True\n' > "$E/Scripts/card-lint2.py"
+RC_CARD_LINT="$E/Scripts/card-lint2.py" run "$E"
+check "MET retirement condition is found" 1 "retirement condition is now MET" "$RC" "$OUT"
+
+# 11. POSITIVE control for the same clause: a retirement condition that has NOT come true
+#     must not red anything. Without this, control 10 could be passing because the clause
+#     always fires, which is a check that has stopped discriminating.
+E="$T/retire_ok"; mkestate "$E"
+printf 'com.fixture.live.*   # RETIRE-WHEN: path-gone:~/Scripts/card-lint.py — drop this when the linter goes\n' \
+    > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+run "$E"; check "UNMET retirement condition stays green" 0 "still describes something true" "$RC" "$OUT"
+
+# 12. FAIL CLOSED on a clause the census cannot parse. An unreadable RETIRE-WHEN is worse
+#     than none: the entry LOOKS audited. Same doctrine as the unknown-record control (4).
+E="$T/retire_bad"; mkestate "$E"
+printf 'com.fixture.live.*   # RETIRE-WHEN: when-jason-says-so — vibes\n' \
+    > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+run "$E"; check "unparseable RETIRE-WHEN fails closed" 1 "unreadable RETIRE-WHEN" "$RC" "$OUT"
+
+# 13. an unreadable SUBJECT is CANNOT VERIFY, never a retirement. This is 2e's gh lesson
+#     generalised: reading "I could not look" as "it is gone" turns a missing file into a
+#     confident instruction to delete a live exemption.
+E="$T/retire_blind"; mkestate "$E"
+printf 'com.fixture.live.*   # RETIRE-WHEN: "text-gone:~/Scripts/not-here.sh::the guard" — see above\n' \
+    > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+run "$E"; check "unreadable RETIRE-WHEN subject is CANNOT VERIFY" 2 "not a satisfied condition" "$RC" "$OUT"
+
+# 14. a REVIEWED: date nobody could have reviewed on.
+E="$T/rev_future"; mkestate "$E"
+printf 'com.fixture.live.*   # REVIEWED: 2099-01-01 — a date that has not happened\n' \
+    > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+run "$E"; check "future REVIEWED: date is found" 1 "in the FUTURE" "$RC" "$OUT"
+
+# 15. staleness SPEAKS but does not bite: an old REVIEWED: warns, rc unaffected. If this
+#     ever starts failing, somebody tightened a ratchet with no rollout — see the FLOOR note.
+E="$T/rev_old"; mkestate "$E"
+printf 'com.fixture.live.*   # REVIEWED: 2000-01-01 — nobody has looked since\n' \
+    > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+run "$E"; check "stale REVIEWED: warns without biting" 0 "has not been re-read" "$RC" "$OUT"
+
 echo
 if [ "$FAIL" -gt 0 ]; then
   bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="
   exit 1
 fi
-bold "=== drill: PASS — $PASS controls, 6 of them negative (the census can still go red) ==="
+bold "=== drill: PASS — $PASS controls, 10 of them negative (the census can still go red) ==="
 exit 0
