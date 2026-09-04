@@ -864,6 +864,45 @@ done
 # Suppression is never silent — a reader has to be able to see what the allowlist ate.
 [ "$GE_SUPPRESSED" -gt 0 ] && printf '    G-E: %s hit(s) suppressed by %s allowlist rule(s) in %s (review it when a repo changes hands)\n' "$GE_SUPPRESSED" "${#GE_PATS[@]}" "${GE_ALLOW/#$HOME/~}"
 
+# --- _probe_field · TRI-STATE parsing of a remote ssh probe's answer (State Machine 1217341652482828) ---
+#     THE DEFECT THIS CLOSES. Every G-T#4x probe below is ONE ssh round-trip under `timeout 14`
+#     whose multi-line answer is parsed positionally with `sed -n 'Np'`. The code recognised TWO
+#     states — "unreachable" (nothing came back) and "answered" — and a timeout that cuts the
+#     stream MID-ANSWER is neither: bytes arrive, a line is short or truncated or carries an ssh
+#     stderr fragment, and the shell's default substitutions then collapse that third state into
+#     whichever of the first two is silently WRONG:
+#       * an empty BOX_SCHED_N became `${BOX_SCHED_N:-0}` = 0 = "SCHEDULER MISSING" — a finding
+#         conjured out of a network hiccup, which is the PASS/FAIL/PASS flap the card was filed on;
+#       * an empty PROV_DIRTY became `${PROV_DIRTY:-0}` = 0 = "clean" — the same bug pointing the
+#         other way, and the more dangerous one: a probe that could not be read reported all-clear.
+#     A truncated 40-char sha is the same shape a third time: 20 hex chars compare unequal to gh's
+#     HEAD and produce a parity WARN naming a commit that never existed.
+#     So: parse to THREE states and say which one out loud.
+#       rc 0 -> ANSWERED and well-formed; the value is on stdout (the sentinel MISSING passes as-is)
+#       rc 1 -> ABSENT; the line is not there at all (unreachable box / short answer)
+#       rc 2 -> ANSWERED BUT UNPARSEABLE; bytes that do not fit the shape, RAW value on stdout
+#     Per the card: an unparseable probe WARNs with the raw value echoed. It never FAILs (a network
+#     hiccup is not a finding about Jason's repos) and it is never SILENT (a probe nobody could read
+#     has not cleared anything). Drilled hermetically by gate-probe-tristate-drill.sh, which
+#     EXTRACTS this function at run time rather than copying it.
+_probe_field() {   # _probe_field <probe-text> <line-no> <sha|num>  -> value on stdout, rc 0|1|2
+  local _raw="" _shape=""
+  _raw="$(printf '%s\n' "$1" | sed -n "$2p" | tr -d '\r\n ')"
+  _shape="$3"
+  if [ -z "$_raw" ]; then return 1; fi
+  if [ "$_raw" = "MISSING" ]; then printf '%s' "$_raw"; return 0; fi
+  if [ "$_shape" = "sha" ]; then
+    # 40 hex, anchored. A TRUNCATED sha is hex too — the length is the load-bearing half.
+    if printf '%s' "$_raw" | grep -Eq '^[0-9a-f]{40}$'; then printf '%s' "$_raw"; return 0; fi
+    printf '%s' "$_raw"; return 2
+  fi
+  if [ "$_shape" = "num" ]; then
+    if printf '%s' "$_raw" | grep -Eq '^[0-9]+$'; then printf '%s' "$_raw"; return 0; fi
+    printf '%s' "$_raw"; return 2
+  fi
+  printf '%s' "$_raw"; return 2
+}
+
 # --- G-T#43 remote-runtime parity + scheduler presence (parity v2.13; scheduler-presence v2.16 2026-06-23) ---
 # The box self-reconciles via a read-only gh deploy key AND a */15 cron (sz-box-pull.sh). We check BOTH: that
 # the box IS current (HEAD==gh), AND that the MECHANISM keeping it current is still installed. A reflatten that
@@ -886,16 +925,24 @@ if [ -d "$SZ_GH_LOCAL/.git" ] && command -v ssh >/dev/null 2>&1; then
   # `|| echo MISSING` keeps line positions DETERMINISTIC (a failed rev-parse used to shift the
   # scheduler count up a line and silently mis-parse).
   BOX_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$SZ_BOX_HOST" "git -C $SZ_BOX_REPO rev-parse HEAD 2>/dev/null || echo MISSING; git -C $SZ_BOX_LEDGER_REPO rev-parse HEAD 2>/dev/null || echo MISSING; crontab -l 2>/dev/null | grep -cF -- $SZ_BOX_SCHED" 2>/dev/null)"
-  BOX_HEAD="$(printf '%s\n' "$BOX_PROBE" | sed -n '1p' | tr -d '\r\n ')"
-  BOX_LEDGER_HEAD="$(printf '%s\n' "$BOX_PROBE" | sed -n '2p' | tr -d '\r\n ')"
-  BOX_SCHED_N="$(printf '%s\n' "$BOX_PROBE" | sed -n '3p' | tr -d '\r\n ')"
-  if [ -z "$BOX_HEAD" ]; then
-    : # box unreachable (offline / no-ssh session) — skip silently, never a wrap blocker
+  # TRI-STATE parse (card 1217341652482828). Each field carries its own rc so a truncated
+  # line degrades ONLY the check that reads it, instead of the whole probe guessing.
+  BOX_HEAD="$(_probe_field "$BOX_PROBE" 1 sha)"; BOX_HEAD_RC=$?
+  BOX_LEDGER_HEAD="$(_probe_field "$BOX_PROBE" 2 sha)"; BOX_LEDGER_RC=$?
+  BOX_SCHED_N="$(_probe_field "$BOX_PROBE" 3 num)"; BOX_SCHED_RC=$?
+  if [ "$BOX_HEAD_RC" -eq 1 ] && [ "$BOX_LEDGER_RC" -eq 1 ] && [ "$BOX_SCHED_RC" -eq 1 ]; then
+    : # box unreachable (offline / no-ssh session) — NOTHING arrived on any line — skip silently, never a wrap blocker
   else
-    if [ -n "$GH_HEAD" ] && [ "$BOX_HEAD" != "$GH_HEAD" ]; then
+    if [ "$BOX_HEAD_RC" -eq 2 ]; then
+      WARNS+=("G-T#43u: sz-tick runtime box ($SZ_BOX_HOST) ANSWERED BUT UNPARSEABLE — the HEAD line read [$BOX_HEAD], which is not a 40-char sha (probe cut off mid-answer by the 14s timeout, or the box printed something new). Parity was NOT checked this run — that is not the same as parity being fine. Read it raw: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_REPO rev-parse HEAD'")
+    elif [ "$BOX_HEAD_RC" -eq 0 ] && [ "$BOX_HEAD" = "MISSING" ]; then
+      WARNS+=("G-T#43m: sz-tick runtime box ($SZ_BOX_HOST) has NO checkout at $SZ_BOX_REPO (rev-parse answered MISSING) — an ABSENT deploy, not a parity drift, so 'pull --ff-only' is the wrong remedy: ssh $SZ_BOX_HOST 'git clone <gh> $SZ_BOX_REPO'")
+    elif [ "$BOX_HEAD_RC" -eq 0 ] && [ -n "$GH_HEAD" ] && [ "$BOX_HEAD" != "$GH_HEAD" ]; then
       WARNS+=("G-T#43: sz-tick runtime box ($SZ_BOX_HOST) HEAD ${BOX_HEAD:0:7} != gh ${GH_HEAD:0:7} — deploy: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_REPO pull --ff-only'")
     fi
-    if [ -n "$GH_LEDGER_HEAD" ] && [ -n "$BOX_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "$GH_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "MISSING" ]; then
+    if [ "$BOX_LEDGER_RC" -eq 2 ]; then
+      WARNS+=("G-T#43cu: ledger runtime box ($SZ_BOX_HOST) ANSWERED BUT UNPARSEABLE — the ledger HEAD line read [$BOX_LEDGER_HEAD], which is not a 40-char sha. Ledger divergence/wedge was NOT checked this run. Read it raw: ssh $SZ_BOX_HOST 'git -C $SZ_BOX_LEDGER_REPO rev-parse HEAD'")
+    elif [ "$BOX_LEDGER_RC" -eq 0 ] && [ -n "$GH_LEDGER_HEAD" ] && [ -n "$BOX_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "$GH_LEDGER_HEAD" ] && [ "$BOX_LEDGER_HEAD" != "MISSING" ]; then
       # v2.27 lag-aware (2026-07-24 root-cause of card 1216752373472909): the box ledger mirror is
       # an eventually-consistent CONSUMER — darwin pushes the vault hourly (:0x), the box pulls
       # */15 — so bare inequality has an inherent <=15-min false-positive window every single hour
@@ -911,7 +958,9 @@ if [ -d "$SZ_GH_LOCAL/.git" ] && command -v ssh >/dev/null 2>&1; then
         fi
       fi
     fi
-    if [ "${BOX_SCHED_N:-0}" = "0" ]; then
+    if [ "$BOX_SCHED_RC" -eq 2 ] || [ "$BOX_SCHED_RC" -eq 1 ]; then
+      WARNS+=("G-T#43bu: box auto-pull scheduler probe ANSWERED BUT UNPARSEABLE — the crontab count line read [$BOX_SCHED_N], which is not a number. Scheduler presence was NOT checked this run: an UNREADABLE count is not a count of ZERO, and conflating the two is exactly what made this check fire spuriously (card 1217341652482828). Read it raw: ssh $SZ_BOX_HOST 'crontab -l | grep -cF -- $SZ_BOX_SCHED'")
+    elif [ "$BOX_SCHED_RC" -eq 0 ] && [ "$BOX_SCHED_N" = "0" ]; then
       WARNS+=("G-T#43b: box auto-pull SCHEDULER MISSING ($SZ_BOX_SCHED not in $SZ_BOX_HOST crontab) — box will NOT self-converge to gh; restore the */15 line from $SZ_BOX_REPO/provision/n8n/spine-crontab.txt")
     fi
   fi
@@ -947,15 +996,21 @@ N8N_PROV_HOST="${N8N_PROV_HOST:-n8n}"
 N8N_PROV_REPO="${N8N_PROV_REPO:-/opt/n8n}"
 if command -v ssh >/dev/null 2>&1; then
   PROV_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$N8N_PROV_HOST" "sudo git -C $N8N_PROV_REPO status --porcelain 2>/dev/null | wc -l | tr -d ' '; sudo git -C $N8N_PROV_REPO rev-list --count @{u}..HEAD 2>/dev/null || echo MISSING" 2>/dev/null)"
-  PROV_DIRTY="$(printf '%s\n' "$PROV_PROBE" | sed -n '1p' | tr -d '\r\n ')"
-  PROV_AHEAD="$(printf '%s\n' "$PROV_PROBE" | sed -n '2p' | tr -d '\r\n ')"
-  if [ -z "$PROV_PROBE" ] || [ "$PROV_AHEAD" = "MISSING" ]; then
+  # TRI-STATE parse (card 1217341652482828) — an unreadable count is NOT a count of zero.
+  # `${PROV_DIRTY:-0}` used to turn a truncated first line into "clean", i.e. a silent PASS.
+  PROV_DIRTY="$(_probe_field "$PROV_PROBE" 1 num)"; PROV_DIRTY_RC=$?
+  PROV_AHEAD="$(_probe_field "$PROV_PROBE" 2 num)"; PROV_AHEAD_RC=$?
+  if [ -z "$PROV_PROBE" ] || { [ "$PROV_AHEAD_RC" -eq 0 ] && [ "$PROV_AHEAD" = "MISSING" ]; }; then
     : # box unreachable OR no upstream set — skip silently (phone-safe, never a wrap blocker)
   else
-    if [ "${PROV_DIRTY:-0}" != "0" ]; then
+    if [ "$PROV_DIRTY_RC" -ne 0 ]; then
+      WARNS+=("G-T#45u: n8n-provision box repo ($N8N_PROV_HOST:$N8N_PROV_REPO) ANSWERED BUT UNPARSEABLE — the dirty-count line read [$PROV_DIRTY], which is not a number (probe cut off by the 14s timeout, or sudo/ssh wrote to the same stream). Worktree cleanliness was NOT checked this run — and it used to default to CLEAN, which is the silent pass card 1217341652482828 is about. Read it raw: ssh $N8N_PROV_HOST 'sudo git -C $N8N_PROV_REPO status --porcelain'")
+    elif [ "$PROV_DIRTY" != "0" ]; then
       WARNS+=("G-T#45: n8n-provision box repo ($N8N_PROV_HOST:$N8N_PROV_REPO) has UNCOMMITTED change(s) [$PROV_DIRTY] — commit+push on the box (sudo git add -A && sudo git commit && sudo git push)")
     fi
-    if [ -n "$PROV_AHEAD" ] && [ "$PROV_AHEAD" != "0" ]; then
+    if [ "$PROV_AHEAD_RC" -eq 2 ]; then
+      WARNS+=("G-T#45bu: n8n-provision box repo ($N8N_PROV_HOST:$N8N_PROV_REPO) ANSWERED BUT UNPARSEABLE — the unpushed-count line read [$PROV_AHEAD], which is neither a number nor MISSING. Push state was NOT checked this run. Read it raw: ssh $N8N_PROV_HOST 'sudo git -C $N8N_PROV_REPO rev-list --count @{u}..HEAD'")
+    elif [ "$PROV_AHEAD_RC" -eq 0 ] && [ -n "$PROV_AHEAD" ] && [ "$PROV_AHEAD" != "0" ]; then
       WARNS+=("G-T#45b: n8n-provision box repo ($N8N_PROV_HOST:$N8N_PROV_REPO) has $PROV_AHEAD UNPUSHED commit(s) — ssh $N8N_PROV_HOST 'sudo git -C $N8N_PROV_REPO push'")
     fi
   fi
@@ -973,15 +1028,21 @@ FLOWERS_BOX_HOST="${FLOWERS_BOX_HOST:-flowers}"
 FLOWERS_BOX_REPO="${FLOWERS_BOX_REPO:-/var/www/flowers}"
 if command -v ssh >/dev/null 2>&1; then
   FLW_PROBE="$(timeout 14 ssh -o BatchMode=yes -o ConnectTimeout=8 "$FLOWERS_BOX_HOST" "sudo git -C $FLOWERS_BOX_REPO status --porcelain 2>/dev/null | wc -l | tr -d ' '; sudo git -C $FLOWERS_BOX_REPO rev-list --count @{u}..HEAD 2>/dev/null || echo MISSING" 2>/dev/null)"
-  FLW_DIRTY="$(printf '%s\n' "$FLW_PROBE" | sed -n '1p' | tr -d '\r\n ')"
-  FLW_AHEAD="$(printf '%s\n' "$FLW_PROBE" | sed -n '2p' | tr -d '\r\n ')"
-  if [ -z "$FLW_PROBE" ] || [ "$FLW_AHEAD" = "MISSING" ]; then
+  # TRI-STATE parse (card 1217341652482828) — an unreadable count is NOT a count of zero.
+  # `${FLW_DIRTY:-0}` used to turn a truncated first line into "clean", i.e. a silent PASS.
+  FLW_DIRTY="$(_probe_field "$FLW_PROBE" 1 num)"; FLW_DIRTY_RC=$?
+  FLW_AHEAD="$(_probe_field "$FLW_PROBE" 2 num)"; FLW_AHEAD_RC=$?
+  if [ -z "$FLW_PROBE" ] || { [ "$FLW_AHEAD_RC" -eq 0 ] && [ "$FLW_AHEAD" = "MISSING" ]; }; then
     : # box unreachable OR no upstream set — skip silently (phone-safe, never a wrap blocker)
   else
-    if [ "${FLW_DIRTY:-0}" != "0" ]; then
+    if [ "$FLW_DIRTY_RC" -ne 0 ]; then
+      WARNS+=("G-T#46u: flowers box repo ($FLOWERS_BOX_HOST:$FLOWERS_BOX_REPO) ANSWERED BUT UNPARSEABLE — the dirty-count line read [$FLW_DIRTY], which is not a number (probe cut off by the 14s timeout, or sudo/ssh wrote to the same stream). Worktree cleanliness was NOT checked this run — and it used to default to CLEAN, which is the silent pass card 1217341652482828 is about. Read it raw: ssh $FLOWERS_BOX_HOST 'sudo git -C $FLOWERS_BOX_REPO status --porcelain'")
+    elif [ "$FLW_DIRTY" != "0" ]; then
       WARNS+=("G-T#46: flowers box repo ($FLOWERS_BOX_HOST:$FLOWERS_BOX_REPO) has UNCOMMITTED change(s) [$FLW_DIRTY] — commit+push on the box (sudo git add -A && sudo git commit && sudo git push)")
     fi
-    if [ -n "$FLW_AHEAD" ] && [ "$FLW_AHEAD" != "0" ]; then
+    if [ "$FLW_AHEAD_RC" -eq 2 ]; then
+      WARNS+=("G-T#46bu: flowers box repo ($FLOWERS_BOX_HOST:$FLOWERS_BOX_REPO) ANSWERED BUT UNPARSEABLE — the unpushed-count line read [$FLW_AHEAD], which is neither a number nor MISSING. Push state was NOT checked this run. Read it raw: ssh $FLOWERS_BOX_HOST 'sudo git -C $FLOWERS_BOX_REPO rev-list --count @{u}..HEAD'")
+    elif [ "$FLW_AHEAD_RC" -eq 0 ] && [ -n "$FLW_AHEAD" ] && [ "$FLW_AHEAD" != "0" ]; then
       WARNS+=("G-T#46b: flowers box repo ($FLOWERS_BOX_HOST:$FLOWERS_BOX_REPO) has $FLW_AHEAD UNPUSHED commit(s) — ssh $FLOWERS_BOX_HOST 'sudo git -C $FLOWERS_BOX_REPO push'")
     fi
   fi
