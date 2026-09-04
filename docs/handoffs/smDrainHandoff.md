@@ -3,8 +3,8 @@ project: smDrainHandoff
 session_n: 2
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "8b543f4"
-updated: "2026-09-03"
+gh_sha: "7017b830b57eb7616d4e5c382dbae691429085f0"
+updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
 lessons_consulted: ["2026-09-03-handoff-written-from-session-memory-loses", "2026-09-03-run-gate-selfcheck-sh-before-roster", "2026-08-07-before-wiring-new-gate-selfcheck-section"]
