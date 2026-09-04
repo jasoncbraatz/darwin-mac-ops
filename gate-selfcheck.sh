@@ -264,6 +264,56 @@ EOF_DIRT
   printf '%s' "$_found"
 }
 
+# G-H #22c-content (smDrainGateAttrib inning 6, 2026-09-03 — SM 1217804787201829, 1217662331160616).
+# ATTRIBUTION BY THE FILE'S OWN SIGNATURE, when the filename says nothing.
+# #22c above matches a live sibling's slug against the dirty path's BASENAME. That is the wrong
+# unit for ~/repos/claude-blackbook — the one repo EVERY session writes and NOBODY claims, because
+# nobody edits "the wisdom tree" as a unit. A lessons leaf is named for its SUBJECT, never for its
+# author, so #22c can never attribute one, and the anonymous FAIL below then tells whoever wraps
+# first that a sibling's staged `record-outcome` bumps are theirs to commit. Measured twice:
+# 2026-08-24 (wealthTensor-105, six staged leaves, every one carrying `contributor: opus-acmeLedger-37`)
+# and 2026-08-20 (acmeLedger-30, `passes:` bumps on wealthTensor-99's leaves). Both times the
+# evidence was INSIDE the artifact and no rung looked at it.
+# DO NOT fix this by loosening the slug match — the card says so and it is right: normalising
+# `wealthTensor-99` to match any path under `wealth-tensor/` is attribution by PROJECT, and it
+# would let a wrapping session launder its own edits into any directory a sibling works in.
+# So ask ~/Scripts/attribute.py, the estate's ONE attribute(artifact)->owner function, whose
+# `path:` rung 1 is exactly this question: does the file DECLARE its author, roster-shaped, in its
+# own frontmatter or comment header? A declaration, never a citation.
+# NARROW ON PURPOSE: only the CONTENT rung counts here. attribute.py's ladder also falls through
+# to the claim journal, the last commit body and a repo-level answer — #22e and #22f already own
+# those questions, further down, with their own wording. Accepting the repo-level fallback here
+# would let a weaker answer pre-empt a stronger one, so the `how` field is checked and anything
+# that is not `frontmatter <field>:` / `header <field>:` is declined.
+# Fail-closed EXACTLY like #22c: every dirty path must come back SIBLING-by-signature, or this
+# rung attributes NOTHING and the ladder continues unchanged.
+_ATTRIBUTE_PY="${ATTRIBUTE_PY:-$HOME/Scripts/attribute.py}"
+_paths_owned_by_content() {   # <repo-path> <porcelain> -> "who[,who]" or empty
+  [ -f "$_ATTRIBUTE_PY" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  local _line _p _v _verdict _rest _owner _how _all="" _T
+  _T=$'\t'
+  while IFS= read -r _line; do
+    [ -n "$_line" ] || continue
+    _p="${_line:3}"; _p="${_p##* -> }"; _p="${_p%\"}"; _p="${_p#\"}"
+    [ -f "$1/$_p" ] || return 0                       # deleted / unreadable -> attribute nothing
+    _v="$(ROSTER_DB="$_ROSTER_DB" GATE_ROSTER_WHO="${GATE_ROSTER_WHO:-}" \
+            python3 "$_ATTRIBUTE_PY" who "path:$1/$_p" \
+            ${GATE_ROSTER_WHO:+--who "$GATE_ROSTER_WHO"} 2>/dev/null | head -1)"
+    [ -n "$_v" ] || return 0
+    _verdict="${_v%%${_T}*}"; _rest="${_v#*${_T}}"
+    [ "$_rest" = "$_v" ] && return 0                  # no tabs = no answer
+    _owner="${_rest%%${_T}*}"; _how="${_rest#*${_T}}"
+    [ "$_verdict" = "SIBLING" ] || return 0           # MINE / ORPHAN / TRANSFERRED -> not this rung
+    [ -n "$_owner" ] && [ "$_owner" != "-" ] || return 0
+    case "$_how" in frontmatter\ *|header\ *) ;; *) return 0 ;; esac   # signature rung ONLY
+    case ",$_all," in *",$_owner,"*) ;; *) _all="${_all:+$_all,}$_owner" ;; esac
+  done <<EOF_DIRT
+$2
+EOF_DIRT
+  printf '%s' "$_all"
+}
+
 # G-H #22e (luxuryDesk-03, 2026-09-01 — SM 1218069101293488, fix 4 of the priority card 1217971802676167).
 # ATTRIBUTION BY AUTHOR, when the lease is gone. #22b attributes dirt by a LIVE roster claim and
 # the roster prunes claims on TTL, so a sibling that went quiet for four hours had its in-flight
@@ -418,6 +468,10 @@ for repo in "${REPOS[@]}"; do
       if [ -n "$_owner" ]; then
         flags="$flags DIRTY($nd,named:$_owner)"
         WARNS+=("$name: $nd uncommitted change(s) — every path names LIVE session '$_owner' (G-H#22c attribution by filename, no repo claim covers it). Do NOT commit it. Verify: ~/Scripts/roster who")
+        [ "$level" = ok ] && level="WARN"
+      elif _cowner="$(_paths_owned_by_content "$repo" "$dirty")"; [ -n "$_cowner" ]; then
+        flags="$flags DIRTY($nd,signed:$_cowner)"
+        WARNS+=("$name: $nd uncommitted change(s) — every path is SIGNED by LIVE session '$_cowner' in its own front matter (G-H#22c-content attribution by the artifact's declaration, no repo claim covers it and the filenames name nobody). Do NOT commit it. Verify: for f in $(cd \"$repo\" && git diff --name-only HEAD); do grep -m1 contributor: \"$f\"; done")
         [ "$level" = ok ] && level="WARN"
       else
         _paths="$(printf '%s\n' "$dirty" | head -6 | sed 's/^/    /')"
