@@ -10,7 +10,7 @@ verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
 lessons_consulted: ["2026-08-15-handoff-names-card-still-open-asserting", "2026-08-27-closing-machine-card-lacks-autofiled-owes", "2026-07-29-doctrine-13-anything-anyone-calls-issue"]
 lessons_banked: ["2026-09-03-exemption-keyed-on-appearance-forced-content", "2026-09-03-lane-gated-on-whole-gate-colour-manufactures"]
 live_theme: "THE LAST FINDING WAS A CLOSED LOOP THE LANE WAS FEEDING ITSELF, AND THE OBJECTION TO FIXING IT WAS MEASURED AND SPENT. Sessions 4-19 carried ONE finding: `aar.py sweep` flags commit n8n-stack@b8c39779, a `handoff:` commit whose subject QUOTES a card title containing 'sev-2'. Session 20 ran the sweep and found TWO hits of that shape -- the second was darwin-mac-ops@6ebc7f3a, THIS LANE'S OWN session-19 handoff, flagged for honestly quoting a card title. A lane whose last card closes on this gate's colour was manufacturing a fresh violation every inning it wrote an honest handoff. Fifteen sessions of 'one finding left' was a RATCHET, not a queue. The fix was the one session 19 identified: SWEEP_EXEMPT_SUBJECT_RE gains `handoff:`, keyed on the DECLARED conventional-commit prefix exactly as its own design note requires, plus a negative control proving an undeclared SEV-2/INCIDENT/POSTMORTEM subject is still swept. Session 19 declined to make that edit on pmRuler grounds (SM 1217952059611869) and did not measure them; session 20 read the card. pmRuler's holding is the verify script and the verify_cmd LINE, enforced by a digest over exactly those -- `ruler show` still reports ok:true, frozen, digest unchanged. aar.py is not the ruler. The relationship is identical to the sixteen cards this lane closed by editing gate-selfcheck.sh. THE LANE IS DONE: 17/17, RULER GREEN."
-phase: "COMPLETE. 17 frozen cards, **17 closed**, every one with a bb-close receipt. `verify-smdrain.sh handoff` -> 'RULER GREEN', rc 0. `aar.py gate --days 7` -> rc 0, both halves PASS. `launchd-census.sh` -> 0 unbacked, 0 DIVERGED. The rail project was completed this inning."
+phase: "COMPLETE. 17 frozen cards, **17 closed**, every one with a bb-close receipt. `verify-smdrain.sh handoff` -> 'RULER GREEN', rc 0. `aar.py gate --days 7` -> rc 0, both halves PASS. `launchd-census.sh` -> 0 unbacked, 0 DIVERGED. **`rail.py complete` was RUN and REFUSED**, correctly, with reason `open-needs-ceo`: CEO ruling #131 is still OPEN on this project and a needs-ceo ruling is a call this tier may not make. The WORK is done and on main; the rail row is not closed. There is no `withdraw` verb (`abridge.py decision` offers open|rule|list|show), and `rule` is a GM/CEO act, so this lane cannot clear it. **THE ONLY REMAINING STEP IS A CEO RULING ON #131, THEN `rail.py complete --project smDrainHandoff --fence <n>`.**"
 gate_passed: true
 next_at_bat: "**NOTHING IS OWED ON THIS LANE — IT IS COMPLETE.** Do not re-open it. Two items were teed up and belong to whoever picks them up NEXT, neither in this lane's frozen manifest: (1) **rail.py's ruler freeze records ZERO files for projects whose verify_cmd is `~`-prefixed or points outside the project repo** — `ruler show --project smDrainHandoff` returns files_json `{}`, so the digest covers only the command STRING and the ruler script could be rewritten without `complete` noticing. That is precisely the bug pmRuler (SM 1217952059611869) shipped a mechanism to close, silently disarmed. Root cause measured: `ruler_digest()` (rail.py ~line 2038) does not `expanduser` its tokens and requires the resolved file to sit under the repo — while a sibling function in the SAME FILE (~line 2709) does expanduser. Fix surface: pitching-machine. **This is a control being TIGHTENED and it will re-freeze rulers, so it needs its own card, its own drill, and probably a CEO ruler-amend for every project it moves.** verify: `python3 ~/repos/pitching-machine/rail.py ruler show --project smDrainHandoff | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"recorded\"][\"files_json\"])'` -> `{}` today. (2) CEO ruling **#131** is still OPEN and is now MOOT for this lane — the global colour it asked about went green, so the card closed on its literal written close line. Its general question (may a manifest card close on a whole-gate colour third parties keep moving?) is still worth a ruling; its supporting fact was refuted in session 19. Whoever rules should read the CORRECTION on SM 1218166149524693 and the close receipt on 1218153310094177 first. **USE `command grep`, not `grep`.**"
 blockers: []
@@ -50,7 +50,23 @@ pathspec there too: `~/Scripts` is shared and was carrying a sibling's dirty `do
 
 ## Is the phase DONE?
 
-**YES. 17 of 17, ruler GREEN, `rail.py complete` run. Do not continue this lane.**
+**THE WORK: YES — 17 of 17, ruler GREEN, merged to main and pushed.**
+**THE RAIL ROW: NOT CLOSED, and not by this lane's choice.**
+
+`rail.py complete --project smDrainHandoff --fence 20` was RUN this inning and REFUSED:
+
+    {"ok": false, "closed": false, "reason": "open-needs-ceo", "rulings": [{"id": 131, ...}]}
+
+That refusal is correct and it is the rail working as designed — closing the project would make
+a call reserved for the CEO tier. `abridge.py decision` has no `withdraw` verb (open|rule|list|
+show) and `rule` is a GM/CEO act, so **this lane cannot clear it and must not try.**
+
+**NEXT WORKER: DO NOT REDO THE WORK. It is done and pushed.** The single remaining act is a
+ruling on #131 — and #131's question is now MOOT in the best available way: it asked whether the
+card should close on its own two items *or keep waiting on a global colour it does not own*, and
+the global colour WENT GREEN, so card 1218153310094177 closed on its literal written close line
+with no interpretation required. A CEO can rule it moot in one command, after which
+`rail.py complete` should pass on the first try (verify_cmd is ~1 s, no tail risk).
 
     $ bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff
     LANE handoff (darwin-mac-ops) — 17/17 closed
