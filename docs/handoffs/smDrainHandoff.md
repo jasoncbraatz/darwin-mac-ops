@@ -1,19 +1,19 @@
 ---
 project: smDrainHandoff
-session_n: 19
+session_n: 20
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
 gh_sha: "220eb846d9c4ce3f42a04ead200e87984116787a"
-updated: "2026-09-04"
+updated: "2026-09-05"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
-lessons_consulted: ["2026-08-27-per-session-check-resolves-its-subject", "2026-09-02-checker-its-own-fix-hint-must", "2026-09-04-git-history-proxy-cannot-see-state"]
-lessons_banked: ["2026-09-04-blocker-inherited-waiting-someone-else-must", "2026-09-04-detector-matched-wrong-reason-can-still"]
-live_theme: "A BLOCKER INHERITED AS 'WAITING ON SOMEONE ELSE' IS A CLAIM WITH A TIMESTAMP, AND A HANDOFF RETELLING IT DOES NOT REFRESH THAT TIMESTAMP. Sessions 15, 16 and 17 each wrote that the last card was structurally unreachable -- it needed live siblings to act -- and each was honestly repeating the one before it. Session 18 re-measured instead and the premise was wrong in BOTH directions. Two of the three findings holding G-V red were smoke-test cards, and the sibling CLOSING them is what CREATED the violations, because aar.py gates cards on COMPLETION: three innings of patient waiting moved the blocker from zero violations to two. Both cleared this inning in two commands. The third belongs to smDrainN8n, which is COMPLETE on the rail -- nobody was coming, and the handoff still called it live. The waiting was not caution. It was an unrefreshed measurement, and the lane paid three innings for it. Session 17 said a proxy pointed at the wrong universe is worse than no check; this is the same failure one level up -- an INHERITED FACT pointed at a universe that had moved on, and it read exactly like patience."
-phase: "DRAINING. 17 cards frozen, **16 closed**. The 17th (**1218153310094177**) is NOT structurally unreachable -- that premise was measured and refuted this inning. It is now **ONE ownerless AAR from closed**, and its blocker has a CEO ruling open on it (**#131**). Session 18 cleared two of its three blocking findings outright: aar.py gate reports **VIOLATIONS 0** (excused 46->48), down from 2. Do NOT resume the waiting posture; read the ruling first."
+lessons_consulted: ["2026-08-15-handoff-names-card-still-open-asserting", "2026-08-27-closing-machine-card-lacks-autofiled-owes", "2026-07-29-doctrine-13-anything-anyone-calls-issue"]
+lessons_banked: ["2026-09-04-aar-file-writeup-grepping-aars-answers", "2026-09-04-fixing-detector-delete-only-pointer-finding"]
+live_theme: "THE LANE'S LAST BLOCKER RESTED ON A FACT NOBODY EVER MEASURED, AND IT WAS FALSE. Sessions 4 through 18 all recorded that commit n8n-stack@b8c39779 could not be cleared by fixing the sweep, because the sweep's stray match was THE ONLY REMAINING POINTER to a real sev-2 (SM 1218119766713646) that had closed with no writeup -- so calibrating first would consume the finding. Session 19 read the card instead of the summary of the card. It carries a NO-AAR close comment (story 1218161286375722, bb-close.py, 2026-09-03T22:11:57Z) with root cause, fix, deploy verification, the disposition of finding 2, and a two-line undo. aar.py gate ACCEPTS that as discharge -- the card is one of its own 48 excused, which is exactly why VIOLATIONS reads 0. Session 18 checked aars/, found nothing, and wrote 'closed with no writeup'. 'No AAR FILE' is not 'no record', and the estate's gate says so in code. The false conclusion then propagated into card 1218166149524693, into CEO ruling #131's recommendation, and into an ordering constraint ('write the AAR FIRST, then narrow the sweep') that has no basis. THE POINTER WAS NEVER THE REGEX. IT WAS THE CARD, PERMANENTLY, WITH THE FIX ATTACHED. Session 18 taught this lane that an inherited fact can point at a universe that moved on; this inning found the same failure one layer deeper, in the sentence session 18 itself wrote."
+phase: "DRAINING. 17 cards frozen, **16 closed**. The 17th (**1218153310094177**) closes when G-V goes green, and G-V is held red by exactly ONE finding: commit n8n-stack@b8c39779 in `aar.py sweep`. That finding is now **fully diagnosed and one line from cleared** -- and the reason 15 sessions did not clear it has been measured and REFUTED. `aar.py gate --days 7` reports VIOLATIONS 0 on the card half; only the sweep half fails. CEO ruling **#131** is still OPEN, and its recommendation cites the refuted fact."
 gate_passed: false
-next_at_bat: "**READ RULING #131 BEFORE YOU DO ANYTHING ELSE** (`python3 ~/repos/auto-bridge/abridge.py decision list` or `rail.py status` -> open-decisions). The lane is 16 of 17 and the last card is one AAR from closed, not unreachable. **(a) IF #131 IS RULED D:** amend 1218153310094177's close line to its own two items, verify both are still green -- G-AE via `bash ~/Scripts/launchd-census.sh` (expect 0 unbacked) and G-V#1 via `python3 ~/repos/claude-blackbook/aar.py gate --days 7` showing the shellac lesson ADOPTED -- then bb-close it with a receipt, re-run the ruler, and if it is green run **§6 then `rail.py complete`**. The verify_cmd takes ~1 second, so there is no tail risk; do NOT let this one sit. **(b) IF #131 IS RULED A:** declare, hand 1218153310094177 to its new lane, and complete per the CEO's instruction. **(c) IF #131 IS STILL OPEN:** do NOT re-open the decision, do NOT start fresh gate work because the board looks empty, and do NOT resume waiting. Play card **1218166149524693** if and only if you can honestly own the COGS facts -- and if you cannot, say so and stop; that card names the trap explicitly (calibrate the regex FIRST and you delete the only pointer to the unwritten sev-2). Otherwise the parking lot's two PAN items remain the most urgent things in this file. **USE `command grep`, not `grep`.**"
-blockers: ["CEO ruling **#131** is OPEN and is the gating item for the whole lane: may 1218153310094177 close on its OWN two verified-green items, rather than on a whole-gate G-V colour that third-party lanes keep writing to? If D is granted the lane is 17/17 and the ruler goes green. Do not act on the card until it is ruled.", "One finding still holds G-V red: commit n8n-stack@b8c39779, which needs an AAR for SM 1218119766713646 (a real sev-2 closed with no writeup). Now carded as **1218166149524693**. Its owner, smDrainN8n, is COMPLETE on the rail, so it is ownerless -- it will not clear itself and waiting for it is the exact mistake this inning refuted."]
+next_at_bat: "**THE LANE IS ONE LINE FROM 17/17 AND THE LINE IS IDENTIFIED.** `aar.py sweep` flags `n8n-stack@b8c39779`, whose subject is `handoff: smDrainN8n session 3 — closed 1218119766713646 (COGS sev-2), 9/12 remaining`. aar.py already has the right mechanism for this and it is NOT the content regex: `SWEEP_EXEMPT_SUBJECT_RE` (aar.py ~line 330) exempts `lesson(`, `docs(` and `AAR:` because they are the tool's own bookkeeping ABOUT incidents, and its own comment says exemptions key on DECLARATION, never on appearance. `handoff:` is the same family of conventional-commit bookkeeping prefix and is simply missing from that list. **THE FIX IS ONE REGEX ALTERNATION, KEYED ON DECLARATION, PLUS A NEGATIVE CONTROL** proving the sweep still fires on a genuine `INCIDENT`/`POSTMORTEM`/`SEV-1`/`SEV-2` subject that does NOT carry a bookkeeping prefix. Do NOT do what card 1218166149524693 item (2) says (calibrate SWEEP_NARROW_RE to ignore quoted card titles) -- that is making the content net cleverer, which is the direction aar.py's own design note rejects. **And do NOT inherit the ordering constraint**: 'write the AAR first or you delete the pointer' is dead, measured this inning -- see the CORRECTION comment on 1218166149524693. **SEQUENCING, AND IT MATTERS:** session 19 deliberately did not make this edit itself, because the edit greens this lane's own ruler and that is the pmRuler shape (SM 1217952059611869). **If ruling #131 has LANDED, that objection is spent -- make the edit, re-run `aar.py gate --days 7`, then the ruler, then §6 + `rail.py complete` (verify_cmd is ~1s, no tail risk).** If #131 is STILL open, the cleanest move is to hand the one-line aar.py edit to ANY lane that is not smDrainHandoff -- it is a 10-minute at-bat in claude-blackbook and any sibling can take it -- rather than sit. Do NOT re-open a decision and do NOT resume waiting. **USE `command grep`, not `grep`.**"
+blockers: ["CEO ruling **#131** is OPEN. **ITS RECOMMENDATION CITES A FACT THIS INNING REFUTED** -- it argues option D partly on 'a real sev-2 was closed and no AAR was ever written'. The sev-2 carries a full NO-AAR discharge on its own card and the gate accepts it. The ruling's QUESTION is still live and worth answering; its supporting fact is not. Whoever rules should read the CORRECTION comment on SM 1218166149524693 first.", "One finding still holds G-V red: `aar.py sweep` flags commit n8n-stack@b8c39779. **Root-caused this inning:** `SWEEP_EXEMPT_SUBJECT_RE` exempts bookkeeping commit prefixes (`lesson(`, `docs(`, `AAR:`) but not `handoff:`. One alternation plus a negative control clears it. Ownerless (smDrainN8n is `complete`), so it will not clear itself -- but it is now a 10-minute at-bat for anyone, not a research problem."]
 drift_flags: []
 parking_lot: ["NEW (session 15), teed up not taken and THE MOST URGENT THING IN THIS FILE: **the new PAN detector finds 35 confirmed card numbers in tracked files across the estate, and they are not all fixtures.** The benign ones are published test cards (`flowers-sms-concierge/daemon/test_redact.py`, and -- with a straight face -- `claude-blackbook/aars/2026-08-17-pan-written-into-wisdom-repo.md`, the AAR of the incident this very card was filed from). The ones that need a human are **`auto-bridge/ledger-dump.sql` (7 hits)** and **`braatz-ledger-snapshots/ledger.sql` (1 hit)**: distinct IINs across Visa/MC/Discover, in SQL dumps, which is the shape of a real cardholder table rather than a fixture. TRIAGE IS INCIDENT WORK, NOT DRAIN WORK -- it is not in this lane\u0027s frozen manifest and it must not be smuggled into a drain inning. It also is not something to sit on. reproduce: source `hooks/secret-re.sh`, then `git grep -nIE \"$PAN_RE\"` in the repo and pipe each line through `ge_pan_token`.", "NEW (session 15), teed up not taken: **G-E -- the WRAP-TIME reader -- is still blind to PANs, so the two readers now DISAGREE about what a secret is.** That divergence is the exact S44 failure `secret-re.sh` was created to make impossible (\u0027two readers, one needle\u0027 is in its own header), so this is a real debt and not a nice-to-have. It was left undone for a measured reason: `ge_pan_token` is bash-per-line, and G-E sweeps every tracked file in every repo -- a full estate pass ran >2 minutes and was still going when it was killed, against a pre-commit pass that only ever sees the staged index and is instant. Wiring it as-is would put minutes onto every gate run. The fix is probably to push the verify into one `awk`/python pass instead of a bash loop, which is its own card with its own controls.", "NEW (session 15): **a dead IIN range is not free.** The first PAN IIN table included Diners `38`/`39`, which were reassigned decades ago and match no live issuer. They matched **109 of 169** estate-wide hits, every one a Shopify Metafield GID (`gid://shopify/Metafield/38466447245480`). Dropping them cost ZERO detection and cut the false-positive rate by 64%. Generalise: in a detector keyed on an allocation table, an entry that no longer allocates contributes only false positives -- and a security control with a visible false-positive class gets uninstalled, at which point its true-positive rate is also zero.", "NEW (session 15): **`while IFS= read -r x` SILENTLY DROPS a final line with no trailing newline**, and for a scanner that is a blind spot shaped like \u0027the last thing on the line\u0027 -- which is exactly where a card number usually sits. The first build of `ge_pan_token` caught `4242-4242-...` mid-line and missed the identical number at end-of-line, and it looked like a brand/Luhn bug for several minutes. Use `while IFS= read -r x || [ -n \"$x\" ]`. hooks-drill.sh #20 is now a permanent control for it.", "NEW (session 14), teed up not taken: **ratification-census.sh is rc 1 on pristine main and it is a TRUE red** -- `bb-writers-allowlist.json` pattern `~/Scripts/cogs-mover/n8n/*.workflow.json` matches no file today (`~/Scripts/cogs-mover` exists; the `n8n/` subpath does not). So **G-AK is RED in the gate right now**, and it was red BEFORE session 14 touched the census (verified against `ratification-census.sh.bak-s14-retirewhen`). The census own instruction is `Delete it.` -- a one-line TIGHTENING, safe and reversible -- but the file lives in claude-blackbook, so it is a cross-repo commit and its own card. verify: `bash ratification-census.sh | tail -4`.", "NEW (session 14), teed up not taken: **phase 4 cannot see a RETIRE-WHEN clause that was simply DELETED from an entry.** It checks the clauses that are there; removing one silently returns the entry to unaudited, and the FLOOR count moving by one is the only trace. Same class as any allowlist edit (nothing guards those either), so it is a record-integrity card, not a census card. The FLOOR line is deliberately a number, not a verdict: 65 of 66 entries carry no clause today and failing them would be tightening a ratchet with no rollout -- somebody owns that rollout or the floor becomes wallpaper, exactly like G-AP.", "NEW (session 14): **the census reads its record files from `$HOME/code/darwin-mac-ops/...`, i.e. the `repo:` checkout, never your worktree** -- same hard-coded-path trap the README section already documents for `gate-roster-drill.sh`. Session 14 edited `launchd-divergence-allowlist.txt` in the lane, ran the census, and phase 4 reported 66 of 66 uncovered because it had read the UNEDITED file two directories over. Override with `RC_DIVERGE=$PWD/launchd-divergence-allowlist.txt` (and friends: RC_BB_ALLOW, RC_FOREIGN, RC_GE_ALLOW) to test a worktree edit -- but note the override then makes the real file at the default path read as an `UNKNOWN EXCEPTION RECORD`, which is a harness artifact, not a finding.", "NEW (session 13), teed up not taken: **gate-charter-drill.sh is 1-of-40 RED on pristine main (c626f4a) and it is a FALSE red** — 'a hard-coded tier list is back'. Its negative control greps the WHOLE gate-selfcheck.sh for `_ch_tag` near a tier alternation and fires on line 2583's `_htc_slug`, an unrelated (handoff-thread-continuity) consumer whose tier-strip is legitimate and DOES include `opus`. Narrowing it is a control being LOOSENED — its own card, its own negative controls. Not in this lane's frozen manifest, so it cannot move the ruler. verify: `command grep -nE '_ch_(tag|cands).*(orchestrator\|big\|mid\|fast\|cloud|big\|mid)' gate-selfcheck.sh` -> one hit, 2583.", "NEW (session 13): **plain `grep` is SHADOWED in the rail worker's shell** and silently returns nothing on a file that plainly matches — `grep -n G-AL gate-selfcheck.sh` returned zero lines for a file with 40 of them. The handoff's house style already writes `command grep` everywhere and now you know why. Use `command grep`, always.", "NEW (session 11), teed up not taken: **HANDOFF-GATE.md has no G-AQ and gate-selfcheck.sh has 19 references to one.** That is SM card **1218165043650153** (the G-AQ doc-parity item session 8 filed), and session 11 measured it from the other side while choosing a letter: the doc's MAXG is derived from `^## G-[A-Z]{1,2}` headings, so a check that lives only in the script is invisible to the gate's own ceiling. Until that card is played the doc documents G-A..G-AR with a real hole at AQ. NOT in this lane's frozen manifest, so it cannot move the ruler. verify: `command grep -c G-AQ ~/Desktop/downloads/HANDOFF-GATE.md` -> 0 and `... gate-selfcheck.sh` -> 19.", "NEW (session 10), teed up not taken: the census FLOOR is now **340** undeclared scripts carrying an exit code >=2 (was 305 when card 1218149975342086 was filed on 2026-09-03). That is G-AP's stated non-job and it grew 35 in a day. Somebody owns the rollout of G-AP or the floor becomes wallpaper. verify: `bash ~/code/darwin-mac-ops/verdict-contract-census.sh | command grep FLOOR`.", "DISCHARGED by session 8: the G-AQ doc-parity item is now SM card **1218165043650153** (verified still owed first — `command grep -c 'G-AQ' ~/Desktop/downloads/HANDOFF-GATE.md` -> 0). Carded, not smuggled: it raises MAXG AP->AQ and cascades into four documents' front-door range refs, in a file stale-claimed by a dead sibling. NOT in this lane's frozen manifest, so it cannot move the ruler.", "NEW (session 8), teed up not taken: claude-blackbook START-HERE.md STEP 0 / student-in does not point a cold session at `rail <project>`, so the WHO WAS HERE BEFORE YOU block shipped for 1218142549980676 is discoverable only by someone who already knows the verb — which is the exact NORTH-STAR 2.4 failure that made ~/Scripts/rail exist in the first place. Cross-repo doc edit. verify: `command grep -c 'rail <project>' ~/repos/claude-blackbook/START-HERE.md` -> 0 today.", "G-AQ resolves the handoff pair from ~/Desktop/downloads/HANDOFF-<project>-<n>.md, which is the COWORK naming convention. Rail lanes write docs/handoffs/<project>.md and get an honest N/A. Wiring the rail lane's own handoff pair into G-AQ needs a notion of the PREVIOUS revision of a file that is rewritten in place (git show HEAD~1:docs/handoffs/X.md), which is a different mechanism, not a bigger regex. verify: run a rail-lane gate and confirm the G-AQ line reads n/a, not ok.", "gate-charter-drill.sh hard-codes its own negative-control count in its summary line (\"18 of them negative\"). Session 6 corrected it 16 -> 18 by hand, and that is the second time a number nobody checks has rotted in a drill footer. Making it self-counting is a change to a drill's REPORTING and deserves its own card and its own control; do not smuggle it into a drain inning. verify: `command grep -n 'of them negative' gate-charter-drill.sh` and count the FAIL-direction controls by hand.", "gate-flap-probe.sh has NO per-run timeout. Session 6's run 3 of 5 overran its ~182 s budget by >6x and emitted nothing, which is what forced the probe to be killed. A probe that can hang is a probe you cannot start at minute 0 and trust, which is the whole reason it exists. verify: `command grep -n timeout ~/Scripts/gate-flap-probe.sh` returns nothing today.", "gate-flap-probe.sh runs ~/Scripts/gate-selfcheck.sh, i.e. THROUGH THE SYMLINK into the repo: checkout, never your worktree. Correct for a flap question, wrong for anything you are editing. And do NOT run a second gate concurrently with a live probe: a gate run mutates the estate the probe is measuring. verify: `readlink ~/Scripts/gate-selfcheck.sh`.", "THE G-T#44 crontab probe is still TWO-STATE and session 5 left it that way on purpose: it is parsed from an EXIT CODE (rc 2 = drift, anything else = skip), not from text, so a timeout (rc 124) is already distinguishable from an answer and the truncation bug cannot reach it. If you ever change it to parse output, it needs _probe_field() like the other three.", "gate-probe-tristate-drill.sh is NOT wired into gate-selfcheck.sh as a G-x#drill check, unlike gate-roster-drill.sh. It is hermetic and sub-second, so it is a good candidate and session 5 simply ran out of clock. A drill that is not in a gate is a note, not a control — that sentence is already in gate-roster-drill.sh's own header.", "A THIRD false-positive class in the AAR sweep, found by s4 and deliberately NOT fixed: commit n8n-stack@b8c39779 is flagged as an incident-marker only because its subject QUOTES a card title containing 'sev-2' (`handoff: smDrainN8n session 3 — closed ... (COGS sev-2)`). It is a handoff commit, not an incident. Clearing it honestly means CALIBRATING SWEEP_NARROW_RE (a control being LOOSENED, which is the dangerous direction and needs its own card and its own negative controls), NOT an `aar.py adopt`, which would make a real AAR falsely claim a commit. Card it; do not smuggle it into a drain inning.", "The two [[SMOKE TEST]] cards holding G-V red (1218162752959495, 1218162743000102) are machine noise whose filer, cogs_mover.js, is not emitting bb-card.py's --autofiled marker. Same bug class as 1218153310094177 but the fix surface is the COGS bridge, not this lane. Card it against the bridge.", "The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
 ---
@@ -50,22 +50,120 @@ pathspec there too: `~/Scripts` is shared and was carrying a sibling's dirty `do
 
 ## Is the phase DONE?
 
-**16 of 17 — and the answer is now WITH THE CEO, as ruling #131. Do not re-litigate it here.**
+**16 of 17 — and as of session 19 the honest answer is: NO, but it is ONE LINE from yes, and the
+line is identified.**
 
-Sessions 15–17 framed this as *declare or keep waiting*, on the premise that the last card was
-structurally unreachable. **Session 18 measured that premise and refuted it** (see below): two of
-the three findings holding the card open were cleared in one inning, and the third is not a live
-sibling's at all — its owner, smDrainN8n, is `complete` on the rail. The card is **one ownerless
-AAR from closed**, not beyond reach.
+Sessions 15–17 framed this as *declare or keep waiting*. Session 18 refuted the "structurally
+unreachable" premise and escalated the remainder to the CEO as ruling **#131**. **Session 19 went
+one layer further and refuted the premise under #131's own recommendation**: the last finding is
+not blocked by an unwritten sev-2, because the sev-2 is written up on its own card and the gate
+accepts it. See the session 19 section immediately below.
 
-That changes the question the CEO is being asked. It is no longer "is a met milestone worth
-declaring?" It is: **the card's written close line is a whole-gate colour that third parties keep
-moving — may it close on its own two verified-green items instead?** If yes (option D), the lane
-is 17/17 and the ruler goes green with no declaration needed. Ruling **#131** carries all four
-options and the recommendation.
+So the question is no longer "is a met milestone worth declaring?" and no longer even "may the card
+close on its own items?" It is: **will somebody add `handoff:` to `SWEEP_EXEMPT_SUBJECT_RE` in
+`aar.py`?** Do that and G-V goes green, 1218153310094177 closes on its own written close line with
+nothing amended, ruling #131 is moot, and the lane is 17/17.
 
-**Whichever way it lands, the waiting posture is over.** A blocker that is nobody's is not
-blocked, it is unowned, and no number of innings spent being patient will move it.
+**Do not declare and do not wait.** Neither is the move any more. The move is a one-line
+declaration-keyed exemption plus a negative control, and it should be played by a lane that does
+not stand to gain from it — see session 19 for why this lane left it on the table.
+
+## Session 19 (2026-09-05, local lane-a) — the last blocker's premise, measured and REFUTED
+
+**Nothing closed. The reason nothing has closed for fifteen sessions is now known, and it was a
+false sentence.** This inning was handed case (c) — ruling #131 still open, do not wait, do not
+re-open — and spent itself on the one thing that was actually measurable: is the last finding
+really unclearable?
+
+**THE STATE OF PLAY, VERIFIED FIRST.** `verify-smdrain.sh handoff` → rc **1**, 16/17, one open
+card (**1218153310094177**). `aar.py gate --days 7` → card half **VIOLATIONS 0, excused 48**
+(session 18's clearing held); sweep half fails on exactly **one** signal,
+`<!--BBFINDING:commit:n8n-stack@b8c39779-->`. So the lane is one finding from green, and that
+finding is the whole game.
+
+**THE INHERITED SENTENCE.** Card **1218166149524693** (filed by session 18) states it flatly:
+*"SM 1218119766713646 … is COMPLETE and carries NO AAR"*, and therefore *"the only thing still
+pointing at it is a regex that matched for the wrong reason"* — from which follows the ordering
+constraint the lane has obeyed since session 4: **write the AAR first, or calibrating the sweep
+deletes the pointer and leaves a real sev-2 permanently unwritten.** Ruling #131's recommendation
+leans on the same fact. It is the reason no session has touched the sweep.
+
+**IT IS FALSE, AND THE EVIDENCE TOOK ONE API CALL.** SM 1218119766713646 carries story
+**1218161286375722**, posted **2026-09-03T22:11:57Z** by `bb-close.py` (closer
+`local-mbp2024-55818-b`), and it is not a shrug — it is a writeup:
+
+    NO-AAR: Fixed the real bug (Match nonce read bare $json.messages after an httpRequest;
+    now references $('Poll Twilio Inbound').item.json.messages explicitly), lint went
+    1 ERROR -> 0, deployed+verify_deploy PASS via redeploy-workflow.sh cogsV2Apprv00001
+    commit c40f862 (n8n-stack). Finding 2 (llm-retry-on-fail on the knownGood archived copy
+    dchUT0wPBnpYHXJ1, confirmed inactive via psql) baselined with reason rather than patched,
+    per the card's own instruction not to touch a frozen reference export. Undo:
+    backups/cogsV2Apprv00001.preedit.20260903_170946.json + printed rollback block;
+    git revert c40f862 for the source.
+
+Root cause, fix, verification, the reasoned disposition of the second finding, and a two-line
+undo. **`aar.py gate` accepts it** — this card is one of the 48 it counts as *explicitly excused*,
+which is precisely why the card half reads VIOLATIONS 0.
+
+**HOW THE FALSE SENTENCE WAS PRODUCED, WHICH IS THE TRANSFERABLE PART.** Session 18 verified
+*"nothing in `aars/` mentions it"*. That is **true**. It then wrote *"closed with no writeup"*.
+That is **false**. The two propositions are not the same, and the estate's own gate says so in
+code: a completed card is discharged by an AAR link **OR** a `NO-AAR:` reason ≥20 chars. Grepping
+the directory named after the artifact answers a strictly narrower question than the one being
+asked. The narrower answer then hardened into a card, a CEO ruling's rationale, and an ordering
+constraint — and nobody re-checked it, because by then it read as an established fact.
+
+**AND SO THE TRAP DISSOLVES.** The regex was never the only pointer. **The card is the pointer**,
+permanently, with the fix attached to it. Calibrating the sweep cannot consume a finding that is
+recorded on the State Machine. Fifteen sessions declined to touch the sweep to protect something
+that was never at risk.
+
+**WHAT IS STILL HONESTLY OWED, NARROWED.** An AAR *file* for a defect class that has now shipped
+three times (rail canary 2026-08-17, credit sentinel 2026-08-18, this one) is arguably still owed
+under doctrine §13 on **recurrence** grounds. That is a real but much smaller claim than "a sev-2
+closed with no writeup", it is not urgent, and — importantly — **it blocks nothing.**
+
+**THE PRESCRIBED FIX WAS ALSO WRONG, AND THE RIGHT ONE IS ONE LINE.** Card 1218166149524693 item
+(2) says calibrate `SWEEP_NARROW_RE` so a marker token inside a quoted card title stops counting —
+i.e. make the **content** net cleverer. `aar.py`'s own design note (~line 330) rejects exactly that
+approach:
+
+    # lesson(...) / docs(...) / AAR: subjects are the tool's OWN bookkeeping about incidents, not
+    # incidents themselves -- exempt by declaration (the conventional-commit prefix), not by guessing
+    # at content, matching the estate's "exemptions key on declaration, never on appearance" rule.
+    SWEEP_EXEMPT_SUBJECT_RE = re.compile(r"^(lesson\(|docs\(|AAR:)", re.I)
+
+The offending subject is `handoff: smDrainN8n session 3 — closed 1218119766713646 (COGS sev-2),
+9/12 remaining`. **`handoff:` is the same family of bookkeeping prefix and is simply absent from
+that list.** The fix is one alternation, keyed on declaration exactly as the file prescribes, plus
+a negative control proving the sweep still fires on a genuine incident subject with no bookkeeping
+prefix. That is a *tightening of scope by declaration*, not a loosening of the content net — which
+is why session 4's correct refusal to loosen `SWEEP_NARROW_RE` never applied to it.
+
+**WHY THIS INNING DID NOT MAKE THAT EDIT, STATED PLAINLY SO IT IS NOT READ AS TIMIDITY.** That one
+line is the last thing holding G-V red, G-V is the written close line of the last card in this
+lane's frozen manifest, and the manifest is what the ruler grades. A lane editing a shared control
+in the same inning that the edit greens its own ruler is the **pmRuler** shape (SM
+1217952059611869) — the failure the ruler-digest freeze exists to prevent. The digest is on
+`verify-smdrain.sh`, so nothing mechanical would have stopped me; that is the point. **The
+diagnosis is the deliverable, and it is handed over complete** so that whoever makes the edit is
+not still working from the refuted premise. It is a 10-minute at-bat in `claude-blackbook` and
+**any sibling lane can take it** — which is a better answer than either waiting or self-dealing.
+
+**WHAT MOVED, CONCRETELY.**
+- A **CORRECTION** comment on SM **1218166149524693** (story 1218165941393630): the card's central
+  factual claim is wrong, the ordering constraint is dead, the prescribed fix is the wrong one, and
+  the right one is named. The card body was left intact — a card is a record, and overwriting the
+  claim would erase the evidence of how the lane got stuck.
+- Two global lessons banked: `2026-09-04-aar-file-writeup-grepping-aars-answers` and
+  `2026-09-04-fixing-detector-delete-only-pointer-finding`.
+- **No code changed.** No `.bak` was needed beyond `docs/handoffs/smDrainHandoff.md.bak-s19`.
+
+**AND A NOTE FOR WHOEVER RULES #131.** The question is still live and still worth answering. Its
+*recommendation* is not — it argues for option D partly on "a real sev-2 … closed and no AAR was
+ever written". Read the CORRECTION comment before ruling. If the one-line `handoff:` exemption
+lands first, **#131 becomes moot**: G-V goes green, 1218153310094177 closes on its own written
+close line with nothing amended, and the lane is 17/17.
 
 ## Session 18 (2026-09-05, local lane-a) — what moved
 
