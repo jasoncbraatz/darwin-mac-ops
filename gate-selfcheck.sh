@@ -2738,6 +2738,61 @@ else
 fi
 
 
+# -- G-AS . the State Machine has a DOOR, and this session used it (born 2026-09-04, fable-smRuleOfOne-1)
+# Measured the day it was born: 89 cards filed in one day, 61 of the last two days' cards went
+# straight through the MCP with no key, no reason, no dupe check -- most of them fixes a session
+# with its hands in the repo could make in minutes. ADR-state-machine-divide.md §7 asked for an
+# entry policy; sm-file.py IS it (the Rule of One + reason enum + dupe-guard + known-broken leaf).
+# This leg (a) proves the door's own arithmetic still refuses (selftest), (b) prints this session's
+# intake tally so cards-per-session is a NUMBER at wrap, and (c) counts door-less session cards
+# on the board in the last 24h -- a WARN, not a FAIL, because with N siblings sharing one Asana
+# token the board cannot attribute a card to THIS session (roster-brake lesson, 2026-09-03).
+SMFILE="${SMFILE:-$HOME/Scripts/sm-file}"
+if [ -x "$SMFILE" ]; then
+  _smf_o="$("$SMFILE" --selftest </dev/null 2>&1)"; _smf_rc=$?
+  if [ "$_smf_rc" -ne 0 ]; then
+    bold "=== G-AS . the State Machine has a DOOR ==="
+    printf '%s\n' "$_smf_o" | grep -E 'FAIL|failure' | sed 's/^/         /'
+    FAILS+=("G-AS: sm-file --selftest failed ($_smf_rc). A door whose refusal arithmetic is broken files everything or nothing; either way the Rule of One is unenforced. Run: ~/Scripts/sm-file --selftest")
+  fi
+  _smt_o="$("$SMFILE" tally --max 8 </dev/null 2>&1)"; _smt_rc=$?
+  if [ "$_smt_rc" -eq 0 ] && [ -n "$_smt_o" ]; then
+    bold "=== G-AS . the State Machine has a DOOR (this session's intake) ==="
+    printf '%s\n' "$_smt_o" | sed 's/^/         /'
+  fi
+  # (c) door-less cards: session-shaped (not AUTOFILED, no SMFILE marker) born in the last 24h.
+  _smd_o="$(python3 - <<'PY' 2>/dev/null
+import sys, os
+sys.path.insert(0, os.path.expanduser("~/Scripts"))
+from datetime import datetime, timezone, timedelta
+try:
+    from asana_client import AsanaClient
+    c = AsanaClient()
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    rows = c.get_all("/projects/1215913700958709/tasks", {"opt_fields": "name,notes,created_at", "limit": 100})
+    bad = [r for r in rows if r.get("created_at", "") >= since
+           and "AUTOFILED" not in (r.get("notes") or "") and "<!--SMFILE" not in (r.get("notes") or "")]
+    print(len(bad))
+    for r in bad[:6]:
+        print("   " + r["name"][:96])
+except Exception as e:
+    print("ERR " + str(e)[:80])
+PY
+)"
+  _smd_n="$(printf '%s\n' "$_smd_o" | head -1)"
+  case "$_smd_n" in
+    ''|ERR*) WARNS+=("G-AS#door CANNOT VERIFY: could not read the State Machine board (${_smd_n:-no output}); door-less card count unknown.") ;;
+    0) : ;;
+    *) bold "=== G-AS#door . cards that walked past the door in the last 24h ==="
+       printf '%s\n' "$_smd_o" | tail -n +2 | sed 's/^/      /'
+       WARNS+=("G-AS#door: $_smd_n session-filed State Machine card(s) in the last 24h carry no <!--SMFILE--> marker -- filed straight through the MCP with no reason code and no dupe check. If any are yours: sm-file file --repo R --kind K --reason CODE ... (or FIX them, which is the point). Every card is a Rule-of-One question, and the door is the only place it gets asked.") ;;
+  esac
+else
+  bold "=== G-AS . the State Machine has a DOOR ==="
+  FAILS+=("G-AS CANNOT VERIFY: $SMFILE is missing or not executable, so the Rule of One is unenforced and card intake is unmeasured. Restore it: ln -sfn ~/repos/claude-blackbook/scripts/sm-file.py ~/Scripts/sm-file")
+fi
+
+
 # The N/A ledger is printed in BOTH verdicts, above them, so a reader can tell "did not apply"
 # from "did not run" without reading the whole transcript back.
 if [ "${#NA[@]}" -gt 0 ]; then
