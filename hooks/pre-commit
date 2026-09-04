@@ -92,7 +92,18 @@ estate_roster_brake() {
 }
 
 TOP="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-BASE="$(basename "$TOP")"
+# The allowlist is keyed on the REPO basename -- and a linked worktree has a different basename
+# from the repo it is a worktree OF. The rail gives each lane <repo>-lane-<x>, so the moment lane
+# worktrees appeared, EVERY reasoned allowlist entry on the estate went invisible from a lane and
+# the hook hard-blocked on hits a human had already adjudicated in the main checkout. Key on the
+# MAIN checkout: --git-common-dir points at the shared .git from whichever worktree we stand in.
+# Fails safe -- if git cannot answer, fall back to this tree's own basename (the old behaviour).
+GE_COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+if [ -n "$GE_COMMON" ] && [ "$(basename "$GE_COMMON")" = ".git" ]; then
+  BASE="$(basename "$(dirname "$GE_COMMON")")"
+else
+  BASE="$(basename "$TOP")"
+fi
 
 # Added / Copied / Modified only. A DELETED file cannot introduce a secret, and a
 # rename's source is not in the post-commit tree.
