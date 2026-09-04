@@ -1,20 +1,20 @@
 ---
 project: smDrainHandoff
-session_n: 4
+session_n: 5
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
 gh_sha: "89b6e3f73b99ddeeb4116034eb70f938a5690797"
 updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
-lessons_consulted: ["2026-09-03-contract-built-fix-class-problem-check", "2026-09-03-attribution-claim-answers-responsible-repo-wrote"]
+lessons_consulted: ["2026-09-03-attribution-claim-answers-responsible-repo-wrote", "2026-08-16-stamp-charter-read-sh-immediately-before"]
 live_theme: "the gate is right that something is wrong and wrong about WHOSE it is — five of the thirteen remaining cards are that one sentence"
-phase: "DRAINING. 17 cards frozen, 4 closed (2 in s1, 1 in s2, 1 in s3). Not done — ask again every inning."
+phase: "DRAINING. 17 cards frozen, 4 closed (2 in s1, 1 in s2, 1 in s3). s4 closed NONE and says so: it cleared both halves of 1218153310094177 and left the card OPEN on purpose (reason below). Not done — ask again every inning."
 gate_passed: false
-next_at_bat: "1218153310094177 — G-V + G-AE red over LIVE sibling lanes' work (shellac AAR, restore-drill plist). Read 1217721634749933 (G-AL accepts a SIBLING's charter stamp) and 1217341652482828 (gate FLAPS PASS/FAIL/PASS on identical clean state — a flap between two runs is usually a sibling moving underneath you) in the SAME at-bat: all three are the estate-wide-gate-owner-concept shape, the fix surface is the same attribution machinery, and session 3 just proved the general lesson — a control and its remediation must scan the same ground. G-V/G-AE are reds with an owner concept missing entirely, which is the next rung up from the roots gap session 3 closed."
+next_at_bat: "FIRST, five minutes: re-run `python3 ~/repos/claude-blackbook/aar.py gate --days 7`. Session 4 cleared both items 1218153310094177 NAMES and left the card open only because three LATER, smDrainN8n-owned findings still hold G-V red (listed in the s4 section and in a comment on the card itself). If a sibling has cleared them, close 1218153310094177 in one move and bank a free card. THEN the real at-bat: 1217721634749933 (G-AL accepts a SIBLING's charter stamp) together with 1217341652482828 (gate FLAPS PASS/FAIL/PASS on identical clean state). Read them as ONE card — sessions 2, 3 and 4 have now each hit the same wall from a different side, which is that the gate has no stable notion of WHOSE a red is when a sibling is moving underneath it, and s4 declined to close a card on a whole-gate colour for exactly that reason. The fix surface is the same attribution machinery (the G-H#22 rungs, attribute.py, red-owner.py, the roster). Doing them one at a time is how you write the same helper four times."
 blockers: []
 drift_flags: []
-parking_lot: ["The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
+parking_lot: ["A THIRD false-positive class in the AAR sweep, found by s4 and deliberately NOT fixed: commit n8n-stack@b8c39779 is flagged as an incident-marker only because its subject QUOTES a card title containing 'sev-2' (`handoff: smDrainN8n session 3 — closed ... (COGS sev-2)`). It is a handoff commit, not an incident. Clearing it honestly means CALIBRATING SWEEP_NARROW_RE (a control being LOOSENED, which is the dangerous direction and needs its own card and its own negative controls), NOT an `aar.py adopt`, which would make a real AAR falsely claim a commit. Card it; do not smuggle it into a drain inning.", "The two [[SMOKE TEST]] cards holding G-V red (1218162752959495, 1218162743000102) are machine noise whose filer, cogs_mover.js, is not emitting bb-card.py's --autofiled marker. Same bug class as 1218153310094177 but the fix surface is the COGS bridge, not this lane. Card it against the bridge.", "The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
 ---
 
 # smDrainHandoff — LIVING HANDOFF
@@ -41,8 +41,9 @@ Then run the ruler:
 fix surface is `gate-selfcheck.sh` / the gate drills / the handoff kit. **4 of 17 closed.**
 
 ## Is the phase DONE?
-**No. 4 of 17.** Ask this question explicitly every inning — a milestone that is met but never
-declared keeps getting continued.
+**No. 4 of 17**, unchanged by session 4 — which closed no card and says so plainly rather than
+banking a card it had not honestly earned (the reason is in the s4 section). Ask this question
+explicitly every inning — a milestone that is met but never declared keeps getting continued.
 
 ## READ THIS FIRST — session 3 found the ruler had been DELETED
 `rail.py ruler show --project smDrainHandoff` reported **`moved` / "the handoff no longer
@@ -194,6 +195,109 @@ red-owner will answer about whichever the walk saw last. That is a real attribut
 same family, it is bigger than a message fix, and smuggling it into this card's commit would
 have hidden it. **Card it if you agree**; it is not on the frozen manifest, so it cannot be
 drained here anyway.
+
+## Session 4 (2026-09-03, local-mbp2024-18253) — what moved, and the card that did NOT close
+
+At-bat was **1218153310094177** (G-V + G-AE red over live sibling lanes' work). **Both items
+the card names are now green. The card is still OPEN, on purpose.** Read the last paragraph
+of this section before you judge that.
+
+**(2) G-AE — done by the sibling, exactly as the card predicted it would be.**
+
+    bash ~/Scripts/launchd-census.sh
+    -> launchd-census: 61 repo-backed (1 ratified-divergent), 0 unbacked, 0 loaded-but-missing,
+       0 DIVERGED
+
+`com.braatz.restore-drill` is repo-backed. Nothing owed. Cost: one command.
+
+**(1) G-V — done here.** The lesson `2026-09-03-windows-product-key-decoded-out-registry`
+(contributor `opus-shellacP2V-1`, live at filing time) had no AAR declaration. The sweep
+offered `aar.py adopt voice-box-em-dashes-shipped-over-stated-preference`, matched by ±3d
+**date alone** — and that is plainly the wrong AAR for a Windows licence near-miss. **Taking
+the suggestion would have turned the gate green with a lie**, which is the one move a drain
+lane must never make. Filed the AAR the signal actually needs instead:
+
+    aars/2026-09-03-generic-key-decoded-as-recovered-licence.md   (validate: 1/1 valid)
+    aar.py adopt generic-key-decoded-as-recovered-licence --lesson 2026-09-03-windows-...
+
+Cause class `implicit-vendor-default`, **reused, not invented** (`aar.py classes` first — it
+is the join key the monthly retro clusters on). The mechanism is worth carrying: the registry
+`DigitalProductId` holds Microsoft's GENERIC edition key on a machine whose entitlement is a
+digital licence, and the only available cross-check — `slmgr /dlv`'s partial key — **reads the
+same blob**, so it can confirm the base24 decode ran and can never falsify the answer. Filed
+on a live sibling's behalf with an explicit invitation to correct it; precedent for that shape
+is `voice-box-em-dashes-shipped-over-stated-preference`, filed the same way.
+
+**FOUND IN PASSING, FIXED — the sweep was counting one signal as two.**
+
+`aar.py`'s `_sweep_repo_dirs()` identified a repo by its **literal path**, while its own
+docstring claimed parity with `gate-selfcheck.sh`'s walk. It did not have parity: the gate
+runs every hit through `git rev-parse --show-toplevel` and keeps a `seen` set (gate-selfcheck.sh
+~line 138), so a repo reachable under two roots is walked ONCE. `SWEEP_ROOTS` overlap heavily
+on this estate and `Path.is_dir()` follows symlinks. MEASURED, not assumed:
+
+    111 walked, 104 distinct, 6 repos DOUBLE-counted, ~/Scripts counted THREE times
+    (via ~/repos/Scripts, ~/repos/darwin-scripts, and itself)
+    ~/repos/n8n-stack -> ~/code/n8n-stack   ~/repos/darwin-mac-ops -> ~/code/darwin-mac-ops
+
+So every incident-marker commit in an aliased repo was emitted **once per alias**, including
+in the `<!--BBFINDING:...-->` block that `CLOSE-ON-CLEAR.md` 7b tells a closer to verify
+**one by one**. Deduped on the resolved toplevel; first-seen alias wins so output stays
+deterministic; an unresolvable path keeps its literal identity, i.e. it fails toward
+over-reporting, which is the safe direction for an evidence source.
+
+EVIDENCE, run, not asserted:
+
+    python3 ~/repos/claude-blackbook/aar.py selftest
+    -> ALL GREEN, including the new control:
+       "sweep walk dedupes aliased repos (one repo under two roots = one signal), keeps distinct ones"
+
+    # and it BITES — the same control against the pre-fix walk (naive append, monkeypatched):
+    -> FAIL: sweep walk did not dedupe aliased repos: [.../real/aliased, .../real/solo,
+       .../alias/aliased]
+
+    python3 ~/repos/claude-blackbook/aar.py gate --days 7
+    -> findings 5 -> 3   (exit 1, correctly still red — see below)
+
+The control is built against a **real symlink, not a mock**, and carries the load-bearing
+negative: a genuinely distinct repo must survive the dedupe, so a future "simplification"
+that collapses too much trips a named assertion rather than silently narrowing the evidence.
+
+Commit: **claude-blackbook `557e61c2`** (pushed — a different repo, so it does not ride this
+lane's merge). Undo: `git revert 557e61c2`, plus on-disk
+`~/repos/claude-blackbook/aar.py.bak-smDrainHandoff4-20260903` and the backup `aar.py adopt`
+leaves beside the lesson. As in sessions 2 and 3 the `.bak`s are **not** committed.
+
+### WHY 1218153310094177 IS STILL OPEN — this is the finding, not an excuse
+
+The card's own close line is *"Close this card when `~/Scripts/gate-selfcheck.sh` shows G-V
+and G-AE green."* G-AE is green. G-V is **not**, on three findings that **did not exist when
+the card was filed at 18:07Z** and are not its subject — all three belong to the smDrainN8n
+lane:
+
+    <!--BBFINDING:commit:n8n-stack@b8c39779-->    a HANDOFF commit, flagged only because its
+                                                  subject quotes a card title containing "sev-2"
+    <!--BBFINDING:card:1218162752959495-->        [SMOKE TEST] cogs_mover.js battersBox() live call
+    <!--BBFINDING:card:1218162743000102-->        [SMOKE TEST] COGS BB Bridge — smDrainN8n inning 10
+
+**Closing on a whole-gate colour that live siblings keep writing to is exactly the failure
+1217341652482828 describes** — the gate FLAPS because someone moved underneath you. A drain
+lane that closes a card on a ruler a third party is still editing has not drained anything;
+it has just picked a lucky moment to look. So: cleared what the card names, wrote the state
+onto the card itself (comment `1218164732730110`, with the three BBFINDINGs listed verbatim),
+and left it one move from closed.
+
+**If you are the next inning: re-run `aar.py gate --days 7` FIRST.** If a sibling cleared
+those three, this card closes in one `bb-close.py` and you have banked a card before your
+real at-bat starts. Neither residual is yours to force — see the parking lot for why the
+commit one needs its own card (it is a control being LOOSENED) and why the smoke-test ones
+belong against the COGS bridge.
+
+**The through-line sessions 2, 3 and 4 have now each hit from a different side:** the gate
+has no stable notion of WHOSE a red is. s2 found four rungs blind to the same actor; s3 found
+a remediation that scanned less ground than the control; s4 found a control double-counting
+one repo as two and then declined to close on a colour a sibling owns. That is 1217721634749933
++ 1217341652482828, and it is why they are the next at-bat.
 
 ## The shape of what is left (read this before picking)
 **Five of the thirteen remaining are still one sentence: the gate is right that something is
