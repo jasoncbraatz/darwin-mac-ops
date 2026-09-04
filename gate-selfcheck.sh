@@ -87,6 +87,47 @@ gate_skipped() {   # gate_skipped <downstream step> <why it could not run, and t
   printf '  !      %s did not run -- %s\n' "$1" "$2"
 }
 
+# -- N/A · a check whose SUBJECT does not exist in this session (smDrainHandoff-1, 2026-09-03,
+# SM 1218054982400791). Distinct from SKIPPED in the one way that decides the verdict: SKIPPED
+# means nobody knows what the check would have said, so PASS would be a lie; N/A means there was
+# nothing to know. A scheduled/routine run is not a chartered project and never will be, and the
+# gate reported FAIL for it every time -- which is the G-AI failure one level up (the check does
+# not vanish, it just can never pass) and trains readers to wave reds through.
+# N/A is never granted on the session's say-so alone; see gate_charter_is_na below.
+NA=()
+gate_na() {   # gate_na <step> <why it does not apply here>
+  NA+=("$1 N/A: $2")
+  printf '  n/a    %s does not apply here -- %s\n' "$1" "$2"
+}
+
+# THE OPT-OUT PREDICATE IS A NAMED FUNCTION, for the same reason gate_verdict_is_pass is: so
+# gate-charter-drill.sh can extract and execute THIS text instead of a copy of it.
+# TRUE only when the session declared itself unchartered AND charter-read could NOT resolve it
+# to a registered project. A chartered project therefore cannot buy its way out of its own
+# finish line by exporting a variable -- the branch this predicate guards is unreachable once
+# the key resolves, which is a stronger guarantee than a check that could be reordered away.
+gate_charter_is_na() {   # gate_charter_is_na <resolved-charter-row (empty if none)>
+  [ -n "${GATE_UNCHARTERED:-}" ] && [ -z "${1:-}" ]
+}
+
+# -- G-H#roster reporting, derived once (smDrainHandoff-1, 2026-09-03, SM 1218126486445244) --
+# The gate once filed a roster drill failure under the OTHER drill's name and printed the
+# innocent drill's path as the remedy; a reader who ran the command the gate gave them got a
+# PASS and reasonably concluded the gate was broken -- while the file it had not named was the
+# one genuinely failing. The flake underneath (a fixed /tmp scratch path) is fixed on both
+# drills now; the CLASS is not, because a gate that reports failures under the wrong name
+# passes every test that only asks "did the gate go red". So the name-and-remedy line is
+# produced here, once, and gate-charter-drill.sh executes this very text against a fixture.
+gate_roster_line() {   # gate_roster_line <drill-path> <rc> -> "FAIL|<msg>" / "WARN|<msg>" / ""
+  local _d="$1" _rc="$2" _n
+  _n="$(basename "$_d")"
+  case "$_rc" in
+    0) : ;;
+    9) printf "WARN|G-H#roster: %s could not find its subject (exit 9) -- unproven this run" "$_n" ;;
+    *) printf "FAIL|G-H#roster: %s FAILED (rc=%s) -- the roster's ghost/identity behaviour is not what the board's readers assume. Run: bash %s" "$_n" "$_rc" "$_d" ;;
+  esac
+}
+
 # THE VERDICT PREDICATE IS A NAMED FUNCTION so that gate-skipped-drill.sh can extract and
 # execute THIS text rather than a copy of it. A drill that reimplements the rule it checks
 # goes on passing forever on the day the rule changes -- the copied-not-derived family,
@@ -213,10 +254,13 @@ for _rdrill in "$HOME/Scripts/roster-ghost-drill.sh" "$HOME/Scripts/roster-ident
     bold "=== G-H#roster · $_rdname (offline, scratch db) ==="
     _RG_OUT="$(bash "$_rdrill" 2>&1)"; _RG_RC=$?
     printf '%s\n' "$_RG_OUT" | tail -1 | sed 's/^/  /'
-    case "$_RG_RC" in
-      0) : ;;
-      9) WARNS+=("G-H#roster: $_rdname could not find its subject (exit 9) -- unproven this run") ;;
-      *) FAILS+=("G-H#roster: $_rdname FAILED (rc=$_RG_RC) -- the roster's ghost/identity behaviour is not what the board's readers assume. Run: bash $_rdrill") ;;
+    # ONE producer of the name and the remedy -- see gate_roster_line. The bug this replaces
+    # was not that the loop lost track of $_rdname (it did not); it was that nothing anywhere
+    # asserted the reported name matches the drill that actually failed.
+    _RG_LINE="$(gate_roster_line "$_rdrill" "$_RG_RC")"
+    case "$_RG_LINE" in
+      WARN\|*) WARNS+=("${_RG_LINE#WARN|}") ;;
+      FAIL\|*) FAILS+=("${_RG_LINE#FAIL|}") ;;
     esac
   else
     WARNS+=("G-H#roster: $_rdrill missing or not executable -- that roster control is unproven this run")
@@ -1972,7 +2016,15 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
     fi
   fi
   _ch_key="$(printf '%s' "$_ch_tag" | sed -E 's/-[0-9]+[a-z]?$//' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
-  if [ -z "$_ch_tag" ]; then
+  if [ -z "$_ch_tag" ] && gate_charter_is_na ""; then
+    # UNCHARTERED BY DESIGN. A scheduled/confirmation run has no project key and no charter to
+    # read, so there is no finish line to have drifted from. Say N/A out loud and skip the board
+    # check with an EXPLICIT else -- not via gate_skipped, because "never ran" is what SKIPPED
+    # means and this check has no subject to run against.
+    bold "=== G-AL · the session knew what DONE looks like ==="
+    gate_na "G-AL" "unchartered by design (${GATE_UNCHARTERED}) -- this session is not a chartered project, so there is no definition of done to have read"
+    gate_na "G-AL#board" "no charter, so no generated DONE board exists to be stale"
+  elif [ -z "$_ch_tag" ]; then
     bold "=== G-AL · the session knew what DONE looks like ==="
     printf '  WARN   CANNOT VERIFY: no current session tag, so no project charter was checked\n'
     if [ -n "$_ch_stale" ]; then
@@ -1995,7 +2047,15 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       _ch_crit="$(eval printf '%s' "$(printf '%s' "$_ch_res" | cut -f3)")"
       _ch_brief="$(eval echo "$(printf '%s' "$_ch_res" | cut -f4)")"
     fi
-    if [ -z "$_ch_row" ]; then
+    if gate_charter_is_na "$_ch_row"; then
+      # Same N/A as above, for the honest-tag case: `GATE_ROSTER_WHO=cloud-atxFanoutConfirm`
+      # names a real session that is not a project. Unreachable for anything charter-read can
+      # resolve, so a chartered project that exports GATE_UNCHARTERED is still graded and can
+      # still FAIL -- drilled in gate-charter-drill.sh.
+      bold "=== G-AL · the session knew what DONE looks like ==="
+      gate_na "G-AL" "unchartered by design (${GATE_UNCHARTERED}) -- '$_ch_key' is not a registered charter key and is not meant to be"
+      gate_na "G-AL#board" "no charter, so no generated DONE board exists to be stale"
+    elif [ -z "$_ch_row" ]; then
       # NOT silence. A multi-session project with no written definition of done is the very
       # condition this step exists to surface -- it is how -21..-25 happened.
       bold "=== G-AL · the session knew what DONE looks like ==="
@@ -2340,6 +2400,14 @@ else
   FAILS+=("G-AP#drill CANNOT VERIFY: $VERDICT_DRILL is missing or not executable, so nothing proved the census can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- verdict-contract-census-drill.sh")
 fi
 
+
+# The N/A ledger is printed in BOTH verdicts, above them, so a reader can tell "did not apply"
+# from "did not run" without reading the whole transcript back.
+if [ "${#NA[@]}" -gt 0 ]; then
+  printf '\n  -- checks that DID NOT APPLY to this session (subject absent, not unverified) --\n'
+  printf '  n/a %s\n' "${NA[@]}"
+  printf '\n'
+fi
 
 if gate_verdict_is_pass; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"

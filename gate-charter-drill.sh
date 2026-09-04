@@ -190,6 +190,96 @@ else
   printf '  WARN  %-52s\n' "gate-selfcheck.sh unreadable; ledger-name controls skipped"
 fi
 
+# ── G-AL#na · "unchartered by design" must be an exit for the UNCHARTERED only ────────────
+# (smDrainHandoff-1, 2026-09-03 — SM 1218054982400791)
+# The gate could never go green for a scheduled/routine run: no project key, therefore no
+# charter, therefore G-AL warns and G-AL#board is SKIPPED, therefore FAIL — for a session with
+# nothing wrong with it. gate_charter_is_na is the opt-out. An opt-out is exactly the kind of
+# thing that quietly becomes universal, so it gets more negative controls than positive ones.
+# EXTRACTED BY NAME and executed, never restated: a drill carrying its own copy of the rule
+# goes on passing forever on the day the rule changes.
+# same handle the anti-divergence control above already uses -- one override, not two.
+GATE_SC="${GATE_SELFCHECK:-$HOME/Scripts/gate-selfcheck.sh}"
+if [ -r "$GATE_SC" ]; then
+  _na_src="$(awk '/^gate_charter_is_na\(\)/,/^}/' "$GATE_SC")"
+  if [ -n "$_na_src" ]; then
+    eval "$_na_src"
+    # POSITIVE: a routine run that says so, and resolves to no charter row, is N/A.
+    if GATE_UNCHARTERED="9am ATX fan-out confirmation" gate_charter_is_na ""; then
+      printf '  ok    %-52s\n' "an unresolvable session that declares itself is N/A"; PASS=$((PASS+1))
+    else
+      printf '  FAIL  %-52s\n' "the N/A exit does not open for a genuinely unchartered run"; FAIL=$((FAIL+1))
+    fi
+    # NEGATIVE, and the one that matters: a CHARTERED project cannot buy out of its finish line.
+    if GATE_UNCHARTERED="I would rather not" gate_charter_is_na "acmeLedger"; then
+      printf '  FAIL  %-52s\n' "a chartered project can declare itself unchartered"; FAIL=$((FAIL+1))
+    else
+      printf '  ok    %-52s\n' "a resolved charter row overrides the opt-out"; PASS=$((PASS+1))
+    fi
+    # NEGATIVE: silence is not consent. Every session that never heard of this variable must
+    # keep being graded exactly as before.
+    # a SUBSHELL, not `env -u`: env execs a program and cannot see a shell function, so that
+    # form "passes" by failing to run the thing under test -- a control that proves nothing.
+    if ( unset GATE_UNCHARTERED; gate_charter_is_na "" ); then
+      printf '  FAIL  %-52s\n' "N/A is granted without the session ever asking for it"; FAIL=$((FAIL+1))
+    else
+      printf '  ok    %-52s\n' "no declaration means no N/A (the default is unchanged)"; PASS=$((PASS+1))
+    fi
+    # NEGATIVE: an EMPTY declaration is not a reason, and the gate prints the reason to a human.
+    if GATE_UNCHARTERED="" gate_charter_is_na ""; then
+      printf '  FAIL  %-52s\n' "an empty reason still buys the N/A"; FAIL=$((FAIL+1))
+    else
+      printf '  ok    %-52s\n' "an empty reason buys nothing"; PASS=$((PASS+1))
+    fi
+    unset -f gate_charter_is_na
+  else
+    printf '  FAIL  %-52s\n' "gate-selfcheck.sh has no gate_charter_is_na predicate"; FAIL=$((FAIL+1))
+  fi
+
+  # ── G-H#roster · the gate must name the drill that ACTUALLY failed ──────────────────────
+  # (smDrainHandoff-1, 2026-09-03 — SM 1218126486445244)
+  # The gate reported roster-ghost-drill.sh FAILED and printed ITS path as the remedy; the
+  # drill that failed was roster-identity-drill.sh. Running the remedy the gate gave you
+  # produced a PASS — the exact response you do not want trained into a reader of a red.
+  # A gate that misattributes passes every test that only checks "did it go red", so the
+  # control has to assert the NAME, and assert the innocent drill is not mentioned at all.
+  _rl_src="$(awk '/^gate_roster_line\(\)/,/^}/' "$GATE_SC")"
+  if [ -n "$_rl_src" ]; then
+    eval "$_rl_src"
+    _rl_out="$(gate_roster_line /tmp/roster-identity-drill.sh 2)"
+    case "$_rl_out" in
+      FAIL\|*roster-identity-drill.sh*)
+        printf '  ok    %-52s\n' "a failing drill is filed under its OWN name"; PASS=$((PASS+1)) ;;
+      *) printf '  FAIL  %-52s\n' "the failing drill is not named in its own finding"; FAIL=$((FAIL+1)) ;;
+    esac
+    # THE OTHER COLUMN: the innocent sibling must not appear, because the message doubles as
+    # the command the reader will run.
+    case "$_rl_out" in
+      *roster-ghost-drill.sh*)
+        printf '  FAIL  %-52s\n' "the finding names a drill that did not fail"; FAIL=$((FAIL+1)) ;;
+      *) printf '  ok    %-52s\n' "no other drill is named in the finding"; PASS=$((PASS+1)) ;;
+    esac
+    # exit 9 is UNPROVEN, not failed — and it must be attributed just as carefully.
+    case "$(gate_roster_line /tmp/roster-ghost-drill.sh 9)" in
+      WARN\|*roster-ghost-drill.sh*)
+        printf '  ok    %-52s\n' "exit 9 warns, under the right name"; PASS=$((PASS+1)) ;;
+      *) printf '  FAIL  %-52s\n' "exit 9 is not reported as an unproven control"; FAIL=$((FAIL+1)) ;;
+    esac
+    # A passing drill must produce NOTHING; a producer that always speaks is a producer that
+    # will eventually file a green run as a finding.
+    if [ -z "$(gate_roster_line /tmp/roster-ghost-drill.sh 0)" ]; then
+      printf '  ok    %-52s\n' "a passing drill files nothing"; PASS=$((PASS+1))
+    else
+      printf '  FAIL  %-52s\n' "a passing drill still files a finding"; FAIL=$((FAIL+1))
+    fi
+    unset -f gate_roster_line
+  else
+    printf '  FAIL  %-52s\n' "gate-selfcheck.sh has no gate_roster_line producer"; FAIL=$((FAIL+1))
+  fi
+else
+  printf '  WARN  %-52s\n' "gate-selfcheck.sh unreadable; N/A + roster controls skipped"
+fi
+
 if [ "$FAIL" -gt 0 ]; then bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="; exit 1; fi
-bold "=== drill: PASS — $PASS controls, 10 of them negative (G-AL can still go red) ==="
+bold "=== drill: PASS — $PASS controls, 16 of them negative (G-AL can still go red) ==="
 exit 0
