@@ -1,20 +1,20 @@
 ---
 project: smDrainHandoff
-session_n: 6
+session_n: 7
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "8f316c18dc7c6604afdcc47a8007f2c2f9b3d572"
+gh_sha: "d4ebfcb2faa10f71e6e712c180c6437bc8d1f70d"
 updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
-lessons_consulted: ["2026-09-04-flap-detector-must-compare-issue-set", "2026-08-16-stamp-charter-read-sh-immediately-before"]
-live_theme: "the gate is right that something is wrong and wrong about WHOSE it is — and on 1217341652482828, wrong about WHAT: the probes it names are WARN-only and cannot move the exit code it flapped on"
-phase: "DRAINING. 17 cards frozen, 4 closed. Session 5 closed NONE and says so: it played the BULK of 1217341652482828's at-bat (the tri-state probe fix + a 17/17 hermetic drill, both merged) and then found, by reading the exit-code branch, that the probes the card names are WARN-only and structurally cannot produce the PASS/FAIL/PASS it was filed on. Fixing them was worth doing and does not earn the close. Not done — ask again every inning."
+lessons_consulted: ["2026-09-04-ruling-130-card-1217721634749933-g-al", "2026-08-16-stamp-charter-read-sh-immediately-before", "2026-09-04-claude-code-session-darwin-shell-function"]
+live_theme: "the gate is right that something is wrong and wrong about WHOSE it is — and G-AL was the purest case: it graded every darwin session on whichever SIBLING read the charter first, and said ok"
+phase: "DRAINING. 17 cards frozen, 5 closed. Session 6 CLOSED 1217721634749933 (G-AL accepts a sibling's charter stamp) — the first close in three innings. It landed because session 6 inverted session 5's at-bat order: the flap card's move is WAITING and the borrow card's move is WORK, so the probe ran in the background from minute 0 while the borrow card was played. The probe then overran and was KILLED at minute ~19 rather than allowed to eat the landing. Not done — 12 open. Ask again every inning."
 gate_passed: false
-next_at_bat: "1217341652482828 is now ONE precise question, and it is cheap. The gate's exit code branches on FAILS and SKIPPED only (gate-selfcheck.sh ~line 2624-2638) — WARNS never touch it. Session 5 fixed the three G-T#4x ssh probes the card names, but they only ever append to WARNS, so they CANNOT be the flap. Re-aim at what CAN enter FAILS/SKIPPED on a network stutter: `G-X CANNOT VERIFY` is in the issue set of every single probe run and is network-dependent, which makes it the standing suspect. Method: `bash ~/Scripts/gate-flap-probe.sh -n 5 --outdir /tmp/flap` (~190 s/run, ~16 min — START IT AS THE FIRST ACT OF THE INNING, in the background, then work while it runs; session 5 started it at minute 12 and still ran out of clock). Then grep the transcripts for which check moved between two runs. If it is stable again, that is 13+ clean runs and the honest close is `bb-close.py --gid 1217341652482828 --played` on the grounds that its named mechanism is fixed+drilled and its symptom has not reproduced in 13 attempts — say BOTH halves in the --reason. SECOND at-bat if that lands: 1217721634749933 (G-AL accepts a SIBLING's charter stamp), which session 5 did NOT start; lesson 2026-08-16-stamp-charter-read-sh-immediately-before is the relevant prior art and is already marked used."
+next_at_bat: "TWO candidates; take 1218152478656223 FIRST unless you have a reason. (1) 1218152478656223 — anti-string-of-pearls (HANDOFF-GATE v2.23) has NO TEETH: a carried thread needs a one-line `verify:` or it dies silently. It is a handoff-kit card, its fix surface is in this repo, it needs NO network and NO gate run, and it is therefore the only remaining card that can be played end-to-end inside one inning without a wall-clock gamble. Three innings have now been shaped by waiting on a ~182 s gate; pick the card that does not wait. THE IRONY IS THE POINT AND IS FREE EVIDENCE: this very file is the artefact under test — `parking_lot` below is a string of pearls with no verify lines on it, and session 6 added three more. (2) 1217341652482828 (the flap) is now cheap but it is a WAITING card: `bash ~/Scripts/gate-flap-probe.sh -n 5 --outdir /tmp/flapN` in the BACKGROUND AT MINUTE 0, then play (1) while it runs — that is exactly the pattern that worked in session 6. It has not reproduced in 15 attempts. Session 6 STILL declined the `--played` close and you should too unless the probe finally names which check moved, because session 5 proved the mechanism the card names (the G-T#4x ssh probes) is WARN-only and cannot move the exit code it flapped on. NOTE session 6\'s finding: run 3 of 5 overran its ~182 s budget by more than 6x and produced nothing — if that recurs, gate-flap-probe.sh itself needs a per-run timeout and that is a card, not an obstacle."
 blockers: []
 drift_flags: []
-parking_lot: ["THE G-T#44 crontab probe is still TWO-STATE and session 5 left it that way on purpose: it is parsed from an EXIT CODE (rc 2 = drift, anything else = skip), not from text, so a timeout (rc 124) is already distinguishable from an answer and the truncation bug cannot reach it. If you ever change it to parse output, it needs _probe_field() like the other three.", "gate-probe-tristate-drill.sh is NOT wired into gate-selfcheck.sh as a G-x#drill check, unlike gate-roster-drill.sh. It is hermetic and sub-second, so it is a good candidate and session 5 simply ran out of clock. A drill that is not in a gate is a note, not a control — that sentence is already in gate-roster-drill.sh's own header.", "A THIRD false-positive class in the AAR sweep, found by s4 and deliberately NOT fixed: commit n8n-stack@b8c39779 is flagged as an incident-marker only because its subject QUOTES a card title containing 'sev-2' (`handoff: smDrainN8n session 3 — closed ... (COGS sev-2)`). It is a handoff commit, not an incident. Clearing it honestly means CALIBRATING SWEEP_NARROW_RE (a control being LOOSENED, which is the dangerous direction and needs its own card and its own negative controls), NOT an `aar.py adopt`, which would make a real AAR falsely claim a commit. Card it; do not smuggle it into a drain inning.", "The two [[SMOKE TEST]] cards holding G-V red (1218162752959495, 1218162743000102) are machine noise whose filer, cogs_mover.js, is not emitting bb-card.py's --autofiled marker. Same bug class as 1218153310094177 but the fix surface is the COGS bridge, not this lane. Card it against the bridge.", "The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
+parking_lot: ["gate-charter-drill.sh hard-codes its own negative-control count in its summary line (\"18 of them negative\"). Session 6 corrected it 16 -> 18 by hand, and that is the second time a number nobody checks has rotted in a drill footer. Making it self-counting is a change to a drill's REPORTING and deserves its own card and its own control; do not smuggle it into a drain inning. verify: `command grep -n 'of them negative' gate-charter-drill.sh` and count the FAIL-direction controls by hand.", "gate-flap-probe.sh has NO per-run timeout. Session 6's run 3 of 5 overran its ~182 s budget by >6x and emitted nothing, which is what forced the probe to be killed. A probe that can hang is a probe you cannot start at minute 0 and trust, which is the whole reason it exists. verify: `command grep -n timeout ~/Scripts/gate-flap-probe.sh` returns nothing today.", "gate-flap-probe.sh runs ~/Scripts/gate-selfcheck.sh, i.e. THROUGH THE SYMLINK into the repo: checkout, never your worktree. Correct for a flap question, wrong for anything you are editing. And do NOT run a second gate concurrently with a live probe: a gate run mutates the estate the probe is measuring. verify: `readlink ~/Scripts/gate-selfcheck.sh`.", "THE G-T#44 crontab probe is still TWO-STATE and session 5 left it that way on purpose: it is parsed from an EXIT CODE (rc 2 = drift, anything else = skip), not from text, so a timeout (rc 124) is already distinguishable from an answer and the truncation bug cannot reach it. If you ever change it to parse output, it needs _probe_field() like the other three.", "gate-probe-tristate-drill.sh is NOT wired into gate-selfcheck.sh as a G-x#drill check, unlike gate-roster-drill.sh. It is hermetic and sub-second, so it is a good candidate and session 5 simply ran out of clock. A drill that is not in a gate is a note, not a control — that sentence is already in gate-roster-drill.sh's own header.", "A THIRD false-positive class in the AAR sweep, found by s4 and deliberately NOT fixed: commit n8n-stack@b8c39779 is flagged as an incident-marker only because its subject QUOTES a card title containing 'sev-2' (`handoff: smDrainN8n session 3 — closed ... (COGS sev-2)`). It is a handoff commit, not an incident. Clearing it honestly means CALIBRATING SWEEP_NARROW_RE (a control being LOOSENED, which is the dangerous direction and needs its own card and its own negative controls), NOT an `aar.py adopt`, which would make a real AAR falsely claim a commit. Card it; do not smuggle it into a drain inning.", "The two [[SMOKE TEST]] cards holding G-V red (1218162752959495, 1218162743000102) are machine noise whose filer, cogs_mover.js, is not emitting bb-card.py's --autofiled marker. Same bug class as 1218153310094177 but the fix surface is the COGS bridge, not this lane. Card it against the bridge.", "The lane manifest lives at ~/repos/claude-blackbook/state/smdrain/lane-handoff.json, NOT in darwin-mac-ops — the DoD sentence reads as if it were repo-relative and it is not. Do not go looking for state/ in this repo.", "SM card 1218163994701439 (clobber-tripwire) says lane-handoff.json was OVERWRITTEN in a shared checkout by local-mbp2024-55818-b. The manifest read fine in sessions 1 and 2 (17 cards, digest intact, ruler graded), but if a future inning finds the card list changed, that is the ruler moving underneath the lane — open a decision, do NOT edit the manifest.", "CARD FIX 3 OF 1218125780430801, deliberately not built: the roster should NOTICE an unrostered author. Session 2 taught the GATE to stop guessing, which is the reader-facing half; the estate-facing half is that a session doing consequential work on darwin without `roster join` is invisible to the attribution SSOT by construction, and nothing anywhere complains. That is a roster change (~/Scripts/roster), not a gate-selfcheck.sh change, so it is out of this lane's fix surface — card it against the roster if you agree, do not smuggle it in here.", "The UNPUSHED branch of the G-H#22 sweep keeps its unconditional FAIL and session 2 left it alone on purpose (reason in the code comment and the bb-close receipt): its message never asserts ownership, so it is not telling the lie 1218125780430801 is about, and freshly-unpushed work is exactly what that check exists to catch."]
 ---
 
 # smDrainHandoff — LIVING HANDOFF
@@ -38,18 +38,22 @@ Then run the ruler:
 
 ## The lane
 17 frozen cards, `~/repos/claude-blackbook/state/smdrain/lane-handoff.json`, everything whose
-fix surface is `gate-selfcheck.sh` / the gate drills / the handoff kit. **4 of 17 closed.**
+fix surface is `gate-selfcheck.sh` / the gate drills / the handoff kit. **5 of 17 closed.**
 
 ## Is the phase DONE?
-**No. 4 of 17**, unchanged by session 5 — the second inning running to close no card. Read the
-session 5 section before you treat that as a stall: the inning played most of an at-bat and then
-disqualified its own close on evidence it went looking for. Ask this question explicitly every
-inning — a milestone that is met but never declared keeps getting continued.
+**No. 5 of 17.** Session 6 closed **1217721634749933**, breaking a two-inning streak of innings
+that left a card one move from closed. Ask this question explicitly every inning — a milestone
+that is met but never declared keeps getting continued.
 
-**Two innings in a row have now left a card one move from closed** (s4: 1218153310094177; s5:
-1217341652482828). That is a pattern, and the cause is the same both times: the last, cheap,
-*confirming* step is the one that needs wall-clock, and it keeps getting started too late.
-Both remaining moves are named precisely in `next_at_bat`. Start the slow one FIRST.
+**What actually broke the streak, because it is repeatable and it is not "worked harder".**
+Sessions 4 and 5 both ran out of clock on a last, cheap, *confirming* step. Session 5 diagnosed
+that correctly and told session 6 to start the slow thing first. Session 6 did — and then went
+one step further: it noticed that its two candidate at-bats were **different kinds of work**. The
+flap card's move is *waiting on a 15-minute probe*; the borrow card's move is *editing a drill and
+a gate*. So it started the wait at minute 0 and spent the inning on the work, and when the probe
+overran at minute ~19 it **killed the probe** rather than let it eat the landing. **Sort your
+candidate at-bats by whether their move is WAITING or WORKING; background every wait; and never
+let a wait you started own your last fifteen minutes.**
 
 ## READ THIS FIRST — session 3 found the ruler had been DELETED
 `rail.py ruler show --project smDrainHandoff` reported **`moved` / "the handoff no longer
@@ -412,15 +416,142 @@ Banked: `2026-09-04-remote-probe-has-three-states-two` (global). Used:
 the exit code — is what made "rc=1 both runs" readable as evidence rather than noise) and
 `2026-08-16-stamp-charter-read-sh-immediately-before`.
 
+## Session 6 (2026-09-03, local-mbp2024-18253) — 1217721634749933, played and closed
+
+At-bat was NOT the one session 5 teed up first, and the reason is worth reading before you
+repeat the choice. Session 5's `next_at_bat` put the **flap card 1217341652482828** first and the
+**G-AL borrow card 1217721634749933** second. Session 6 started the flap probe as the literal
+first act of the inning (minute 0, background, exactly as instructed) and then played the SECOND
+at-bat while it ran — because the flap card's move is *waiting*, and the borrow card's move is
+*work*. That ordering is what produced a close instead of a third consecutive near-miss.
+
+### Closed, with a bb-close receipt: 1217721634749933
+*G-AL accepts a SIBLING's charter stamp and passes — should it fail closed?*
+
+The card offered three options and recommended **(b)**; CEO ruling **#130** had already moved the
+card into this lane, on the finding that its fix surface is `gate-selfcheck.sh` + `gate-charter-drill.sh`
+in darwin-mac-ops and not `~/Scripts` (the lesson `2026-09-04-ruling-130-...` carries the decisive
+mechanical fact: `~/Scripts/gate-selfcheck.sh` is a **symlink**, mode 120000, so a Scripts-side fix
+would be graded by a `complete` that structurally cannot see it). Option (b) is what was built.
+
+**The defect, restated the way the fix takes it.** G-AL looks for the session's charter stamp
+under every name the session answers to — the slug it opened with, the roster identity, the
+tier-stripped form, the case/hyphen-normalised form. Sessions 1-5 of *other* lanes added each of
+those in turn, each time because a real session missed its own stamp. Beneath all four sits a
+**blind scan of every warm (<12 h) ledger** that accepts a stamp for the same project from **any**
+of them — and it printed `ok`. On darwin, where Jason runs 2-3 sessions on one project at once,
+that borrow **always succeeds**, so G-AL could not fail anybody. The card's live proof, reproduced
+verbatim: `GATE_ROSTER_WHO=big-wealthTensor-999` — *a session id that does not exist* — passed by
+borrowing `wealthTensor-100.log`.
+
+**Why (b) and not (c) fail-closed, and why that is not timidity.** The borrow branch was added
+deliberately and its reason is intact: looking only under the roster identity once made G-AL
+**FAIL a session that HAD read its charter**. A confident accusation about a thing that did happen
+is worse than silence. So the branch stays and the *silence* goes: a borrow is now a **WARN naming
+the ledger it came from and the session it was credited to**, non-blocking, visible in the issue
+list. That is the card's own recommendation, and the drill now **asserts the non-blocking half by
+name** — so a future "let's tighten this up" that promotes it to `FAILS` trips a named control and
+has to argue with the card rather than quietly with the exit code.
+
+**Drill FIRST, in both directions, exactly as the card instructed.** The verdict is derived once in
+a named producer `gate_charter_stamp_line()`, and `gate-charter-drill.sh` **extracts it by name and
+executes the shipped text** (`awk '/^gate_charter_stamp_line\(\)/,/^}/'` + `eval`) — the file's own
+established idiom, and the reason it exists: a drill carrying its own copy of the rule goes on
+passing forever on the day the rule changes. Six controls, two of them the load-bearing negatives:
+
+- a borrow is a `WARN|`, not a silent ok — the card itself;
+- ...and NAMES the borrowed-from ledger (the pre-fix `ok` line already did; losing it in the
+  rewrite would have traded one defect for another);
+- ...and NAMES the session being graded, so the reader knows the finding is about them;
+- **NEGATIVE** — a borrow does **not** block. This is option (b) pinned against (c);
+- **NEGATIVE** — a session that found its OWN stamp stays **SILENT**. A producer that speaks on
+  every run warns on every gate, and a warning every session sees is a warning no session reads;
+  that would kill the exact signal this change exists to create;
+- **SOURCE-LEVEL** — the warm scan actually raises `_ch_borrowed=1`. The producer is only half the
+  fix: *a producer nobody ever calls with 1 can never fire, and it would pass all five behavioural
+  controls above it.* Same failure shape as `gate-probe-tristate-drill.sh` not being wired into a
+  gate — a drill that is not in a gate is a note, not a control.
+
+EVIDENCE, run, not asserted:
+
+    # RED-PROOF: the new controls against the PRE-EDIT gate (the .bak)
+    GATE_SELFCHECK=$PWD/gate-selfcheck.sh.bak-smDrainHandoff6-20260903 bash gate-charter-drill.sh
+    -> FAIL  gate-selfcheck.sh has no gate_charter_stamp_line producer
+       FAIL  the borrow verdict is never produced by the gate
+       === drill: FAIL — 2 of 36 controls did not hold ===
+
+    # ...and against the fix
+    GATE_SELFCHECK=$PWD/gate-selfcheck.sh bash gate-charter-drill.sh
+    -> ok  a borrowed stamp is a WARN, not a silent ok
+       ok  the borrowed-from ledger is named
+       ok  the session being graded is named
+       ok  a borrow stays non-blocking (option b, not c)
+       ok  an own stamp is still silent success
+       ok  the warm scan raises the borrow flag and is read
+       === drill: PASS — 40 controls, 18 of them negative (G-AL can still go red) ===
+
+    # LIVE, end-to-end, reproducing the card's own repro verbatim: a fixture project with ONE
+    # warm sibling ledger, graded as a session id that does not exist.
+    T=/tmp/gal-borrow6   # charters.tsv + crit.tsv + state/demoborrow-100.log carrying the stamp
+    PROJECT_CHARTERS=$T/charters.tsv CLAUDE_SESSION_STATE=$T/state \
+      GATE_ROSTER_WHO=big-demoborrow-999 bash gate-selfcheck.sh
+    -> === G-AL · the session knew what DONE looks like ===
+         WARN   charter stamp BORROWED from demoborrow-100.log -- not this session's own
+
+    (pre-fix, that same run printed `ok  charter read at the version in force (stamped in
+    demoborrow-100.log)` and filed nothing. The `.bak` half of this comparison was queued and
+    was still running at wrap -- the drill's red-proof above already covers that direction, so
+    it is confirmation, not evidence this close depends on. Fixture is left at /tmp/gal-borrow6
+    if the next inning wants it.)
+
+
+**FOUND IN PASSING, FIXED.** The drill's summary line hard-codes its own negative-control count
+("16 of them negative") — a number that no control checks and that therefore rots on every edit.
+Corrected to 18. Flagged rather than automated: making it self-counting is a real change to a
+drill's reporting and belongs on its own card, not smuggled into this one.
+
+Undo: `git revert` commit `57eabc3`, plus on-disk `.bak-smDrainHandoff6-20260903` for
+`gate-selfcheck.sh` and `gate-charter-drill.sh`. As in sessions 2-5 the `.bak`s are **not**
+committed (`.bak-*` is gitignored).
+
+### The flap card 1217341652482828 — what the probe got through, and the honest state
+Started at **minute 0** in the background per session 5's instruction. It got **2 of 5 runs done**
+and then run 3 **overran its ~182 s budget by more than 6x** without producing a line. At minute
+~19 session 6 **killed it** rather than let it eat the landing, which is the exact failure that
+took innings 3, 4 and 5. That is a deliberate trade and it is a finding in itself.
+
+What the two completed runs say — **they are byte-identical**, same rc, same issue set:
+
+    run 1   182s  rc=1 issues=[G-H#drill G-H#roster x2 G-H G-S G-W G-Z G-E G-U G-V G-T G-X G-Y
+                               G-AD G-AE G-AE#drill x2 G-AF G-AG G-AH G-AI G-AJ G-AK G-AD G-V
+                               G-X G-AL G-AL#board G-V#ship G-AO G-AL#board G-V G-X G-AD G-AK]
+    run 2   181s  (identical)
+
+So the flap has now **not reproduced in 15 attempts** across sessions 4-6. **It is still not
+closed, and session 6 declines to close it**, for the same reason session 5 declined: an absence
+of reproduction is not the same evidence as a named mechanism, and the mechanism the card names
+(the G-T#4x ssh probes) was proven by session 5 to be **WARN-only and structurally incapable of
+moving the exit code the card flapped on**. Session 5's proposed `--played` close rests on
+"mechanism fixed + not reproduced"; the half that is missing is *which* check actually moved, and
+the probe died before it could say. **See the next at-bat: it is now cheaper than it looks.**
+
+**A gotcha the next inning must not pay for twice:** `gate-flap-probe.sh` runs
+`~/Scripts/gate-selfcheck.sh`, i.e. **through the symlink into the `repo:` checkout — never your
+worktree**. So the probe measures the *pre-merge* gate, which is correct for a flap question and
+wrong for anything you are currently editing. Session 6 also deliberately **did not run a second
+gate concurrently** with the probe while it was alive, because a concurrent gate run mutates the
+estate the probe is measuring and would have contaminated the very evidence being collected.
+
 ## The shape of what is left (read this before picking)
-**Five of the thirteen remaining are still one sentence: the gate is right that something is
-wrong and wrong about whose it is.** 1218153310094177 (G-V + G-AE red over live sibling lanes'
-work), 1217721634749933 (G-AL accepts a SIBLING's charter stamp), 1217341652482828
-(gate-selfcheck FLAPS PASS/FAIL/PASS on identical clean state — read it as an attribution card,
-because a flap between two runs is usually a sibling moving underneath you). Sessions 1-3 closed
-four of this family. **Whoever picks one should read all three:** the fix surface is the
-same attribution machinery — the five rungs in the G-H#22 sweep, `attribute.py`, `red-owner.py`,
-the roster — and doing them one at a time is how you write the same helper four times.
+**Of the attribution family — "the gate is right that something is wrong and wrong about whose it
+is" — sessions 1-6 have now closed five.** Two remain: **1218153310094177** (G-V + G-AE red over
+live sibling lanes' work) and **1217341652482828** (gate-selfcheck FLAPS PASS/FAIL/PASS on
+identical clean state; read it as an attribution card, because a flap between two runs is usually
+a sibling moving underneath you). **1217721634749933** (G-AL accepts a sibling's charter stamp)
+was the third and closed in session 6. Whoever picks one of the remaining two should read session
+6's section first: the fix surface is the same attribution machinery — the five rungs in the
+G-H#22 sweep, `attribute.py`, `red-owner.py`, the roster, and now `gate_charter_stamp_line()` —
+and doing them one at a time is how you write the same helper five times.
 
 Three are about the handoff itself and are the reason this lane exists at all:
 1218152478656223 (anti-string-of-pearls has no teeth — a carried thread needs a one-line
@@ -440,9 +571,15 @@ under test.
   two of them (G-V, G-AD) name *this* worktree's files. If you are here anyway, look.
 
 ## Gotchas paid for in sessions 1-3
-- **`grep` needs `-a` on `gate-selfcheck.sh`.** The file is UTF-8 with 554-char lines and plain
-  `grep -n roster gate-selfcheck.sh` returns NOTHING, exit 1 — indistinguishable from "the code
-  isn't there". It cost session 1 a wrong conclusion before `file(1)` caught it.
+- **Use `command grep` on `gate-selfcheck.sh`, and the cause is NOT what sessions 1-5 thought.**
+  Plain `grep -n roster gate-selfcheck.sh` returns NOTHING, exit 1 — indistinguishable from "the
+  code isn't there", and it cost session 1 a wrong conclusion and session 6 a cycle. Session 1
+  blamed the file (UTF-8, 554-char lines) and prescribed `-a`. **Session 6 read the actual cause:
+  in a Claude Code session `grep` is a SHELL FUNCTION shimmed to ugrep** (`type grep` shows it:
+  `ARGV0=ugrep "$CLAUDE_CODE_EXECPATH" -G --ignore-files ...`). `command grep -n "G-AL"` found 7
+  lines where the shim found 0, same file, same directory, no `-a` anywhere. The shim is inherited
+  into `$( )` and heredocs too. **Any empty grep over a file you have just read is suspect —
+  re-run it as `command grep` before you believe it.** Banked: `2026-09-04-claude-code-session-darwin-shell-function`.
 - **The gate takes minutes to run.** A control that shells out to the whole gate is not a control
   you can iterate on; extract the predicate BY NAME and execute that instead. House precedent:
   `gate-skipped-drill.sh`, and every rung control in `gate-roster-drill.sh`.

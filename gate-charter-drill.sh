@@ -276,10 +276,77 @@ if [ -r "$GATE_SC" ]; then
   else
     printf '  FAIL  %-52s\n' "gate-selfcheck.sh has no gate_roster_line producer"; FAIL=$((FAIL+1))
   fi
+
+  # -- G-AL#borrow · a BORROWED charter stamp is visible in the issue list ----------------
+  # (smDrainHandoff-6, 2026-09-03 -- SM 1217721634749933, option (b))
+  # When a session has no stamp of its own, G-AL falls back to a blind scan of every WARM
+  # (<12h) session ledger and accepts a stamp for the same project from ANY of them. That
+  # branch is deliberate -- looking only under the roster identity once made G-AL FAIL a
+  # session that HAD read its charter, and a confident false accusation is worse than
+  # silence. But it printed `ok`, so on darwin, where Jason runs 2-3 sessions on one project
+  # at once, the borrow ALWAYS succeeds and G-AL could not fail anybody: verified live at
+  # wealthTensor-101, where GATE_ROSTER_WHO=big-wealthTensor-999 -- a session id that does
+  # not exist -- passed by borrowing wealthTensor-100.log.
+  #
+  # Option (b) of the card, and NOT option (c): the borrow becomes a WARN naming the ledger
+  # it came from. It stays non-blocking on purpose, because the reason (a) exists is intact.
+  # EXTRACTED BY NAME and executed, like every other producer control in this file.
+  _cs_src="$(awk '/^gate_charter_stamp_line\(\)/,/^}/' "$GATE_SC")"
+  if [ -n "$_cs_src" ]; then
+    eval "$_cs_src"
+    _cs_borrow="$(gate_charter_stamp_line 1 wealthTensor-100.log big-wealthTensor-999 wealthTensor)"
+    # POSITIVE: a borrow is a finding at all -- this is the whole card.
+    case "$_cs_borrow" in
+      WARN\|*) printf '  ok    %-52s\n' "a borrowed stamp is a WARN, not a silent ok"; PASS=$((PASS+1)) ;;
+      *) printf '  FAIL  %-52s\n' "a borrowed stamp still reads as this session's own"; FAIL=$((FAIL+1)) ;;
+    esac
+    # ...and it must NAME the ledger, because "somebody read it" is only actionable if the
+    # reader can see WHO. The pre-fix `ok` line already named it; losing that in the rewrite
+    # would trade one defect for another.
+    case "$_cs_borrow" in
+      *wealthTensor-100.log*) printf '  ok    %-52s\n' "the borrowed-from ledger is named"; PASS=$((PASS+1)) ;;
+      *) printf '  FAIL  %-52s\n' "the WARN does not say which ledger it borrowed"; FAIL=$((FAIL+1)) ;;
+    esac
+    # ...and the session being graded, so the reader knows the finding is about THEM.
+    case "$_cs_borrow" in
+      *big-wealthTensor-999*) printf '  ok    %-52s\n' "the session being graded is named"; PASS=$((PASS+1)) ;;
+      *) printf '  FAIL  %-52s\n' "the WARN does not say whose stamp is missing"; FAIL=$((FAIL+1)) ;;
+    esac
+    # NEGATIVE, and the load-bearing one: option (b) was chosen over (c). A borrow must not
+    # become a blocker -- a future "tighten it up" that promotes this to FAILS trips here,
+    # and has to argue with the card instead of with the exit code.
+    case "$_cs_borrow" in
+      FAIL\|*) printf '  FAIL  %-52s\n' "a borrow blocks the gate — that is option (c), not (b)"; FAIL=$((FAIL+1)) ;;
+      *) printf '  ok    %-52s\n' "a borrow stays non-blocking (option b, not c)"; PASS=$((PASS+1)) ;;
+    esac
+    # THE OTHER COLUMN: a session that found its OWN stamp -- under any of its names -- must
+    # stay SILENT. A producer that speaks on every run warns on every gate, and a warning
+    # every session sees is a warning no session reads; that would kill the signal this
+    # control exists to create.
+    if [ -z "$(gate_charter_stamp_line 0 wealthTensor-101.log wealthTensor-101 wealthTensor)" ]; then
+      printf '  ok    %-52s\n' "an own stamp is still silent success"; PASS=$((PASS+1))
+    else
+      printf '  FAIL  %-52s\n' "every session now gets a stamp finding — signal dead"; FAIL=$((FAIL+1))
+    fi
+    unset -f gate_charter_stamp_line
+  else
+    printf '  FAIL  %-52s\n' "gate-selfcheck.sh has no gate_charter_stamp_line producer"; FAIL=$((FAIL+1))
+  fi
+
+  # SOURCE-LEVEL, because the producer above is only half the fix: the warm scan has to
+  # actually RAISE the borrow flag, and the verdict has to be routed to WARNS. A producer
+  # nobody calls with 1 is a control that can never fire, and it would pass every behavioural
+  # test above. (Same failure shape as gate-probe-tristate-drill.sh not being wired into a
+  # gate: a drill that is not in a gate is a note, not a control.)
+  if grep -q '_ch_borrowed=1' "$GATE_SC" && grep -q 'gate_charter_stamp_line' "$GATE_SC"; then
+    printf '  ok    %-52s\n' "the warm scan raises the borrow flag and is read"; PASS=$((PASS+1))
+  else
+    printf '  FAIL  %-52s\n' "the borrow verdict is never produced by the gate"; FAIL=$((FAIL+1))
+  fi
 else
   printf '  WARN  %-52s\n' "gate-selfcheck.sh unreadable; N/A + roster controls skipped"
 fi
 
 if [ "$FAIL" -gt 0 ]; then bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="; exit 1; fi
-bold "=== drill: PASS — $PASS controls, 16 of them negative (G-AL can still go red) ==="
+bold "=== drill: PASS — $PASS controls, 18 of them negative (G-AL can still go red) ==="
 exit 0
