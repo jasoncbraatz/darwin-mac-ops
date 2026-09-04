@@ -5,7 +5,7 @@ gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
 gh_sha: "22dc24861a99c9ee2c47de346a0780e7a9a975c7"
 updated: "2026-09-04"
-definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
+definition_of_done: "Every one of the 2 cards in the frozen manifest lane-gate2.json is closed on the State Machine with a bb-close.py receipt, and `bash docs/verify-smDrainGate2.sh` exits 0."
 verify_cmd: "bash docs/verify-smDrainGate2.sh"
 lessons_consulted: ["2026-09-04-freezing-acceptance-command-freezing-acceptance-criteria", "2026-09-04-smdrainmail-4-rail-py-s-ruler", "2026-09-03-fraction-target-work-board-unreachable-only", "2026-09-04-rewriting-handoff-every-inning-can-silently"]
 live_theme: "session 0 — this skeleton was written by `rail.py handoff-init` and nobody has played an inning yet"
