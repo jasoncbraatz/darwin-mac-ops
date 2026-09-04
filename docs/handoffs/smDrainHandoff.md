@@ -3,8 +3,8 @@ project: smDrainHandoff
 session_n: 6
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "PENDING — set by the merge in §6"
-updated: "2026-09-03"
+gh_sha: "8f316c18dc7c6604afdcc47a8007f2c2f9b3d572"
+updated: "2026-09-04"
 definition_of_done: "Every card in state/smdrain/lane-handoff.json is closed on the State Machine with a bb-close receipt, i.e. verify-smdrain.sh handoff exits 0"
 verify_cmd: "bash ~/repos/claude-blackbook/scripts/verify-smdrain.sh handoff"
 lessons_consulted: ["2026-09-04-flap-detector-must-compare-issue-set", "2026-08-16-stamp-charter-read-sh-immediately-before"]
