@@ -1,6 +1,6 @@
 ---
 project: "smDrainGate4"
-session_n: 1
+session_n: 2
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
 gh_sha: "b6435763e9b05b0c8062a34355f7859c950243d2"
@@ -8,12 +8,12 @@ updated: "2026-09-05"
 definition_of_done: "Every one of the 3 card(s) in the frozen manifest lane-gate4.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh gate4` exits 0."
 verify_cmd: "bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh gate4"
 ruler_files: ["/Users/jasoncbraatz/repos/claude-blackbook/state/smdrain/lane-gate4.json", "/Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh", "/Users/jasoncbraatz/repos/claude-blackbook/scripts/smdrain-lane.py"]
-lessons_consulted: ["2026-09-03-g-ae-gate-selfcheck-sh-launchd", "2026-08-15-aggregate-suppression-count-cannot-reveal-rule", "2026-08-08-secret-sweep-whose-output-95-upstream", "2026-08-03-gate-g-letters-namespace-allocator-they"]
+lessons_consulted: ["2026-09-03-g-ae-gate-selfcheck-sh-launchd", "2026-08-15-aggregate-suppression-count-cannot-reveal-rule", "2026-08-08-secret-sweep-whose-output-95-upstream", "2026-08-03-gate-g-letters-namespace-allocator-they", "2026-09-05-gate-selfcheck-g-v-3-card"]
 lessons_banked: ["2026-09-05-python-selftest-offline-test-fake-network"]
-live_theme: "session 1: 2/3 closed. G-AE (third launchd allowlist category) and G-AK (tenancy-scan.py cheap-kill) both closed with receipts. G-V#3 part (b) shipped (bb-close.py doc-reconcile) but NOT closed \u2014 part (a) is still open. A selftest-side-effect incident happened and was fully resolved mid-session; see below."
-phase: "2/3 closed. RULER RED (1 card open: G-V#3, part a not started)."
-gate_passed: false
-next_at_bat: "Card 1218196762459024 (G-V#3), part (a) only \u2014 part (b) is DONE (darwin-scripts commit 2e17bcf, pushed). Scope gate-selfcheck.sh's G-V#3 check (~line 1341-ish, search 'G-V#3' or the card-lint ratchet section) to docs the WRAPPING SESSION touched/authored \u2014 the session ledger (roster / whoami / claim history) knows which docs a session touched this run \u2014 and leave estate-wide handoff staleness to the daily card-lint launchd job instead of failing a live drain session for docs it never opened. Selftest it (gate-cannot-verify-drill.sh or a dedicated G-V#3 drill, whichever the existing test harness uses). When both (a) and (b) are done and selftested, bb-close.py --gid 1218196762459024 citing both commits, then re-run verify_cmd \u2014 should go 3/3 GREEN, then \u00a76 + `rail.py complete`."
+live_theme: "session 2: 3/3 closed, RULER GREEN. Card 1218196762459024 (G-V#3) part (a) shipped (darwin-scripts 1a8004d: card-lint.py --session-only) and closed, citing part (b) (2e17bcf, already shipped s1). verify-smdrain.sh gate4 exits 0. Lane is DONE."
+phase: "3/3 closed. RULER GREEN."
+gate_passed: true
+next_at_bat: "NONE \u2014 this lane's DoD is met (verify_cmd exits 0, 3/3 cards closed with bb-close.py receipts). \u00a76 (commit/stamp/merge/push) then `rail.py complete --project smDrainGate4 --fence 2`. If a future session is reading this because the project was reopened, the remaining loose thread is NOT part of this lane's DoD but is worth a card: gate-selfcheck.sh does not actually invoke card-lint.py anywhere (verified empty grep for 'lint' in the whole file) \u2014 'gate-selfcheck G-V#3' has only ever been doctrine (HANDOFF-GATE.md) plus drain-session narration, never wired code. card-lint.py --session-only (this session) is the mechanism the doctrine calls for; nobody has wired an actual G-V#3 STEP into gate-selfcheck.sh, and no daily estate-wide card-lint launchd job exists either. Both are real gaps but neither was this lane's card \u2014 filing them was deliberately left to whoever owns gate-selfcheck.sh/launchd next, not invented here to stay inside this session's declared scope."
 blockers: []
 drift_flags: ["INCIDENT (resolved same-inning, 2026-09-05): while implementing ruling #181 part (b) in darwin-scripts/bb-close.py, the FIRST `--selftest` run used the pre-existing fake-transport test's fixture gid \"42\" against the REAL filesystem (find_citing_docs had no sandbox yet) and appended a reconcile line to ~150 real handoff docs across nine repos (braatzio-plan, ceo-desk, ceo-desk-lane-a, claude-blackbook, darwin-scripts, flowers, paints-and-sticks-web, voice-box, wealth-tensor), committing it in most of them. Caught within the same inning (the background task's live output named the files as it wrote them), stopped, and fully reverted: `git revert` in every affected repo (all bad commits were at each repo's HEAD tip, so revert applied cleanly without touching unrelated dirty files in shared/live repos), a python script stripping the trailing block from ~90 non-git ~/Desktop/downloads/HANDOFF-*.md files, and a direct `git checkout --` for 3 repos (darwin-mac-ops, n8n-stack, braatz-mail-server) where the commit itself had failed on a case/symlink path bug and left the write merely dirty. Verified estate-wide clean afterward (`grep -rl 'cites 42' ~/Desktop/downloads ~/code ~/repos ~/Scripts` \u2014 zero hits) and confirmed the only remaining dirty files anywhere were pre-existing, unrelated work by other live sessions (left untouched). Fixed at the root with three independent guards (MIN_GID_LEN_FOR_DOC_SCAN=8, a full-function selftest sandbox, lazy env reads instead of frozen import-time globals) \u2014 see darwin-scripts commit 2e17bcf for the full account and the lesson banked above. If you are a future session and see a git-revert-heavy history in one of those nine repos around 2026-09-05T17:54Z-18:03Z local, THIS is why \u2014 it is not damage needing further cleanup, it already IS the cleanup."]
 parking_lot: []
@@ -59,7 +59,7 @@ It is a head start, not an order: if the card or the repo disagree with the brie
 |---|---|---|---|
 | ~~`1218198174895655`~~ CLOSED s1 (f2a77a3) | NEXT | [process] gate-selfcheck G-AE: third launchd allowlist category for deliberately-ephemeral | gate-selfcheck.sh G-AE launchd allowlist has two categories; travel-mode-rearm needs a third: 'deliberately ephemeral, no persistent form'. FIRST measure the fail direction: run gate-selfcheck G-AE against the live launchd list and record whether it false-positives (flags a legit ephemeral agent) or false-negatives (accepts a job that should persist). Then add the category with a RETIRE-WHEN clause, and a drill case. ALSO: two plists shipped today have NO repo copy in darwin-mac-ops — com.braatz.fuel-probe (pitching-machine/launchagents/, installed 17:20Z) and com.braatz.dated-gates (ceo-desk, 09-05) — check G-AE reads a repo copy from those repos; if it only knows darwin-mac-ops, that is the false-positive to fix. Q1 done? NO. Who: this lane. Repo: ~/code/darwin-mac-ops (gate-selfcheck.sh is symlinked from ~/Scripts; COMMIT in darwin-mac-ops). |
 | ~~`1218218730885002`~~ CLOSED s1 (0edb2d0, cheap kill — already fixed before lane opened) | NEXT | [process] gate-secret-sweep.allow: the tenancy-scan.py suppression matches nothing (G-AK s | gate-secret-sweep.allow: the entry for braatzio-plan/v3/tools/tenancy-scan.py suppresses NOTHING in today's sweep (G-AK census). Measure: run the sweep's per-rule replay (G-E, lesson 2026-08-15) to see which literals in tenancy-scan.py match now; either re-point the entry at the current literals or retire it if nothing matches; add a RETIRE-WHEN:/REVIEWED: clause. The allow file exists in TWO places (~/code/darwin-mac-ops/ and its deployed copy) — fix the repo copy, confirm the deployed one follows. braatzio-plan is claimed by a live sibling (parity-34): READ it, do not edit it. Q1 done? NO. Who: this lane. |
-| `1218196762459024` — **part (b) DONE (darwin-scripts 2e17bcf), part (a) NOT STARTED** | NEXT | [process] card-lint ratchet (G-V#3) is unwinnable during a live State-Machine drain — it m | RULED #181: a+b, b FIRST. (b) bb-close.py already reconciles citing CARDS; extend the same breath to citing HANDOFF DOCS: grep the closed gid across ~/Desktop/downloads/HANDOFF-*.md and every repo's docs/handoffs/*.md, append ONE dated reconcile line, pathspec-commit it (bb-close.py lives in ~/Scripts — claim that repo on the roster before editing; say so in the message). (a) then scope gate-selfcheck G-V#3 to docs the wrapping session touched/authored (the session ledger knows) and leave estate-wide staleness to the daily card-lint launchd job. Selftest both. Q1 done? NO. Who: this lane (dmo + a Scripts commit). |
+| ~~`1218196762459024`~~ CLOSED s2 (darwin-scripts 1a8004d, part a; part b was 2e17bcf) | NEXT | [process] card-lint ratchet (G-V#3) is unwinnable during a live State-Machine drain — it m | RULED #181: a+b, b FIRST. (b) bb-close.py already reconciles citing CARDS; extend the same breath to citing HANDOFF DOCS: grep the closed gid across ~/Desktop/downloads/HANDOFF-*.md and every repo's docs/handoffs/*.md, append ONE dated reconcile line, pathspec-commit it (bb-close.py lives in ~/Scripts — claim that repo on the roster before editing; say so in the message). (a) then scope gate-selfcheck G-V#3 to docs the wrapping session touched/authored (the session ledger knows) and leave estate-wide staleness to the daily card-lint launchd job. Selftest both. Q1 done? YES (s2). Who: this lane (dmo + a Scripts commit). |
 
 ## How to close one
 
@@ -116,5 +116,38 @@ It is a head start, not an order: if the card or the repo disagree with the brie
 - **Is the phase done? NO.** 2/3 closed, RULER RED. One card remains open (part a). Do not run
   `rail.py complete` until `verify_cmd` exits 0.
 
+## Session 2 (2026-09-05) — G-V#3 part (a) shipped and closed — 3/3 closed, RULER GREEN
+
+- **Found first: gate-selfcheck.sh does not invoke card-lint.py anywhere.** `grep -ic "lint"
+  gate-selfcheck.sh` is empty across the whole 2948-line file. "gate-selfcheck G-V#3" turns out
+  to be doctrine (`HANDOFF-GATE.md`'s G-V table row) plus drain-session narration (a `gate-opus-*`
+  log with a hand-typed `=== G-V#3 · ... ===` banner), not a wired check anywhere on disk. The
+  prior session's `next_at_bat` line ("~line 1341-ish") was reading that doctrine as if it were
+  code; corrected here so the NEXT reader doesn't repeat the search.
+- **Part (a) shipped** (darwin-scripts 1a8004d, `~/Scripts` claimed on the roster first, pushed):
+  `card-lint.py` gets `session_scope(who)` — reads the roster ledger `roster who` reads (a
+  `join` session row, falling back to the earliest CLAIM row for a rail-lane worker that never
+  calls `join`) — and a `--session-only` flag that narrows `collect_docs()`'s corpus to docs
+  under a repo `who` currently claims, modified at/after that session started. Fails CANNOT
+  VERIFY (exit 2) rather than narrowing to nothing if the roster can't answer who/when; always
+  prints the scope and the drop count (never a silent narrowing, same discipline as `--docs-only`
+  and the succession/retire logic already in this file). Verified against the REAL roster db,
+  not just fixtures: `local-mbp2024-55818-b` (this lane, a claim-only worker) correctly scoped to
+  its `~/Scripts` claim and reported dropping the other ~159 docs; an unknown `--who` correctly
+  hit CANNOT VERIFY. 2 new self-test cases (N-SESSION, P-SESSION) added; all 14 self-test cases
+  and all 9 `--mutation-check` switches pass.
+- **Card 1218196762459024 closed** (`bb-close.py`, citing both commits — 2e17bcf for part (b),
+  1a8004d for part (a)). One doc-reconcile write needed a manual commit: `bb-close.py`'s
+  doc-reconcile tried to commit `docs/handoffs/smDrainGate4.md` from a lowercase `~/code/...`
+  path while the actual repo sits at `~/Code/...` (case mismatch on a case-insensitive
+  filesystem — the same class of bug the session-1 INCIDENT's case/symlink guard already names).
+  `bb-close.py` printed the WARN and left the write in place rather than silently dropping it;
+  committed by hand as part of this session's own §6 commit. Worth a card if it recurs, not
+  fixed here (single occurrence, not this lane's declared scope).
+- **`verify-smdrain.sh gate4` now exits 0** — `LANE gate4 (darwin-mac-ops) — 3/3 done (3 closed,
+  0 handed)` / `RULER GREEN`.
+- **Is the phase done? YES.** 3/3 closed, RULER GREEN, DoD met. `rail.py complete` follows §6
+  in this same session.
+
 ## Definition of done
-Every one of the 3 card(s) in the frozen manifest lane-gate4.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh gate4` exits 0.
+Every one of the 3 card(s) in the frozen manifest lane-gate4.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh gate4` exits 0. **Met as of session 2 (2026-09-05).**
