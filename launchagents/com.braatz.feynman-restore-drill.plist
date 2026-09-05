@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<!-- PATH INCLUDES /sbin ON PURPOSE. launchd gives an agent a minimal PATH, and the
+     restore drill shells out to `mount` to check voyager. Without /sbin it reported
+     "voyager NOT mounted" forever -- a monthly false alarm about the one control whose
+     whole job is to be believed. Found 2026-09-05 by kickstarting the agent instead of
+     assuming it would work. Copying this plist? Keep the /sbin. -->
+<key>Label</key><string>com.braatz.feynman-restore-drill</string>
+<key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>/Users/jasoncbraatz/Scripts/feynman-restore-drill-monthly.py</string></array>
+<key>StartCalendarInterval</key><dict><key>Day</key><integer>1</integer><key>Hour</key><integer>10</integer><key>Minute</key><integer>31</integer></dict>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+<key>StandardOutPath</key><string>/Users/jasoncbraatz/.local/state/feynman-restore-drill/drill.log</string>
+<key>StandardErrorPath</key><string>/Users/jasoncbraatz/.local/state/feynman-restore-drill/drill.err</string>
+</dict></plist>
