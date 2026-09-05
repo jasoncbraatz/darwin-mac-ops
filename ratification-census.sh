@@ -218,6 +218,10 @@ if not labels:
 else:
     for path, name in ((FOREIGN, "launchd-foreign"), (DIVERGE, "launchd-divergence"), (EPHEMERAL, "launchd-ephemeral")):
         ents = entries_of(path)
+        if ents is None and name == "launchd-ephemeral":
+            # OPTIONAL by nature: no ephemeral list means "no deliberately transient jobs today",
+            # which is the ordinary estate (and every drill fixture). Missing != cannot-check here.
+            print("    %s (absent — no ephemeral jobs declared)" % rel(path)); continue
         if ents is None:
             cannot("%s is missing — launchd-census would treat every third-party job as ours, "
                    "which is a different verdict, not a quiet one" % rel(path)); continue
