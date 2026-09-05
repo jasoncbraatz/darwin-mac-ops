@@ -162,6 +162,14 @@ ge_pan_brand() {
 # chunk is re-tried word by word rather than dropped.
 ge_pan_token() {
   local line="$1" chunk d n w
+  # DECIMAL FRACTIONS ARE NOT CARDS (parity-33, 2026-09-05). A float such as
+  # 1.5577777773141861 (a telemetry ratio in auto-bridge's ledger-dump.sql) tokenizes
+  # on the '.' into a 16-digit chunk that is Luhn-valid one time in ten and carries a
+  # real IIN one time in three -- the hook blocked a ruling bank on seven of them.
+  # Rule: a number whose INTEGER part is at most 12 digits and which carries a
+  # fractional part is a decimal, never a PAN; blank it before tokenizing. A run of
+  # 13+ digits before the '.' is left alone (a PAN glued to '.2026' is still caught).
+  line="$(printf '%s' "$line" | sed -E 's/(^|[^0-9])[0-9]{1,12}\.[0-9]+/\1 /g')"
   while IFS= read -r chunk || [ -n "$chunk" ]; do
     [ -z "$chunk" ] && continue
     d="${chunk//[^0-9]/}"; n=${#d}

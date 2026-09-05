@@ -262,11 +262,11 @@ printf 'card=%s' "$V16" > "$r/eol.txt"; git -C "$r" add eol.txt
 # 21 — SEPARATED forms are caught. Humans write cards with spaces and dashes; a
 # detector that only sees the unbroken form misses the way the number is actually typed.
 r="$(newrepo pansep)"; install_into "$r"
-printf 'on file: 4242 4242 4242 4242 (exp 12/28)\n' > "$r/notes.md"; git -C "$r" add notes.md
+printf 'on file: 4242 4242 4242 ''4242 (exp 12/28)\n' > "$r/notes.md"; git -C "$r" add notes.md
 [ "$(commit_rc "$r" pansep)" -ne 0 ] && ok "#21 a space-separated PAN is BLOCKED" \
                                      || bad "#21 a space-separated PAN slipped through"
 r="$(newrepo pandash)"; install_into "$r"
-printf 'card 4242-4242-4242-4242\n' > "$r/notes.md"; git -C "$r" add notes.md
+printf 'card 4242-4242-4242-''4242\n' > "$r/notes.md"; git -C "$r" add notes.md
 [ "$(commit_rc "$r" pandash)" -ne 0 ] && ok "#21b a dash-separated PAN is BLOCKED" \
                                       || bad "#21b a dash-separated PAN slipped through"
 
@@ -310,6 +310,20 @@ GE_ALLOW="$SCRATCH/panallow.allow" git -C "$r" commit -q -m panallow >"$SCRATCH/
 chk 0 "$rc" "#26 an allowlisted PAN path commits"
 grep -q "suppressed by" "$SCRATCH/o26" && ok "#26b the PAN suppression is reported, never silent" \
                                        || bad "#26b the PAN suppression was SILENT"
+
+# 27 — a DECIMAL FRACTION is NOT a card (parity-33, 2026-09-05). 1.5577777773141861 is
+# a telemetry ratio; tokenized on the '.' it is a Luhn-valid Mastercard-prefixed run.
+# The hook blocked auto-bridge's ledger bank on seven floats. Positive control 27b:
+# a real PAN glued to a fractional tail is still caught (13+ integer digits are never
+# treated as a decimal).
+r="$(newrepo panfloat)"; install_into "$r"
+printf 'INSERT INTO t VALUES(1.3333333333333333,1.5577777773141861,0.4714534999999995);\n' > "$r/f.sql"
+git -C "$r" add f.sql
+chk 0 "$(commit_rc "$r" panfloat)" "#27 a decimal fraction with a Luhn-valid mantissa commits freely (not a card)"
+r="$(newrepo panfloat2)"; install_into "$r"
+printf 'card %s.2026\n' "$V16" > "$r/g.txt"; git -C "$r" add g.txt
+[ "$(commit_rc "$r" panfloat2)" -ne 0 ] && ok "#27b a PAN glued to a fractional tail is still BLOCKED" \
+                                        || bad "#27b a PAN followed by .digits slipped through"
 
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
