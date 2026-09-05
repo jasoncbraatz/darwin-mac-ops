@@ -2423,12 +2423,25 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       _aa_board="$(dirname "$_ch_crit")/CHECKLIST-${_ch_row}.md"
       [ -f "$_aa_board" ] || _aa_board="$(dirname "$_ch_crit")/CHECKLIST.md"
       if [ -x "$_aa" ] && [ -f "$_aa_board" ]; then
-        _aa_out="$(/usr/bin/python3 "$_aa" "$_ch_row" --gate --board-from "$_aa_board" 2>&1)"; _aa_rc=$?
+        # ...and the WARN has a CLOCK on it (SM 1218110267393649, force-function hook 3 of 3).
+        # A warning that never hardens is a warning nobody acts on: luxuryDesk ran seventeen
+        # sessions and braatzLedgerParity a whole day with no abridge row, every one of them
+        # reading this same amber line and deciding it could wait. --blocker-at 2 (the default)
+        # returns rc 3 once a SECOND session has stamped the charter with still no ledger row
+        # or no initial estimate. Session one is a project being born and must never block;
+        # session two is a project that has been worked on without ever being measured, and the
+        # estimate corpus cannot recover that after the fact. UNCHARTERED, DONE-BUT-OPEN and
+        # CANNOT VERIFY still WARN -- only the missing-receipt family escalates.
+        # Set AUDIT_BLOCKER_AT=0 to stand it down; that is a ruling, so say it out loud.
+        _aa_out="$(AUDIT_BLOCKER_AT="${AUDIT_BLOCKER_AT:-2}" /usr/bin/python3 "$_aa" "$_ch_row" --gate --board-from "$_aa_board" 2>&1)"; _aa_rc=$?
         case "$_aa_rc" in
           0) : ;;
           1) bold "=== G-AL#done · the charter's paperwork has a finding ==="
              printf '  WARN   %s\n' "$_aa_out"
              WARNS+=("$_aa_out  (architect-audit ${_ch_row} for the table; the architect bat is the remedy checklist)") ;;
+          3) bold "=== G-AL#done · a project that has been WORKED ON but never MEASURED ==="
+             printf '  FAIL   %s\n' "$_aa_out"
+             FAILS+=("$_aa_out  (a project cannot EXIST without its ledger row: this is session n>=${AUDIT_BLOCKER_AT:-2} with no abridge receipt. Remedy is the project-init in the line above, or AUDIT_BLOCKER_AT=0 with a reason you are willing to write down.)") ;;
           *) WARNS+=("G-AL#done CANNOT VERIFY: architect-audit exited $_aa_rc -- $_aa_out") ;;
         esac
       elif [ ! -x "$_aa" ]; then
