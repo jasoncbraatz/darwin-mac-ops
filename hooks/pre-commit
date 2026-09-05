@@ -229,7 +229,13 @@ estate_verify_all_advisory() {
   # --budget, not `timeout <n> verify-all`: an outside kill exits non-zero and reads exactly
   # like a regression, so the hook would cry wolf on every slow box. --budget stops the sweep,
   # reports the remainder as SKIP, and reserves exit 1 for an actual RED.
-  if ! VERIFY_ALL_TIMEOUT_SEC="${VERIFY_ALL_TIMEOUT_SEC:-30}" \
+  # gitEnv-20260905 (smDrainDesk-03): git exports GIT_INDEX_FILE/GIT_DIR/GIT_PREFIX to hooks. A replayed
+  # ruler that runs git in a SCRATCH repo (rail.py --selftest: `git -C <tmp> add f.txt`, line ~8371)
+  # inherits them and writes f.txt into THE COMMIT'S OWN TEMP INDEX -> "invalid object ... for 'f.txt'
+  # / Error building trees" on every pathspec commit in pitching-machine (measured twice, 2026-09-05).
+  # Sanitize the env for the replay; the hook itself keeps its own copies above.
+  if ! env -u GIT_INDEX_FILE -u GIT_DIR -u GIT_WORK_TREE -u GIT_PREFIX \
+       VERIFY_ALL_TIMEOUT_SEC="${VERIFY_ALL_TIMEOUT_SEC:-30}" \
        "$HOME/Scripts/verify-all.sh" --quiet \
        --budget "${ESTATE_VERIFY_ALL_BUDGET_SEC:-120}" >&2 2>&1; then
     printf 'estate pre-commit: ^ a DONE project regressed -- its frozen ruler passed at close\n' >&2
