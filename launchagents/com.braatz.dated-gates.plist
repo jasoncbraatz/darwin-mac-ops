@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.dated-gates — the calendar half of the State Machine, mechanical.
+  Daily 09:30 local: ~/repos/ceo-desk/dated-gates.py run — fires date-gated cards (close-mode runs the
+  gate script and bb-closes with the receipt; nudge-mode posts the at-bat on the card once).
+  Born fable-smDrainDesk-03, 2026-09-05: seven of 81 frozen cards were "come back on date X".
+  Repo-backed here per the S38 launchd-census rule. Heartbeat: ~/.local/state/dated-gates/heartbeat
+  (register in ~/Scripts/darwin-heartbeats.py — teed to smDrainScripts3's wrap, darwin-scripts was claimed).
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.braatz.dated-gates</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/jasoncbraatz/repos/ceo-desk/dated-gates.py</string>
+    <string>run</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/dated-gates.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/jasoncbraatz/Library/Logs/dated-gates.err</string>
+</dict>
+</plist>
