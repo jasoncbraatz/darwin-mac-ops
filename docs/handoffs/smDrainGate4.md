@@ -3,7 +3,7 @@ project: "smDrainGate4"
 session_n: 2
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "b6435763e9b05b0c8062a34355f7859c950243d2"
+gh_sha: "ef128f926fe64fea5fcfe3eafa7a79db9d505fe2"
 updated: "2026-09-05"
 definition_of_done: "Every one of the 3 card(s) in the frozen manifest lane-gate4.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh gate4` exits 0."
 verify_cmd: "bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh gate4"
