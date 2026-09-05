@@ -42,8 +42,10 @@ printf 'com.braatz.known\ncom.newnamespace.surprise\ncom.apple.something\napplic
 printf 'com.adobe.*   # vendor\n' > "$WORK/foreign"
 : > "$WORK/diverge"
 
+: > "$WORK/ephemeral"
 run() { LC_AGENTS="$WORK/agents" LC_SEARCH_ROOTS="$WORK/vault $WORK/cache" \
         LC_FOREIGN_LIST="$WORK/foreign" LC_DIVERGE_LIST="$WORK/diverge" \
+        LC_EPHEMERAL_LIST="$WORK/ephemeral" \
         LC_LOADED_FIXTURE="$WORK/loaded" LC_QUIET=1 bash "$CENSUS" 2>&1; }
 
 echo "=== launchd-census-drill ==="
@@ -113,7 +115,35 @@ out="$(LC_AGENTS="$WORK/agents" LC_SEARCH_ROOTS="$WORK/vault" \
        LC_LOADED_FIXTURE="$WORK/loaded" LC_QUIET=1 bash "$CENSUS" 2>&1)"; rc=$?
 ck "missing foreign allowlist fails CLOSED (more estate, not less)" 1 "$rc"
 
-printf '\nlaunchd-census-drill: %d passed, %d failed (%d checks, 4 of them negative controls)\n' \
+# 9. EPHEMERAL POSITIVE CONTROL (smDrainGate4, 2026-09-05; SM 1218198174895655). A job that is
+#    ours, loaded, and has NO vault copy at all -- the com.braatz.travel-mode-rearm shape, replanted
+#    with a runtime `until_dt` every time so no fixed body is ever committed. Before this category
+#    existed, this was counted UNBACKED and failed the gate: the false positive the card measured.
+# com.braatz.known's vault copy was deliberately diverged in check 4 and its ratification was
+# cleared again in check 5 -- drop it from the loaded set here so it cannot smuggle a rc=3 into
+# what is meant to be a pure test of the ephemeral path.
+printf 'com.newnamespace.surprise\ncom.apple.something\napplication.com.foo.Bar\ncom.adobe.vendor\ncom.braatz.travel-mode-rearm\n' > "$WORK/loaded"
+plist "$WORK/agents/com.braatz.travel-mode-rearm.plist" com.braatz.travel-mode-rearm /bin/true
+printf 'com.braatz.travel-mode-rearm   # drill fixture: no fixed body, see launchd-ephemeral-allowlist.txt\n' > "$WORK/ephemeral"
+out="$(run)"; rc=$?
+ck "ephemeral-listed job with no vault copy is NOT unbacked" 0 "$rc"
+# Run once more WITHOUT -quiet (matches ok(div)'s own convention) to prove it is NAMED, not
+# silently absorbed -- same shape as D1's "the unknown job is NAMED" positive control.
+out_loud="$(LC_AGENTS="$WORK/agents" LC_SEARCH_ROOTS="$WORK/vault $WORK/cache" \
+       LC_FOREIGN_LIST="$WORK/foreign" LC_DIVERGE_LIST="$WORK/diverge" \
+       LC_EPHEMERAL_LIST="$WORK/ephemeral" LC_LOADED_FIXTURE="$WORK/loaded" bash "$CENSUS" 2>&1)"
+case "$out_loud" in *"ok(ephem)"*) pass=$((pass+1)); echo "  ok    ephemeral job is NAMED ok(ephem) in the output, not silently dropped";;
+  *) fail=$((fail+1)); echo "  FAIL  ephemeral job did not print an ok(ephem) line";; esac
+
+# 10. EPHEMERAL NEGATIVE CONTROL. Same shape, no allowlist entry -- must still be UNBACKED (1).
+#     Proves check 9 passed because of the allowlist, not because an unbacked job is now free.
+: > "$WORK/ephemeral"
+out="$(run)"; rc=$?
+ck "same job, NOT ephemeral-listed, is unbacked as before" 1 "$rc"
+printf 'com.braatz.known\ncom.newnamespace.surprise\ncom.apple.something\napplication.com.foo.Bar\ncom.adobe.vendor\n' > "$WORK/loaded"
+rm -f "$WORK/agents/com.braatz.travel-mode-rearm.plist"
+
+printf '\nlaunchd-census-drill: %d passed, %d failed (%d checks, 5 of them negative controls)\n' \
   "$pass" "$fail" "$((pass+fail))"
 [ "$fail" -eq 0 ] || exit 1
 echo "PASS"

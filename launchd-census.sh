@@ -56,10 +56,15 @@ set -uo pipefail
 
 AGENTS="${LC_AGENTS:-$HOME/Library/LaunchAgents}"
 SEARCH_ROOTS="${LC_SEARCH_ROOTS:-$HOME/code/darwin-mac-ops $HOME/repos $HOME/Scripts $HOME/Desktop/downloads}"
-# Two allowlists, each carrying a REASON per line, same shape as bb-writers-allowlist.json.
+# Three allowlists, each carrying a REASON per line, same shape as bb-writers-allowlist.json.
 # Overridable so the drill can point them at fixtures.
 FOREIGN_LIST="${LC_FOREIGN_LIST:-$HOME/code/darwin-mac-ops/launchd-foreign-allowlist.txt}"
 DIVERGE_LIST="${LC_DIVERGE_LIST:-$HOME/code/darwin-mac-ops/launchd-divergence-allowlist.txt}"
+# EPHEMERAL: ours, deliberately transient, no fixed plist body to commit (smDrainGate4, 2026-09-05;
+# SM 1218198174895655) — e.g. com.braatz.travel-mode-rearm, replanted with a runtime `until_dt`
+# every time. A match here is reported and counted BACKED, never unbacked; the bar for an entry is
+# in the file's own header.
+EPHEMERAL_LIST="${LC_EPHEMERAL_LIST:-$HOME/code/darwin-mac-ops/launchd-ephemeral-allowlist.txt}"
 QUIET="${LC_QUIET:-}"
 # The drill feeds a canned `launchctl list` so the classifier can be exercised without
 # installing real jobs on Jason's Mac.
@@ -80,6 +85,7 @@ read_globs() {  # $1=file
 }
 FOREIGN_GLOBS="$(read_globs "$FOREIGN_LIST")"
 DIVERGE_GLOBS="$(read_globs "$DIVERGE_LIST")"
+EPHEMERAL_GLOBS="$(read_globs "$EPHEMERAL_LIST")"
 
 matches_any() {  # $1=label, $2=newline-separated globs
   local label="$1" globs="$2" g
@@ -131,7 +137,7 @@ if [ "$n_estate" -eq 0 ]; then
   exit 2
 fi
 
-backed=0; unbacked=0; missing=0; diverged=0; ratified=0
+backed=0; unbacked=0; missing=0; diverged=0; ratified=0; ephemeral=0
 UNBACKED_LIST=""; DIVERGED_LIST=""
 
 # ── PLIST INDEX · walk the roots ONCE (acmeLedger-24, 2026-08-15) ───────────────────────
@@ -178,6 +184,15 @@ while IFS= read -r label; do
   done <<< "$(awk -F/ -v want="$label.plist" '$NF == want' "$PLIST_INDEX")"
 
   if [ -z "$hits" ]; then
+    # EPHEMERAL escape hatch: ours, deliberately transient, no fixed body to commit — checked
+    # HERE (before counting it unbacked) rather than by suppressing the finding after the fact,
+    # so a job that stops matching the glob falls straight back into the ordinary unbacked path.
+    if matches_any "$label" "$EPHEMERAL_GLOBS"; then
+      ephemeral=$((ephemeral+1)); backed=$((backed+1))
+      [ -z "$QUIET" ] && printf '  ok(ephem) %-46s -> no vault copy; ratified ephemeral in %s\n' \
+        "$label" "$(basename "$EPHEMERAL_LIST")"
+      continue
+    fi
     unbacked=$((unbacked+1)); UNBACKED_LIST="$UNBACKED_LIST
   $label  (plist exists, but only on this Mac)"
     continue
@@ -210,8 +225,8 @@ while IFS= read -r label; do
 $(diff -u "$primary" "$src" 2>/dev/null | sed -n '3,40p' | sed 's/^/      /')"
 done <<< "$ESTATE"
 
-printf '\nlaunchd-census: %d repo-backed (%d ratified-divergent), %d unbacked, %d loaded-but-missing, %d DIVERGED — %d estate job(s) of %d loaded (apple=%d gui=%d foreign=%d)\n' \
-  "$backed" "$ratified" "$unbacked" "$missing" "$diverged" "$n_estate" "$n_all" "$n_apple" "$n_gui" "$n_foreign"
+printf '\nlaunchd-census: %d repo-backed (%d ratified-divergent, %d ratified-ephemeral), %d unbacked, %d loaded-but-missing, %d DIVERGED — %d estate job(s) of %d loaded (apple=%d gui=%d foreign=%d)\n' \
+  "$backed" "$ratified" "$ephemeral" "$unbacked" "$missing" "$diverged" "$n_estate" "$n_all" "$n_apple" "$n_gui" "$n_foreign"
 
 if [ "$unbacked" -gt 0 ] || [ "$missing" -gt 0 ]; then
   printf 'UNBACKED — these schedules exist nowhere but darwin:%s\n' "$UNBACKED_LIST"

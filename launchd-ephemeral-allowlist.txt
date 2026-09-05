@@ -1,0 +1,40 @@
+# launchd-ephemeral-allowlist.txt — jobs that are OURS, deliberately transient, and have NO
+# persistent plist to commit because their whole point is to not exist most days.
+#
+# Read by launchd-census.sh. One shell glob per line; the text after # is the REASON and is
+# required by convention, not by the parser. Same shape as launchd-foreign-allowlist.txt and
+# launchd-divergence-allowlist.txt (bb-writers-allowlist.json's shape again).
+#
+# WHY A THIRD CATEGORY (smDrainGate4, 2026-09-05; SM 1218198174895655). The census had exactly
+# two escape hatches before this file: FOREIGN (not ours at all — vendor-installed) and DIVERGENCE
+# (ours, persistent, vault copy deliberately differs from the live one). Neither shape fits a job
+# that is ours, loaded only for the duration of one condition, and re-plants itself with a runtime
+# parameter baked into the plist body every time — com.braatz.travel-mode-rearm is planted by
+# strike-zone/tools/travel-mode/travel-mode.py's plant_rearm() with `until_dt` written straight
+# into the StartCalendarInterval, and removed by clear_rearm() when travel mode ends. There is no
+# fixed body to commit: committing today's plist would commit today's departure date. Before this
+# file, a census run WHILE travel mode is armed would count it "unbacked" and FAIL G-AE — a false
+# positive, because the schedule is not undocumented, it is DERIVED, and the script that derives
+# it (travel-mode.py) is itself repo-backed and version-controlled. Measured 2026-09-05: the job is
+# not currently loaded (a rebuild loses nothing today), so the failure is dormant, not live — this
+# file exists so the next person to run `travel-mode.py enter` mid-gate-run does not get an
+# UNBACKED false alarm for a job that was never meant to be backed.
+#
+# THE BAR FOR AN ENTRY HERE, and it is a high one, same spirit as the divergence file's bar:
+#   1. The job's SOURCE OF TRUTH (the script that plants/removes it) must be repo-backed — an
+#      ephemeral job with no committed generator would be a real gap, not a false positive.
+#   2. A RETIRE-WHEN clause: the condition under which this entry stops being true (the generator
+#      is deleted, the label is renamed, the job becomes permanent) — read at every gate wrap the
+#      same way the divergence file's entries are.
+#   3. A REVIEWED date, so staleness is visible without re-deriving the reasoning.
+#
+# A job matched here is NOT exempted from being seen — the drill still names it in the output as
+# ok(ephemeral); it is exempted from being COUNTED as unbacked and failing the gate.
+
+com.braatz.travel-mode-rearm   # generator: ~/repos/strike-zone/tools/travel-mode/travel-mode.py
+                                # (plant_rearm/clear_rearm) — plist body is parameterized with
+                                # `until_dt` at plant time, so no fixed copy is ever committed.
+                                # RETIRE-WHEN: travel-mode.py stops planting a launchd job for
+                                # rearm (e.g. switches to a cron-less poll) — this entry then
+                                # matches nothing and should be deleted, not left inert.
+                                # REVIEWED: 2026-09-05 (smDrainGate4 S1, gid 1218198174895655)
