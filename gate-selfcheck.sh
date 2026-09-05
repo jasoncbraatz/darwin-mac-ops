@@ -1396,8 +1396,13 @@ else
        case "$_GV_OWN" in
          SIBLING*)
            WARNS+=("G-V: the open AAR obligation is a SIBLING's (${_GV_OWN#*	}) -- red-owner attributes EVERY open G-V red to a live sibling or a State Machine card, so their desk-out owes it, not yours. G-H#22e's contract applied to the family it was written for. Verify: ~/Scripts/ceo reds") ;;
+         "")
+           # smDrainDesk-05 (2026-09-05): with NO identity (gate run after `roster leave`) red-owner
+           # cannot attribute, and this branch blamed a card completion that VIOLATIONS: 0 had just
+           # cleared. Still fail-closed -- but say what actually failed, and the one-line remedy.
+           FAILS+=("G-V: red-owner could not attribute the open AAR obligation -- no identity (\`roster whoami\` empty: did you \`roster leave\` before the gate?) or red-owner broken. Fail-closed. Remedy: ~/Scripts/roster join --who <you>; ~/Scripts/ceo reds; re-run the gate BEFORE leaving") ;;
          *)
-           FAILS+=("G-V: a Batter's Box card was completed with no AAR link and no NO-AAR reason -- see above") ;;
+           FAILS+=("G-V: a Batter's Box card was completed with no AAR link and no NO-AAR reason -- see above (owner verdict: ${_GV_OWN%%	*})") ;;
        esac ;;
     2) bold "=== G-V · AAR/RCA obligation ==="
        echo "$AAR_OUT" | sed 's/^/  /'
