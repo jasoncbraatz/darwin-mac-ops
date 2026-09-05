@@ -66,6 +66,7 @@ def rel(p): return "~/" + os.path.relpath(p, HOME) if p.startswith(HOME) else p
 BB_ALLOW     = os.environ.get("RC_BB_ALLOW",     H("repos/claude-blackbook/scripts/bb-writers-allowlist.json"))
 FOREIGN      = os.environ.get("RC_FOREIGN",      H("code/darwin-mac-ops/launchd-foreign-allowlist.txt"))
 DIVERGE      = os.environ.get("RC_DIVERGE",      H("code/darwin-mac-ops/launchd-divergence-allowlist.txt"))
+EPHEMERAL    = os.environ.get("RC_EPHEMERAL",    H("code/darwin-mac-ops/launchd-ephemeral-allowlist.txt"))  # G-AE 3rd category (smDrainGate4, SM 1218198174895655)
 GE_ALLOW     = os.environ.get("RC_GE_ALLOW",     H("code/darwin-mac-ops/gate-secret-sweep.allow"))
 ARL_BASELINE = os.environ.get("RC_ARL_BASELINE", H("Scripts/asana-read-lint.baseline"))
 RD_ALLOW     = os.environ.get("RC_RD_ALLOW",     H("Scripts/repo-doctor.allow"))
@@ -97,7 +98,7 @@ VENDOR = re.compile(r"/(\.git|node_modules|__pycache__|venv|\.venv|site-packages
 # ─────────────────────────────────────────────────────────────────────────────
 KNOWN_MARKERS = {"VANISH-OK:", "ASANA-READ-OK:", "CARD-LINT-OK:"}
 KNOWN_FILES   = {os.path.realpath(p) for p in
-                 (BB_ALLOW, FOREIGN, DIVERGE, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW)}
+                 (BB_ALLOW, FOREIGN, DIVERGE, EPHEMERAL, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW)}
 
 # no leading '#' in this pattern, deliberately: see the header.
 MARKER_RX = re.compile(r"\b[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)*-OK:")
@@ -215,7 +216,7 @@ print("  --- launchd allowlists (loaded labels: %d) ---" % len(labels))
 if not labels:
     cannot("launchctl listed ZERO labels — every launchd allowlist entry would read as stale")
 else:
-    for path, name in ((FOREIGN, "launchd-foreign"), (DIVERGE, "launchd-divergence")):
+    for path, name in ((FOREIGN, "launchd-foreign"), (DIVERGE, "launchd-divergence"), (EPHEMERAL, "launchd-ephemeral")):
         ents = entries_of(path)
         if ents is None:
             cannot("%s is missing — launchd-census would treat every third-party job as ours, "
