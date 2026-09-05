@@ -1086,6 +1086,11 @@ if [ -f "$CANON_GATE" ]; then
   #     home, synced not forked. Found: the canonical BEHIND its pitching-machine copy by three
   #     fixes, four repos on a fossil. WARN, not FAIL — the drift is rarely this session's doing —
   #     but the remedy is one command and it is named.
+  #     UPDATE (smDrainRail3, 2026-09-05; card 1218186197465198): pitching-machine's copy is no
+  #     longer a real file — it is now a SYMLINK straight to $HOME/Scripts/handoff-kit/handoff_gate.py
+  #     and is excluded from propagate-gate.sh's TARGETS for exactly that reason (cp onto a symlink
+  #     pointing at its own source errors as "same file"). It can no longer drift and no longer
+  #     needs this check, by construction rather than by discipline. Do not re-add it to TARGETS.
   if [ -x "$HOME/Scripts/handoff-kit/propagate-gate.sh" ]; then
     if ! bash "$HOME/Scripts/handoff-kit/propagate-gate.sh" --check >/dev/null 2>&1; then
       WARNS+=("G-L#35d: a scripts/handoff_gate.py copy DRIFTED from ~/Scripts/handoff-kit/handoff_gate.py — see: bash ~/Scripts/handoff-kit/propagate-gate.sh --check ; fix: propagate-gate.sh (no flag) then commit the copies. If a copy is AHEAD, port its fix into the canonical FIRST.")
