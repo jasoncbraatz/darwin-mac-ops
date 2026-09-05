@@ -31,7 +31,7 @@
 # A job matched here is NOT exempted from being seen — the drill still names it in the output as
 # ok(ephemeral); it is exempted from being COUNTED as unbacked and failing the gate.
 
-com.braatz.travel-mode-rearm   # generator: ~/repos/strike-zone/tools/travel-mode/travel-mode.py
+com.braatz.travel-mode-rearm   # TRANSIENT: loaded only while travel mode is armed (travel-mode.py enter plants it, clear_rearm removes it); absent on an ordinary day by design. generator: ~/repos/strike-zone/tools/travel-mode/travel-mode.py
                                 # (plant_rearm/clear_rearm) — plist body is parameterized with
                                 # `until_dt` at plant time, so no fixed copy is ever committed.
                                 # RETIRE-WHEN: travel-mode.py stops planting a launchd job for
