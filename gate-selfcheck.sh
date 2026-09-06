@@ -2785,6 +2785,25 @@ else
 fi
 
 
+# -- G-AT . THE MAILBOX LAW: no Jason-work stranded on Claude's board (2026-09-06)
+# Batter's Box is JASON'S board; the State Machine is CLAUDE'S; he does NOT read the State
+# Machine. A card needing his hand/eye/judgement/credit card, filed there, is invisible to the
+# only person who can act on it -- dropped, while looking discharged. Case study: seven Braatz
+# Daily editions, Aug 25 -> Sep 2. Law: claude-blackbook/docs/THE-MAILBOX-LAW.md
+_MLC="$HOME/repos/claude-blackbook/scripts/mailbox-law-check.py"
+if [ -x "$_MLC" ]; then
+  bold "=== G-AT . the Mailbox Law (nothing of Jason's left on Claude's board) ==="
+  _mlc_out="$(python3 "$_MLC" 2>&1)"; _mlc_rc=$?
+  case "$_mlc_rc" in
+    0) echo "$_mlc_out" ;;
+    1) echo "$_mlc_out"
+       WARNS+=("G-AT: State Machine card(s) read like JASON'S work. He does not read that board, so as filed they are invisible to him. Either reword them (it was Claude-work all along) or re-file with ~/Scripts/bb-card.py and close the original citing the new gid. Law: claude-blackbook/docs/THE-MAILBOX-LAW.md") ;;
+    *) WARNS+=("G-AT CANNOT VERIFY: mailbox-law-check.py could not read the boards. Not a pass.") ;;
+  esac
+else
+  FAILS+=("G-AT CANNOT VERIFY: $_MLC missing or not executable, so the Mailbox Law is unenforced at wrap. Restore it from claude-blackbook/scripts/mailbox-law-check.py")
+fi
+
 # -- G-AS . the State Machine has a DOOR, and this session used it (born 2026-09-04, fable-smRuleOfOne-1)
 # Measured the day it was born: 89 cards filed in one day, 61 of the last two days' cards went
 # straight through the MCP with no key, no reason, no dupe check -- most of them fixes a session
