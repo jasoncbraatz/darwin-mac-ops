@@ -2856,6 +2856,38 @@ fi
 # downloads folder, so there is no outbound document to grade. Say so out loud. But an
 # outbound that EXISTS with its predecessor missing is CANNOT VERIFY, never silence: an
 # unreadable inbound is the state in which a dropped thread is invisible.
+# The predecessor's FILENAME, which is two bugs deep if you write it inline (feynmanSync-07).
+#
+#   OCTAL. _htc_n comes off the session slug as a STRING, so `07` is octal to bash
+#   arithmetic and $((07-1)) is 6. G-AQ went looking for HANDOFF-feynmanSync-6.md, never
+#   found it, and reported "the inbound handoff could not be read" -- an accusation aimed
+#   at the predecessor's paperwork for a defect in this line. And two sessions on it stops
+#   being a wrong answer and becomes a FATAL one: $((08-1)) is a hard bash error, "value
+#   too great for base". `10#` is not decoration here, it is the whole fix.
+#
+#   PADDING. Even decoded, 7-1=6 spells "-6.md" while the file on disk is "-06.md". The
+#   predecessor width has to be REBUILT, or -10 goes hunting for -9 instead of -09.
+#
+# Both candidates are offered and the FILE'S EXISTENCE decides between them -- the same
+# idiom the slug loop above already uses, because this estate has handoffs written both
+# padded and bare and neither spelling is wrong.
+_htc_predecessor() {   # <dir> <project> <n-as-written> -> path, or empty for a first handoff
+  local _d="$1" _proj="$2" _n="$3" _dec _cand
+  _dec=$((10#$_n)) || return 0
+  [ "$_dec" -gt 1 ] || return 0
+  for _cand in "$(printf "%0${#_n}d" "$((_dec-1))")" "$((_dec-1))"; do
+    # VANISH-OK: not an instrument guard -- this is candidate SELECTION between the padded and
+    # the bare spelling of a predecessor filename, and its absence branch is three lines below:
+    # the fallback that still NAMES the file it wanted, so G-AQ's CANNOT VERIFY can say which.
+    # Nothing can vanish silently here; falling through the loop is the designed path.
+    if [ -f "$_d/HANDOFF-$_proj-$_cand.md" ]; then
+      printf '%s' "$_d/HANDOFF-$_proj-$_cand.md"; return 0
+    fi
+  done
+  # none on disk: name the same-width one, so the CANNOT VERIFY below says what it wanted
+  printf '%s' "$_d/HANDOFF-$_proj-$(printf "%0${#_n}d" "$((_dec-1))").md"
+}
+
 HTC_CHECK="${HTC_CHECK:-$HOME/code/darwin-mac-ops/handoff-thread-continuity.sh}"
 HTC_DIR="${HTC_DIR:-$HOME/Desktop/downloads}"
 _htc_in="${HTC_INBOUND:-}"; _htc_out="${HTC_OUTBOUND:-}"
@@ -2871,7 +2903,7 @@ if [ -z "$_htc_out" ] && [ -n "${_ch_tag:-}" ]; then
     case "$_htc_n" in
       ''|*[!0-9]*) continue ;;
       *) _htc_out="$HTC_DIR/HANDOFF-$_htc_proj-$_htc_n.md"
-         [ "$_htc_n" -gt 1 ] && _htc_in="$HTC_DIR/HANDOFF-$_htc_proj-$((_htc_n-1)).md"
+         _htc_in="$(_htc_predecessor "$HTC_DIR" "$_htc_proj" "$_htc_n")"
          [ -f "$_htc_out" ] && break ;;
     esac
   done
@@ -2907,6 +2939,29 @@ else
        FAILS+=("G-AQ CANNOT VERIFY: the inbound handoff $_htc_in could not be read or yielded zero gids, so nothing could tell whether a thread was dropped. An unreadable predecessor is exactly the state in which an omission is invisible -- it is not a pass.") ;;
     *) FAILS+=("G-AQ CANNOT VERIFY: handoff-thread-continuity.sh exited unexpectedly ($_htc_rc) -- treat as CANNOT VERIFY") ;;
   esac
+fi
+
+# -- G-AQ#number . the predecessor's filename is derived correctly (offline drill) -------
+# The check above can only grade an inbound it can NAME. Getting that name wrong does not
+# read as a naming bug -- it reads as "your predecessor's handoff is unreadable", which is
+# an accusation pointed at the wrong file. And the octal form of the bug is fatal, not
+# merely wrong, from session 08 onward. (feynmanSync-07)
+_HND="$HOME/code/darwin-mac-ops/htc-number-drill.sh"
+if [ -x "$_HND" ]; then
+  _HND_OUT="$(GATE_FILE="${BASH_SOURCE[0]:-$0}" bash "$_HND" 2>&1)"; _HND_RC=$?
+  case "$_HND_RC" in
+    0) : ;;
+    2) bold "=== G-AQ#number . the predecessor filename derivation ==="
+       printf '%s\n' "$_HND_OUT" | sed 's/^/  /'
+       FAILS+=("G-AQ#number CANNOT VERIFY: the drill could not extract _htc_predecessor from the gate -- it was renamed or inlined again, and nothing proved the derivation still handles 08 or padding") ;;
+    *) bold "=== G-AQ#number . the predecessor filename derivation ==="
+       printf '%s\n' "$_HND_OUT" | sed 's/^/  /'
+       FAILS+=("G-AQ#number: the predecessor-filename derivation failed its own controls -- G-AQ will blame a predecessor's handoff for a defect in how the gate spells its name") ;;
+  esac
+else
+  bold "=== G-AQ#number . the predecessor filename derivation ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${_HND/#$HOME/~}"
+  FAILS+=("G-AQ#number CANNOT VERIFY: $_HND is missing or not executable. Restore it: git -C ~/code/darwin-mac-ops checkout -- htc-number-drill.sh")
 fi
 
 # -- G-AQ#drill . the continuity check can still go red (run its controls, do not trust them)
