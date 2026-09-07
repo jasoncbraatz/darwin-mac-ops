@@ -422,10 +422,33 @@ EOF_DIRT
 # Fail-closed: red-owner missing/broken -> empty answer -> the anonymous FAIL below, unchanged.
 # RED_OWNER is honoured so gate-roster-drill.sh can point at a scratch journal (same ROSTER_DB dirname).
 _RED_OWNER="${RED_OWNER:-$HOME/repos/ceo-desk/red-owner.py}"
-_gv_owner_verdict() {   # -> "SIBLING<TAB>who[,who]" iff EVERY open non-repo red is a sibling's or transferred; else empty
-  [ -f "$_RED_OWNER" ] || return 0
-  command -v python3 >/dev/null 2>&1 || return 0
-  ROSTER_DB="$_ROSTER_DB" python3 "$_RED_OWNER" attribute ${GATE_ROSTER_WHO:+--who "$GATE_ROSTER_WHO"} --days 7 --json 2>/dev/null \
+_gv_owner_verdict() {   # -> "<TOKEN>[<TAB>detail]": SIBLING, OWNED, NOTOOL, NORUN, NOJSON — or empty
+  # feynmanSync-07 (2026-09-07). This returned EMPTY for FIVE different reasons and the
+  # caller printed ONE message for all of them: "no identity (`roster whoami` empty: did
+  # you `roster leave` before the gate?)". On feynman that sentence is simply FALSE --
+  # whoami answers correctly, and what actually failed is that red-owner cannot reach
+  # Asana from a box with no token (P8). A remedy aimed at the wrong cause is worse than
+  # no remedy: it sends the next session to re-check a thing that was never broken.
+  #
+  # And the fifth cause is not a failure at all. Rows exist and at least one red is
+  # genuinely MINE or an ORPHAN -- a real, actionable finding -- and it was being reported
+  # as a broken instrument. Both directions of the same mistake, in one empty string.
+  #
+  # (Third instance in this session of one disease: an empty result read as a specific
+  # diagnosis. The other two were the ratification census calling an un-cloned repo's
+  # ratification STALE, and its uncaught launchctl FileNotFoundError arriving as
+  # "an exception record excuses a subject that no longer exists".)
+  [ -f "$_RED_OWNER" ] || { printf 'NOTOOL\t%s' "$_RED_OWNER"; return 0; }
+  command -v python3 >/dev/null 2>&1 || { printf 'NOTOOL\tpython3 is not on PATH'; return 0; }
+  _gv_err="$(mktemp "${TMPDIR:-/tmp}/gv-owner.XXXXXX")" || { printf 'NORUN\tmktemp failed'; return 0; }
+  _gv_out="$(ROSTER_DB="$_ROSTER_DB" python3 "$_RED_OWNER" attribute ${GATE_ROSTER_WHO:+--who "$GATE_ROSTER_WHO"} --days 7 --json 2>"$_gv_err")"
+  _gv_rc=$?
+  if [ "$_gv_rc" -ne 0 ]; then
+    printf 'NORUN\trc=%s %s' "$_gv_rc" "$(head -1 "$_gv_err" 2>/dev/null | cut -c1-110)"
+    rm -f "$_gv_err"; return 0
+  fi
+  rm -f "$_gv_err"
+  printf '%s\n' "$_gv_out" \
     | python3 -c '
 import json, sys
 data = None
@@ -436,14 +459,25 @@ for line in sys.stdin:                      # red-owner prints its human table o
             data = json.loads(s); break
         except Exception:
             pass
+if data is None:
+    print("NOJSON"); sys.exit(0)            # ran, but said nothing a parser can read
 if not data:
-    sys.exit(0)                             # fail-closed: no answer -> caller keeps the FAIL
+    # ZERO reds, while the gate that feeds this block just reported one. The attributor
+    # and the gate disagree, and that is its own answer -- not "all the reds were repos".
+    # Measured on feynman: red-owner prints "reds=0  gate_rc=1" and returns [], because
+    # it cannot reach Asana here. Falling through to the empty string sent G-V to blame
+    # the session identity, which was never the problem.
+    print("NOREDS"); sys.exit(0)
 rows = [r for r in data if not str(r.get("key", "")).startswith("repo:")]
 if not rows:
     sys.exit(0)                             # repos are G-H#22e s business, not G-V s
 if all(r.get("verdict") in ("SIBLING", "TRANSFERRED") for r in rows):
     owners = sorted({(r.get("owner") or r.get("reason") or "?") for r in rows})
     print("SIBLING\t" + ",".join(owners))
+else:
+    bad = sorted({str(r.get("verdict")) for r in rows
+                  if r.get("verdict") not in ("SIBLING", "TRANSFERRED")})
+    print("OWNED\t" + ",".join(bad))       # a REAL finding, not an instrument failure
 ' 2>/dev/null | head -1
 }
 
@@ -1427,6 +1461,14 @@ else
        case "$_GV_OWN" in
          SIBLING*)
            WARNS+=("G-V: the open AAR obligation is a SIBLING's (${_GV_OWN#*	}) -- red-owner attributes EVERY open G-V red to a live sibling or a State Machine card, so their desk-out owes it, not yours. G-H#22e's contract applied to the family it was written for. Verify: ~/Scripts/ceo reds") ;;
+         NOTOOL*)
+           FAILS+=("G-V CANNOT ATTRIBUTE: red-owner is not available on this box (${_GV_OWN#*	}), so the open AAR obligation could not be assigned to anyone. Fail-closed: the red stands. Restore it: git -C ~/repos/ceo-desk checkout -- red-owner.py") ;;
+         NORUN*)
+           FAILS+=("G-V CANNOT ATTRIBUTE: red-owner could not run (${_GV_OWN#*	}). On a box with no Asana token this is EXPECTED and it is not an identity problem -- \`roster whoami\` is fine. The red is real but unattributed here; wrap on the box that holds the token, or give this one a credential (P8).") ;;
+         NOREDS*)
+           FAILS+=("G-V CANNOT ATTRIBUTE: red-owner reports ZERO reds while the AAR gate above reports one -- the attributor cannot see what the gate can. On a box with no Asana token that is EXPECTED (P8) and it is not an identity problem: \`roster whoami\` is fine. Wrap on the box that holds the token, or give this one a credential.") ;;
+         NOJSON*)
+           FAILS+=("G-V CANNOT ATTRIBUTE: red-owner ran cleanly but printed no JSON the gate could parse -- its --json contract changed, or it wrote the table only. Fail-closed: the red stands.") ;;
          "")
            # smDrainDesk-05 (2026-09-05): with NO identity (gate run after `roster leave`) red-owner
            # cannot attribute, and this branch blamed a card completion that VIOLATIONS: 0 had just
@@ -1445,6 +1487,29 @@ else
   if [ "$AAR_RC" -eq 0 ] && ! python3 "$AAR_PY" heartbeat --max-age-hours 36 >/dev/null 2>&1; then
     FAILS+=("G-V heartbeat stale: the AAR gate stopped running and nobody noticed")
   fi
+fi
+
+# ── G-V#owner · the attribution helper can still tell its five causes apart ────
+# A helper that answers "I could not look" and "this red is YOURS" with the same empty
+# string is not an attributor, and G-V's remedy line is only as good as that distinction.
+# Offline drill: no Asana, no network, no roster DB — it extracts the real function out of
+# this file and drives it with a stub, so it cannot end up grading a copy. (feynmanSync-07)
+_GVD="$HOME/code/darwin-mac-ops/gv-owner-verdict-drill.sh"
+if [ -x "$_GVD" ]; then
+  _GVD_OUT="$(GATE_FILE="${BASH_SOURCE[0]:-$0}" bash "$_GVD" 2>&1)"; _GVD_RC=$?
+  case "$_GVD_RC" in
+    0) : ;;
+    2) bold "=== G-V#owner · the attribution helper's own controls ==="
+       printf '%s\n' "$_GVD_OUT" | sed 's/^/  /'
+       FAILS+=("G-V#owner CANNOT VERIFY: the drill could not extract _gv_owner_verdict from the gate -- the function was renamed or reshaped, and nothing proved it still tells its causes apart") ;;
+    *) bold "=== G-V#owner · the attribution helper's own controls ==="
+       printf '%s\n' "$_GVD_OUT" | sed 's/^/  /'
+       FAILS+=("G-V#owner: _gv_owner_verdict failed its own controls -- G-V can now name the wrong cause again, which is how a real blocker hides behind a plausible one") ;;
+  esac
+else
+  bold "=== G-V#owner · the attribution helper's own controls ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${_GVD/#$HOME/~}"
+  FAILS+=("G-V#owner CANNOT VERIFY: $_GVD is missing or not executable, so nothing proved the attribution helper still discriminates. Restore it: git -C ~/code/darwin-mac-ops checkout -- gv-owner-verdict-drill.sh")
 fi
 
 # ── G-V#2 · Asana single-page collection-read ratchet (added 2026-07-30) ─────────
