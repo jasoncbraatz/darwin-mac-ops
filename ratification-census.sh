@@ -103,6 +103,16 @@ KNOWN_FILES   = {os.path.realpath(p) for p in
                  (BB_ALLOW, FOREIGN, DIVERGE, EPHEMERAL, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW,
                   PG_ALLOW)}
 
+# RECORDS THAT LIVE ONCE PER REPO, NOT ONCE IN THE ESTATE (feynmanSync-08, 2026-09-07).
+# portability-guard.sh does `cd <the repo being committed>; ALLOW=portability-guard.allow`,
+# so the number of legitimate copies is the number of repos with a darwin-only file to excuse.
+# The census registered ONE path and knew ~/Scripts's. When darwin-mac-ops grew its own on
+# 2026-09-07, the census failed CLOSED with UNKNOWN EXCEPTION RECORD -- which is the right
+# refusal and the wrong reason: the file is not unknown, it is the same known record in the
+# second place its own reader looks. Registering the SHAPE (and judging every copy in phase 2f
+# below) is the fix; adding a second hardcoded path would just move the wall one repo along.
+KNOWN_PER_REPO = {"portability-guard.allow"}
+
 # no leading '#' in this pattern, deliberately: see the header.
 MARKER_RX = re.compile(r"\b[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)*-OK:")
 FILE_RX   = re.compile(r"(allowlist|allow|baseline|exempt|waiver|ratified)", re.I)
@@ -150,7 +160,7 @@ for m in sorted(MARKERS):
               "check whether it still describes something true. Teach it, or delete the marker."
               % (m, ", ".join(MARKERS[m][:3])))
 for rp, p in sorted(FILES.items()):
-    if rp not in KNOWN_FILES:
+    if rp not in KNOWN_FILES and os.path.basename(p) not in KNOWN_PER_REPO:
         stale("UNKNOWN EXCEPTION RECORD %s — a file shaped like an allowlist/baseline that no "
               "checker in this census reads. Teach it, or prove it is not a ratification."
               % rel(p))
@@ -551,32 +561,56 @@ elif asites:
 # and no checker in this census read it -- which is the UNKNOWN EXCEPTION RECORD it kept failing
 # on. Its own header calls a line here "a RULING, not a snooze"; a ruling nothing re-judges is a
 # snooze with better manners.
-print("  --- %s ---" % rel(PG_ALLOW))
-pg = entries_of(PG_ALLOW)
-if pg is None:
+# ONE COPY PER REPO, AND EACH IS JUDGED AGAINST ITS OWN REPO (feynmanSync-08). The guard
+# reads this file from the toplevel of whatever repo it is committing in, so the question
+# "does this glob still ratify anything" has a different answer in each of them -- and a
+# census that asks it once, of ~/Scripts, is answering about a repo the entry was never
+# about. PG_ALLOW stays the seed so an explicit RC_PG_ALLOW still steers the drill.
+import fnmatch
+_pg_paths, _seen_pg = [], set()
+for _cand in [PG_ALLOW] + [q for _rp, q in sorted(FILES.items())
+                           if os.path.basename(q) == "portability-guard.allow"]:
+    _rp = os.path.realpath(_cand)
+    if _rp not in _seen_pg:
+        _seen_pg.add(_rp); _pg_paths.append(_cand)
+if not any(os.path.exists(_c) for _c in _pg_paths):
+    print("  --- %s ---" % rel(PG_ALLOW))
     cannot("%s missing -- portability-guard would re-flag every deliberately-darwin path" % rel(PG_ALLOW))
-elif not pg:
-    print("      (no entries -- nothing to go stale)")
-else:
-    import fnmatch
-    _root = H("Scripts")
+for _pg_path in _pg_paths:
+    print("  --- %s ---" % rel(_pg_path))
+    pg = entries_of(_pg_path)
+    if pg is None:
+        continue                      # a discovered path that vanished mid-run; the seed's
+                                      # absence is already reported above
+    if not pg:
+        print("      (no entries -- nothing to go stale)")
+        continue
+    # the repo this copy actually governs, asked the way its reader asks it
+    _tl = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                         cwd=os.path.dirname(_pg_path) or ".", capture_output=True, text=True)
+    _root = _tl.stdout.strip() if _tl.returncode == 0 and _tl.stdout.strip() \
+            else os.path.dirname(_pg_path)
     _t = subprocess.run(["git", "ls-files"], cwd=_root, capture_output=True, text=True)
     if _t.returncode != 0:
         cannot("could not list tracked files in %s -- cannot tell whether a glob still ratifies anything" % rel(_root))
-    else:
-        _files = [f for f in _t.stdout.split("\n") if f]
-        for _pat, _line in pg:
-            _glob = _pat.split("|")[0].strip()
-            if not _glob:
-                continue
-            _n = sum(1 for f in _files
-                     if fnmatch.fnmatch(f, _glob) or fnmatch.fnmatch(os.path.basename(f), _glob))
-            _why = _line.split("|", 1)[1].strip() if "|" in _line else "(no reason given)"
-            row("portability-guard", _glob, _n, _why[:44], full=_line)
-            if _n == 0:
-                stale("portability-guard.allow: glob '%s' matches NO tracked file today. It "
-                      "ratifies nothing -- retire the line, or fix the typo that has been "
-                      "silently excusing nothing." % _glob)
+        continue
+    _files = [f for f in _t.stdout.split("\n") if f]
+    for _pat, _line in pg:
+        _glob = _pat.split("|")[0].strip()
+        if not _glob:
+            continue
+        _n = sum(1 for f in _files
+                 if fnmatch.fnmatch(f, _glob) or fnmatch.fnmatch(os.path.basename(f), _glob))
+        _why = _line.split("|", 1)[1].strip() if "|" in _line else "(no reason given)"
+        row("portability-guard", _glob, _n, _why[:44], full=_line)
+        if _n == 0:
+            # name the repo as the FILE's path spells it, not as `git rev-parse` answers.
+            # darwin's filesystem is case-insensitive: this very repo's toplevel comes back
+            # ~/Code/darwin-mac-ops while every other path in the estate says ~/code. Both
+            # work here and only one works on feynman, and a remedy line is copy-pasted.
+            stale("%s: glob '%s' matches NO tracked file in %s today. It ratifies nothing "
+                  "THERE -- retire the line, or fix the typo that has been silently excusing "
+                  "nothing." % (rel(_pg_path), _glob, rel(os.path.dirname(_pg_path))))
 
 print()
 print("=== phase 3 · self-policing records (the regression to fear is the ratchet being turned OFF) ===")

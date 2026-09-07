@@ -310,6 +310,44 @@ E="$T/wrapcol0"; mkestate "$E"
 } > "$E/code/darwin-mac-ops/launchd-divergence-allowlist.txt"
 run "$E"; check "a column-0 comment is NOT a continuation" 0 "still describes something true" "$RC" "$OUT"
 
+# 28. A RECORD THAT LIVES ONCE PER REPO. portability-guard.sh reads portability-guard.allow
+#     from the toplevel of whatever repo it is committing in, so there are legitimately as
+#     many copies as there are repos with a darwin-only file to excuse. The census knew ONE
+#     hardcoded path. When darwin-mac-ops grew its own on 2026-09-07 the census failed CLOSED
+#     with UNKNOWN EXCEPTION RECORD -- the right refusal for the wrong reason: not an unknown
+#     record, the same known record in the second place its own reader looks.
+#     The dead glob is planted in the SECOND repo on purpose. A census still asking only about
+#     ~/Scripts passes this fixture, which is exactly the regression to catch.
+E="$T/pgrepos"; mkestate "$E"
+mkdir -p "$E/code/darwin-mac-ops"
+(
+  cd "$E/Scripts" && git init -q . && : > real.plist && git add real.plist \
+    && git -c user.email=d@d -c user.name=d commit -qm fixture
+  cd "$E/code/darwin-mac-ops" && git init -q . && : > other.plist && git add other.plist \
+    && git -c user.email=d@d -c user.name=d commit -qm fixture
+) >/dev/null 2>&1
+printf '%s\n' '*.plist | live here' > "$E/Scripts/portability-guard.allow"
+printf '%s\n%s\n' '*.plist   | live here too' \
+                  '*.goneext | the darwin-only file this excused was deleted in June' \
+  > "$E/code/darwin-mac-ops/portability-guard.allow"
+run "$E"; check "a dead glob in a SECOND repo's copy is found" 1 "goneext" "$RC" "$OUT"
+check "…and it names the repo the glob is dead IN"            1 "darwin-mac-ops" "$RC" "$OUT"
+
+# 29. POSITIVE TWIN: two copies, both entirely live, must stay green. Without this, "judge
+#     every copy" could degrade into "any second copy is suspicious", which would make the
+#     next repo to grow one wrong by existing.
+E="$T/pgrepos2"; mkestate "$E"
+mkdir -p "$E/code/darwin-mac-ops"
+(
+  cd "$E/Scripts" && git init -q . && : > real.plist && git add real.plist \
+    && git -c user.email=d@d -c user.name=d commit -qm fixture
+  cd "$E/code/darwin-mac-ops" && git init -q . && : > other.plist && git add other.plist \
+    && git -c user.email=d@d -c user.name=d commit -qm fixture
+) >/dev/null 2>&1
+printf '%s\n' '*.plist | live here'     > "$E/Scripts/portability-guard.allow"
+printf '%s\n' '*.plist | live here too' > "$E/code/darwin-mac-ops/portability-guard.allow"
+run "$E"; check "two fully-live copies stay green" 0 "still describes something true" "$RC" "$OUT"
+
 echo
 if [ "$FAIL" -gt 0 ]; then
   bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="

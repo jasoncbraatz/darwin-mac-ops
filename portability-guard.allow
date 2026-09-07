@@ -5,4 +5,6 @@
 # Format: <glob> | <why this one is deliberately darwin-only>
 *.plist                     | launchd. macOS-only by construction (launchd does not expand ~); feynman schedules with systemd.
 launchagents/*              | ditto — these are darwin's limbs, not portable tools.
-retired-plists/*            | retired launchd jobs, kept as history.
+# retired-plists/* was copied over from ~/Scripts's allowlist and retired 2026-09-07
+# by feynmanSync-08: this repo tracks no such directory, so the line excused nothing
+# while reading as a deliberate ruling. Re-add it the day this repo grows one.
