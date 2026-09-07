@@ -220,6 +220,24 @@ done
 # A claim by your OWN name never downgrades anything -- otherwise a session could exempt
 # itself by claiming its own repo -- but that self-exemption needs an identity to apply.
 # ROSTER_DB is honoured (same env var roster itself uses) so this is drillable, not production-only.
+# -- THE GATE'S OWN ABSOLUTE PATH (feynmanSync-09, 2026-09-07) ------------------------
+# Two self-drills extract a function OUT of this file rather than grading a copy, and the
+# gate hands them its own path to read. It used to hand them "${BASH_SOURCE[0]:-$0}"
+# VERBATIM -- which is whatever the caller typed. Run the obvious way, `cd
+# ~/code/darwin-mac-ops && bash gate-selfcheck.sh`, that is the RELATIVE string
+# "gate-selfcheck.sh"; both drills cd to a temp dir before reading it, so it resolved to
+# nothing and both reported CANNOT VERIFY. The gate then printed a confident, specific and
+# WRONG cause -- "the function was renamed or reshaped" -- for a function sitting untouched
+# at line 425. Absolute-ise once, here, so a caller's cwd cannot decide whether the gate's
+# own controls run. Portable on purpose: no `readlink -f` (GNU-only; BSD readlink has no -f).
+_gate_abs() {   # <path> -> absolute path, without resolving symlinks
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+     *) printf '%s/%s\n' "$(cd "$(dirname "$1")" 2>/dev/null && pwd)" "$(basename "$1")" ;;
+  esac
+}
+_GATE_SELF="$(_gate_abs "${BASH_SOURCE[0]:-$0}")"
+
 _ROSTER_DB="${ROSTER_DB:-$HOME/.local/state/darlish/roster.sqlite3}"
 _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
   # FAIL SAFE, NOT OPEN (fixed 2026-08-12, floristAlix-1).
@@ -1501,7 +1519,7 @@ fi
 # this file and drives it with a stub, so it cannot end up grading a copy. (feynmanSync-07)
 _GVD="$HOME/code/darwin-mac-ops/gv-owner-verdict-drill.sh"
 if [ -x "$_GVD" ]; then
-  _GVD_OUT="$(GATE_FILE="${BASH_SOURCE[0]:-$0}" bash "$_GVD" 2>&1)"; _GVD_RC=$?
+  _GVD_OUT="$(GATE_FILE="$_GATE_SELF" bash "$_GVD" 2>&1)"; _GVD_RC=$?
   case "$_GVD_RC" in
     0) : ;;
     2) bold "=== G-V#owner · the attribution helper's own controls ==="
@@ -2953,7 +2971,7 @@ fi
 # merely wrong, from session 08 onward. (feynmanSync-07)
 _HND="$HOME/code/darwin-mac-ops/htc-number-drill.sh"
 if [ -x "$_HND" ]; then
-  _HND_OUT="$(GATE_FILE="${BASH_SOURCE[0]:-$0}" bash "$_HND" 2>&1)"; _HND_RC=$?
+  _HND_OUT="$(GATE_FILE="$_GATE_SELF" bash "$_HND" 2>&1)"; _HND_RC=$?
   case "$_HND_RC" in
     0) : ;;
     2) bold "=== G-AQ#number . the predecessor filename derivation ==="

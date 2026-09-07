@@ -18,6 +18,16 @@
 # rc 0 = every control holds.  rc 1 = at least one did not.  rc 2 = could not extract.
 set -uo pipefail
 GATE="${GATE_FILE:-$HOME/code/darwin-mac-ops/gate-selfcheck.sh}"
+# A RELATIVE $GATE is resolved HERE, before anything cds away (feynmanSync-09, 2026-09-07).
+# This drill runs from a temp dir, so a relative path handed in by a caller resolves to
+# nothing and the drill reports "could not extract" -- a true statement with a false cause,
+# which the gate then prints as "the function was renamed or reshaped". Resolve against the
+# cwd we were STARTED in, which is the only cwd the caller's string was ever relative to.
+case "$GATE" in
+  /*) : ;;
+   *) GATE="$(cd "$(dirname "$GATE")" 2>/dev/null && pwd)/$(basename "$GATE")" ;;
+esac
+
 PASS=0; FAIL=0
 bold(){ printf '\033[1m%s\033[0m\n' "$*"; }
 check(){ # check <name> <expected> <got>
