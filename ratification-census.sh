@@ -71,6 +71,7 @@ GE_ALLOW     = os.environ.get("RC_GE_ALLOW",     H("code/darwin-mac-ops/gate-sec
 ARL_BASELINE = os.environ.get("RC_ARL_BASELINE", H("Scripts/asana-read-lint.baseline"))
 RD_ALLOW     = os.environ.get("RC_RD_ALLOW",     H("Scripts/repo-doctor.allow"))
 CARD_BASE    = os.environ.get("RC_CARD_BASELINE",H("Scripts/card-lint.baseline"))
+PG_ALLOW     = os.environ.get("RC_PG_ALLOW",     H("Scripts/portability-guard.allow"))   # feynmanSync-02
 GATE_FILE    = os.environ.get("RC_GATE_FILE",    H("code/darwin-mac-ops/gate-selfcheck.sh"))
 CARD_LINT    = os.environ.get("RC_CARD_LINT",    H("Scripts/card-lint.py"))
 ARL          = os.environ.get("RC_ARL",          H("Scripts/asana-read-lint.py"))
@@ -98,7 +99,8 @@ VENDOR = re.compile(r"/(\.git|node_modules|__pycache__|venv|\.venv|site-packages
 # ─────────────────────────────────────────────────────────────────────────────
 KNOWN_MARKERS = {"VANISH-OK:", "ASANA-READ-OK:", "CARD-LINT-OK:"}
 KNOWN_FILES   = {os.path.realpath(p) for p in
-                 (BB_ALLOW, FOREIGN, DIVERGE, EPHEMERAL, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW)}
+                 (BB_ALLOW, FOREIGN, DIVERGE, EPHEMERAL, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW,
+                  PG_ALLOW)}
 
 # no leading '#' in this pattern, deliberately: see the header.
 MARKER_RX = re.compile(r"\b[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)*-OK:")
@@ -419,6 +421,44 @@ elif asites:
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 3 — the SELF-POLICING records. Assert the re-examination LOGIC still exists.
 # ─────────────────────────────────────────────────────────────────────────────
+
+# --- 2f. portability-guard.allow (consumer: portability-guard.sh, pre-commit in darwin-scripts) ---
+# Grammar here is `<glob> | <why this path is legitimately darwin-only>`, NOT the estate's usual
+# `#` form, so the reason must be split off the pipe.
+# The rightness test is bb-writers-allowlist's: a glob matching NO tracked file today ratifies
+# NOTHING. Either the darwin-only path it excused is gone (retire the ruling) or the glob is a
+# typo that has been silently excusing nothing while reading as a deliberate decision.
+# Added feynmanSync-02 (2026-09-07). Before this, the file was shaped exactly like a ratification
+# and no checker in this census read it -- which is the UNKNOWN EXCEPTION RECORD it kept failing
+# on. Its own header calls a line here "a RULING, not a snooze"; a ruling nothing re-judges is a
+# snooze with better manners.
+print("  --- %s ---" % rel(PG_ALLOW))
+pg = entries_of(PG_ALLOW)
+if pg is None:
+    cannot("%s missing -- portability-guard would re-flag every deliberately-darwin path" % rel(PG_ALLOW))
+elif not pg:
+    print("      (no entries -- nothing to go stale)")
+else:
+    import fnmatch
+    _root = H("Scripts")
+    _t = subprocess.run(["git", "ls-files"], cwd=_root, capture_output=True, text=True)
+    if _t.returncode != 0:
+        cannot("could not list tracked files in %s -- cannot tell whether a glob still ratifies anything" % rel(_root))
+    else:
+        _files = [f for f in _t.stdout.split("\n") if f]
+        for _pat, _line in pg:
+            _glob = _pat.split("|")[0].strip()
+            if not _glob:
+                continue
+            _n = sum(1 for f in _files
+                     if fnmatch.fnmatch(f, _glob) or fnmatch.fnmatch(os.path.basename(f), _glob))
+            _why = _line.split("|", 1)[1].strip() if "|" in _line else "(no reason given)"
+            row("portability-guard", _glob, _n, _why[:44], full=_line)
+            if _n == 0:
+                stale("portability-guard.allow: glob '%s' matches NO tracked file today. It "
+                      "ratifies nothing -- retire the line, or fix the typo that has been "
+                      "silently excusing nothing." % _glob)
+
 print()
 print("=== phase 3 · self-policing records (the regression to fear is the ratchet being turned OFF) ===")
 def assert_logic(label, path, needle, why):
