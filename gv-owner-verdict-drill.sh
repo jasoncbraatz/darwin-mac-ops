@@ -82,6 +82,18 @@ check "a red that is MINE says OWNED" "OWNED" "$(_gv_owner_verdict)"
 stub x 'print("[{\"key\": \"aar:x\", \"verdict\": \"SIBLING\", \"owner\": \"sib\"}, {\"key\": \"aar:y\", \"verdict\": \"ORPHAN\", \"owner\": null}]")'
 check "one ORPHAN among siblings still says OWNED" "OWNED" "$(_gv_owner_verdict)"
 
+# 5b/6c. THE EXIT CODE THE STUBS ABOVE LIED ABOUT (smDrainDesk-09, 2026-09-07). The real
+#     red-owner exits 1 when it RAN and found reds that are MINE or ORPHANS -- its JSON is on
+#     stdout either way. Controls 5 and 6 stub that verdict with exit 0, so they passed while
+#     production took rc 1 for NORUN and told feynman "the instrument is broken" over six real
+#     orphans. A drill whose stub exits differently from the tool proves the stub.
+stub x 'import sys; print("[{\"key\": \"aar:x\", \"verdict\": \"MINE\", \"owner\": \"drill-session\"}]"); sys.exit(1)'
+check "MINE with the REAL rc 1 is OWNED, not NORUN" "OWNED" "$(_gv_owner_verdict)"
+stub x 'import sys; print("[{\"key\": \"lesson:x\", \"verdict\": \"ORPHAN\", \"owner\": null}]"); sys.exit(1)'
+check "ORPHAN with the REAL rc 1 is OWNED, not NORUN" "OWNED" "$(_gv_owner_verdict)"
+stub x 'import sys; sys.stderr.write("gate did not run\n"); sys.exit(2)'
+check "rc 2 is still NORUN (the contract line is at 2)" "NORUN" "$(_gv_owner_verdict)"
+
 # 6b. THE ACTUAL FEYNMAN CASE, and the one that first slipped past this drill: red-owner
 #     runs cleanly and reports ZERO reds while the AAR gate that feeds the block reports
 #     one. That is the attributor disagreeing with the gate -- not "all the reds were
@@ -100,5 +112,5 @@ if [ "$FAIL" -gt 0 ]; then
   bold "=== _gv_owner_verdict drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="
   exit 1
 fi
-bold "=== _gv_owner_verdict drill: PASS — $PASS controls (6 of them causes that used to be one empty string) ==="
+bold "=== _gv_owner_verdict drill: PASS — $PASS controls (6 of them causes that used to be one empty string; 3 of them the rc 1 that used to be NORUN) ==="
 exit 0

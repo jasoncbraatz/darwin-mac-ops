@@ -443,7 +443,12 @@ _gv_owner_verdict() {   # -> "<TOKEN>[<TAB>detail]": SIBLING, OWNED, NOTOOL, NOR
   _gv_err="$(mktemp "${TMPDIR:-/tmp}/gv-owner.XXXXXX")" || { printf 'NORUN\tmktemp failed'; return 0; }
   _gv_out="$(ROSTER_DB="$_ROSTER_DB" python3 "$_RED_OWNER" attribute ${GATE_ROSTER_WHO:+--who "$GATE_ROSTER_WHO"} --days 7 --json 2>"$_gv_err")"
   _gv_rc=$?
-  if [ "$_gv_rc" -ne 0 ]; then
+  # red-owner's exit contract (cmd_attribute): 0 = ran, nothing yours; 1 = RAN and found reds that ARE
+  # yours or ORPHANS (the JSON is on stdout -- render it); 2 = could not verify (no identity, the gate
+  # did not run). rc 1 used to be lumped in with NORUN here, so six real orphans on feynman (four -06
+  # lessons + two braatzio-plan commits) read as "the instrument is broken" instead of "here are the
+  # reds" -- the fourth instance of the one disease this block already documents (smDrainDesk-09, 2026-09-07).
+  if [ "$_gv_rc" -ge 2 ]; then
     printf 'NORUN\trc=%s %s' "$_gv_rc" "$(head -1 "$_gv_err" 2>/dev/null | cut -c1-110)"
     rm -f "$_gv_err"; return 0
   fi
