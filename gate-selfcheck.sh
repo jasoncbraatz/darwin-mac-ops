@@ -1934,7 +1934,7 @@ else
     done < <(find "$_ah_root" \
                \( -name .git -o -name node_modules -o -name .venv -o -name venv \
                   -o -name site-packages -o -name _deprecated \) -prune -o \
-               -type f \( -name '*.sh' -o -perm +111 \) -print 2>/dev/null)
+               -type f \( -name '*.sh' -o -perm -u+x \) -print 2>/dev/null)
   done
   sort -u -o "$_ah_list" "$_ah_list" 2>/dev/null
   _ah_n=$(wc -l < "$_ah_list" | tr -d ' ')
