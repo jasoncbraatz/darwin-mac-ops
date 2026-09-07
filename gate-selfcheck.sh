@@ -470,7 +470,7 @@ EOF_ROWS
     [ -n "$_line" ] || continue
     case "$_line" in " D "*|"D  "*) return 0 ;; esac   # a deleted path has no mtime: fail-closed
     _p="${_line:3}"; _p="${_p##* -> }"; _p="${_p%\"}"; _p="${_p#\"}"
-    _mt="$(stat -f %m "$1/$_p" 2>/dev/null || stat -c %Y "$1/$_p" 2>/dev/null)"
+    _mt="$(stat -c %Y "$1/$_p" 2>/dev/null || stat -f %m "$1/$_p" 2>/dev/null)"
     [ -n "$_mt" ] || return 0                    # unstat-able => fail-closed
     _keep=""
     for _c in $_all; do
@@ -710,7 +710,7 @@ $_paths")
       # _mt was 0 on Linux, the -gt 0 test below was always false, and the SIBLING-SESSION
       # WARNING never fired on feynman -- silently, on the box with the newest sessions.
       # (feynmanSync-01 2026-09-07. Line ~473 already had this fallback; this one did not.)
-      _mt="$(stat -f %m "$_p" 2>/dev/null || stat -c %Y "$_p" 2>/dev/null || echo 0)"
+      _mt="$(stat -c %Y "$_p" 2>/dev/null || stat -f %m "$_p" 2>/dev/null || echo 0)"
       _when="$(stat -f '%Sm' -t '%H:%M' "$_p" 2>/dev/null)"
       [ -n "$_when" ] || _when="$(stat -c %y "$_p" 2>/dev/null | cut -c12-16)"
       [ -n "$_when" ] || _when='--:--'
