@@ -2999,6 +2999,60 @@ else
   FAILS+=("G-AT CANNOT VERIFY: $_MLC missing or not executable, so the Mailbox Law is unenforced at wrap. Restore it from claude-blackbook/scripts/mailbox-law-check.py")
 fi
 
+# -- G-AU . SHARED-$HOME SCRATCH: a wildcard `rm ~/tmp-*` is never correct on a shared box (2026-09-07)
+# Near-miss SM 1218119758158296 (smBacklog-3): a wrap tidy ran `rm -f ~/tmp-*.sh` and swept another
+# session's working scripts, from a different machine, with no signal to them. Scratch in $HOME is
+# named `tmp-<whatever>` with no owner in the name, so no wildcard means "mine". THE CONVENTION
+# (HANDOFF-GATE.md § wrap): session scratch is `~/tmp-<your-session-id>-*`, and the ONLY sanctioned
+# cleanup is `rm -f ~/tmp-<your-session-id>-*`. This leg is the leak detector: every `~/tmp-*`
+# whose prefix names no LIVE roster session and is older than a day is a WARN (theirs or nobody's:
+# either way, not yours to rm by wildcard). Portable: python does the stat, not `stat -f`.
+bold "=== G-AU . shared-\$HOME scratch (owner-prefixed, never wildcard-rm'd) ==="
+_gau_o="$(python3 - <<'PY' 2>/dev/null
+import os, re, subprocess, time, glob
+home = os.path.expanduser("~")
+live = set()
+try:
+    out = subprocess.run([os.path.join(home, "Scripts", "roster"), "who"], capture_output=True, text=True, timeout=20).stdout
+    for ln in out.splitlines():
+        m = re.match(r"\s*[•◦]\s*([A-Za-z0-9_.-]+)", ln)
+        if m:
+            live.add(m.group(1).lower())
+except Exception:
+    pass
+now = time.time()
+stray, fresh, mine = [], [], []
+for p in sorted(glob.glob(os.path.join(home, "tmp-*"))):
+    name = os.path.basename(p)[4:]
+    prefix = name.split("-")[0].lower()
+    try:
+        age_h = (now - os.stat(p).st_mtime) / 3600.0
+    except OSError:
+        continue
+    owned = any(prefix and prefix in s for s in live)
+    if owned:
+        mine.append(name)
+    elif age_h < 24:
+        fresh.append("%s (%.0fh)" % (name, age_h))
+    else:
+        stray.append("%s (%.0fh, prefix '%s' names no live session)" % (name, age_h, prefix))
+print("LIVE=%d OWNED=%d FRESH=%d STRAY=%d" % (len(live), len(mine), len(fresh), len(stray)))
+for s in stray:
+    print("STRAY " + s)
+for f in fresh:
+    print("FRESH " + f)
+PY
+)"
+if [ -n "$_gau_o" ]; then
+  printf '%s\n' "$_gau_o" | sed 's/^/         /'
+  _gau_n="$(printf '%s\n' "$_gau_o" | grep -c '^STRAY ')"
+  if [ "${_gau_n:-0}" -gt 0 ]; then
+    WARNS+=("G-AU: $_gau_n stray ~/tmp-* item(s) whose prefix names no LIVE session (>24h). Not yours to wildcard away — a sibling's scratch looks identical. Yours: rm -f ~/tmp-<your-session-id>-* ; theirs: leave it, or move to ~/tmp-_orphans-<date>/ and say so in the handoff. SM 1218119758158296")
+  fi
+else
+  WARNS+=("G-AU CANNOT VERIFY: the scratch census did not run (python3?). Not a pass.")
+fi
+
 # -- G-AS . the State Machine has a DOOR, and this session used it (born 2026-09-04, fable-smRuleOfOne-1)
 # Measured the day it was born: 89 cards filed in one day, 61 of the last two days' cards went
 # straight through the MCP with no key, no reason, no dupe check -- most of them fixes a session
