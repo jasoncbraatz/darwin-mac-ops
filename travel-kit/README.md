@@ -26,7 +26,7 @@ without paying LogMeIn or Splashtop a cent.
         voyager NAS (192.168.86.200)         <- SMB, share "Jason2"
 ```
 
-Trust order is unchanged: **GitHub > Linode > darwin.** darwin is infra-with-a-built-in-UPS,
+Trust order is unchanged: **GitHub > Linode > the workshop (darwin · feynman).** darwin is infra-with-a-built-in-UPS,
 but it is still a consumer OS that reboots whenever Cupertino ships a new shade of translucency.
 The Linode is the rock.
 
