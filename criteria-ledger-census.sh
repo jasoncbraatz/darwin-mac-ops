@@ -150,6 +150,38 @@ if [ "$_COLL" -eq 1 ]; then
   exit 1
 fi
 
+# -- board-path CASE drift: an --out whose spelling differs from what git tracks -----------------
+# (feynmanSync-02, 2026-09-07). macOS is case-INSENSITIVE, so a charter saying
+# CHECKLIST-feynmansync.md and a repo tracking CHECKLIST-feynmanSync.md are the same file on
+# darwin and everything looks green. On feynman -- or any Linux box -- they are TWO files:
+# board.py writes one, G-AL#board reads the other, and the gate reports on a board nobody
+# updates. Silently. Forever. The macOS case trap is already in the LUT and a session walked
+# into it anyway within an hour of reading it, which is the whole argument for a CHECK over a
+# warning: prose does not stop this, a red does.
+_CASE=0
+while IFS= read -r _line; do
+  case "$_line" in \#*|"") continue ;; esac
+  _out="$(printf '%s' "$_line" | sed -nE 's/.*--out[[:space:]]+([^[:space:]]+).*/\1/p')"
+  [ -n "$_out" ] || continue
+  _out="$(eval printf '%s' "$_out")"
+  _dir="$(dirname "$_out")"; _base="$(basename "$_out")"
+  [ -d "$_dir" ] || continue
+  git -C "$_dir" rev-parse --git-dir >/dev/null 2>&1 || continue
+  git -C "$_dir" ls-files --error-unmatch "$_base" >/dev/null 2>&1 && continue
+  # not tracked under that exact spelling -- is it tracked under a DIFFERENT case?
+  _real="$(git -C "$_dir" ls-files | awk -v b="$_base" 'tolower($0)==tolower(b){print; exit}')"
+  if [ -n "$_real" ]; then
+    printf '  RED   board-path CASE drift: charter says %s, git tracks %s -- same file on macOS, TWO on Linux\n' \
+      "$_base" "$_real"
+    _CASE=1
+  fi
+done < "$REG"
+if [ "$_CASE" -eq 1 ]; then
+  say "  Fix the charter row to the spelling git ACTUALLY tracks. Until you do, the board this"
+  say "  gate reads and the board board.py writes are different files on every non-macOS box."
+  exit 1
+fi
+
 say "=== criteria-ledger census: ${#LEDGERS[@]} ledger(s) found, ${#ORPHANS[@]} unregistered"
 if [ "${#WORKTREE_DUPES[@]}" -gt 0 ]; then
   say "  note  ${#WORKTREE_DUPES[@]} tracked copy/copies skipped inside linked git worktrees (the rail's lanes);"
