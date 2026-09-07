@@ -2238,7 +2238,7 @@ if [ -x "$RAT_CENSUS" ]; then
        FAILS+=("G-AK: an exception record excuses a subject that no longer exists, OR a record shape was found that the census cannot check (it fails CLOSED on purpose). Retire the dead entry, or teach the census. Detail: bash ~/code/darwin-mac-ops/ratification-census.sh") ;;
     2) bold "=== G-AK · every ratification still describes something true ==="
        printf '%s\n' "$_rc_out" | sed 's/^/         /'
-       FAILS+=("G-AK CANNOT VERIFY: a subject enumeration came back empty (zero launchd labels, zero files, zero repos) or a delegate was missing, so a clean report would mean nothing. Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/ratification-census.sh") ;;
+       FAILS+=("G-AK CANNOT VERIFY: a subject enumeration came back empty (zero launchd labels, zero files, zero repos), OR this box holds a subset of the estate and some entries point into repos that are not cloned here (phase 2z lists them by name -- that is a ROUTING fact, not rot: re-run on the box with the whole estate), or a delegate was missing. Either way a clean report would mean nothing. Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/ratification-census.sh") ;;
     *) FAILS+=("G-AK: ratification-census.sh exited unexpectedly ($_rc_rc) -- treat as CANNOT VERIFY") ;;
   esac
 else
@@ -2544,7 +2544,16 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
              # runs board.py at its 25 s default, so a criterion that takes 32 s (L0's tenancy drill)
              # flips to CANNOT VERIFY in the regenerated file, which the 300 s check then calls stale
              # again. Different timeouts = the --brief loop with a new hat.
-             FAILS+=("G-AL#board: a lane changed status since the board was generated -- the committed board describes a world that moved on. Regenerate and commit: BOARD_CHECK_TIMEOUT=300 ${_ch_regen/#$HOME/~}") ;;
+             # ...and do not staple a SECOND copy of that assignment on. _ch_regen is derived
+             # from the check command, which already carries it, so the printed remedy read
+             # "BOARD_CHECK_TIMEOUT=300 BOARD_CHECK_TIMEOUT=300 python3 ...". Harmless to
+             # bash and corrosive to a human: a remedy line is copy-pasted, and one that
+             # looks like a typo is one a tired session decides not to trust. (feynmanSync-07)
+             case "$_ch_regen" in
+               *BOARD_CHECK_TIMEOUT=*) _ch_pfx="" ;;
+               *)                      _ch_pfx="BOARD_CHECK_TIMEOUT=300 " ;;
+             esac
+             FAILS+=("G-AL#board: a lane changed status since the board was generated -- the committed board describes a world that moved on. Regenerate and commit: ${_ch_pfx}${_ch_regen/#$HOME/~}") ;;
           *) bold "=== G-AL#board · the generated board could not be checked ==="
              printf '%s\n' "$_ch_out" | sed 's/^/         /'
              FAILS+=("G-AL#board CANNOT VERIFY: the shared board engine exited $_ch_rc (missing or empty criteria). An empty board must never read as a finished project. Run: ${_ch_bcheck/#$HOME/~}") ;;
