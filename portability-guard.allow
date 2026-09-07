@@ -1,0 +1,8 @@
+# portability-guard.allow — darwin-mac-ops (smDrainDesk-08, 2026-09-07)
+# The guard reads THIS file from the repo it is committing in (cd toplevel; ALLOW=portability-guard.allow),
+# not ~/Scripts', so the `*.plist` allowance over there never applied here. That went unnoticed
+# until core.hooksPath became global on 2026-09-07 and the first new plist after it was refused.
+# Format: <glob> | <why this one is deliberately darwin-only>
+*.plist                     | launchd. macOS-only by construction (launchd does not expand ~); feynman schedules with systemd.
+launchagents/*              | ditto — these are darwin's limbs, not portable tools.
+retired-plists/*            | retired launchd jobs, kept as history.

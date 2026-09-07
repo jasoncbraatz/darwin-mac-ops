@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- oauth-keepalive: heal a 401 fuel gauge from the only domain that can unlock the keychain.
+       See scripts/oauth-keepalive.sh (AAR fuel-gauge A1). Repo-backed per gate G-AE.
+       Install: launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.braatz.oauth-keepalive.plist -->
+  <key>Label</key><string>com.braatz.oauth-keepalive</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jasoncbraatz/code/darwin-mac-ops/scripts/oauth-keepalive.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>StandardOutPath</key><string>/Users/jasoncbraatz/.local/state/pitching-machine/oauth-keepalive.out</string>
+  <key>StandardErrorPath</key><string>/Users/jasoncbraatz/.local/state/pitching-machine/oauth-keepalive.err</string>
+</dict>
+</plist>
