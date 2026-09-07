@@ -110,6 +110,31 @@ gate_charter_is_na() {   # gate_charter_is_na <resolved-charter-row (empty if no
   [ -n "${GATE_UNCHARTERED:-}" ] && [ -z "${1:-}" ]
 }
 
+# -- N/A BY PLATFORM · a subject that cannot exist on this KERNEL (feynmanSync-06, 2026-09-07)
+# Two checks here have a macOS-only subject: G-X reads TCC/Full-Disk-Access grants, G-AE
+# enumerates launchd. On feynman they were CANNOT VERIFY every run -- correct by the letter of
+# "a check that never ran is not a check that passed", and wrong in effect, because the reason
+# was not that the instrument broke. There was nothing to check. The Linux gate carried a
+# standing block of reds that no work could ever clear, and a wall of permanent reds trains
+# readers to scroll, which is how the FIVE genuinely-broken checks sitting in the same block
+# went unread for weeks. (They were one BSD-only mktemp and one BSD-only find -perm; fixed
+# fadfb4b / 60f7968 the same day this was written.)
+#
+# THE OPT-OUT IS A MEASURED FACT AND TAKES NO ENV VAR, deliberately. There is no
+# GATE_FORCE_LINUX and there must not be: N/A that a session can assert is an off-switch, and
+# this file already learned that lesson at gate_charter_is_na. The OS is passed IN as an
+# argument for one reason only -- so gate-platform-na-drill.sh can execute THIS function with
+# both values and prove BOTH directions, rather than testing a copy of it. On a real run the
+# call sites pass $(uname -s) and nothing else can.
+#
+# Returns 0 (and records the N/A) when the platform lacks the subject; returns 1 on the
+# platform that HAS it, so the caller runs the check exactly as before and it can still go red.
+gate_platform_na() {   # gate_platform_na <uname -s> <step> <the subject that is absent here>
+  [ "${1:-}" = "Darwin" ] && return 1
+  gate_na "$2" "$3"
+  return 0
+}
+
 # -- G-H#roster reporting, derived once (smDrainHandoff-1, 2026-09-03, SM 1218126486445244) --
 # The gate once filed a roster drill failure under the OTHER drill's name and printed the
 # innocent drill's path as the remedy; a reader who ran the command the gate gave them got a
@@ -1520,7 +1545,8 @@ fi
 # shell this gate runs in already has. From launchd it would return CANNOT VERIFY, which
 # this case block already treats as a failure rather than a pass.
 FDA_CANARY="$HOME/Scripts/fda-canary.sh"
-if [ -x "$FDA_CANARY" ]; then
+if gate_platform_na "$(uname -s)" "G-X" "TCC/Full Disk Access grants are a macOS concept; this kernel has no TCC database to hold one, so there is no grant here to have drifted"; then :
+elif [ -x "$FDA_CANARY" ]; then
   bold "=== G-X · FDA grant canary (scoped .app wrappers still hold their grant) ==="
   FDA_OUT="$("$FDA_CANARY" --live 2>&1)"; FDA_RC=$?
   printf '%s\n' "$FDA_OUT"
@@ -1532,6 +1558,32 @@ if [ -x "$FDA_CANARY" ]; then
   esac
 else
   FAILS+=("G-X CANNOT VERIFY: $FDA_CANARY missing or not executable -- NOT a pass")
+fi
+
+# ── G-X#platform · the control on the PLATFORM exemption itself ─────────────────
+# G-X and G-AE are now allowed to report N/A off macOS. A platform exemption is the cheapest
+# way there is to switch a working check off -- it turns a red into a quiet line, it looks
+# principled, and nobody re-reads it -- so it gets a control, and the control runs HERE rather
+# than being trusted, for the same reason G-AE#drill does: wiring a drill in is when you find
+# out the drill was broken. (It was, on its first run: its env-var check went red on the
+# COMMENT that says the env var must not exist.)
+PNA_DRILL="${PNA_DRILL:-$HOME/code/darwin-mac-ops/gate-platform-na-drill.sh}"
+if [ -x "$PNA_DRILL" ]; then
+  bold "=== G-X#platform · the platform exemption fires only where there is no subject ==="
+  _pna_out="$(bash "$PNA_DRILL" 2>&1)"; _pna_rc=$?
+  _pna_line="$(printf '%s\n' "$_pna_out" | grep -E '^gate-platform-na-drill:' | tail -1)"
+  [ -z "$_pna_line" ] && _pna_line="gate-platform-na-drill produced no summary line (rc=$_pna_rc)"
+  if [ "$_pna_rc" -eq 0 ]; then
+    printf '  ok     %s\n' "$_pna_line"
+  else
+    printf '  FAIL   %s\n' "$_pna_line"
+    printf '%s\n' "$_pna_out" | grep -E '^  FAIL' | sed 's/^/         /'
+    FAILS+=("G-X#platform: the platform exemption failed its own control ($_pna_line). Until this is green, every N/A that G-X or G-AE reports is unproven -- and an unproven N/A is an off-switch. Run: bash $PNA_DRILL")
+  fi
+else
+  bold "=== G-X#platform · the platform exemption fires only where there is no subject ==="
+  printf '  WARN   CANNOT VERIFY: %s is missing or not executable\n' "${PNA_DRILL/#$HOME/~}"
+  WARNS+=("G-X#platform CANNOT VERIFY: $PNA_DRILL is missing, so nothing checked whether the platform exemption still DECLINES on macOS. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-platform-na-drill.sh")
 fi
 
 # ── G-Y · relay bootstrap freshness (added 2026-08-01) ──────────────────────────
@@ -1669,6 +1721,13 @@ CENSUS="${CENSUS:-$HOME/Scripts/launchd-census.sh}"   # overridable so the CANNO
 CENSUS_DRILL="${CENSUS_DRILL:-$HOME/code/darwin-mac-ops/launchd-census-drill.sh}"
 if [ -x "$CENSUS" ]; then
   bold "=== G-AE . launchd schedule backing (every loaded job's plist is repo-backed) ==="
+  # The LIVE census is macOS-only; G-AE#drill below is NOT and keeps running here, because it
+  # is fixture-only and proves the census can still tell a stale vault copy from a good one no
+  # matter which kernel it runs on. N/A-ing the whole step would have thrown away a check that
+  # passes 13/13 on Linux -- the cure being worse than the symptom, which is the usual way a
+  # platform exemption goes wrong.
+  if gate_platform_na "$(uname -s)" "G-AE" "launchd is macOS-only; this kernel loads no launchd jobs, so there is no live schedule here that could be unbacked (G-AE#drill still runs below and still grades the census's logic)"; then :
+  else
   _census_out="$(bash "$CENSUS" 2>&1)"; _census_rc=$?
   _census_line="$(printf '%s\n' "$_census_out" | grep -E '^launchd-census:' | tail -1)"
   [ -z "$_census_line" ] && _census_line="launchd-census produced no summary line (rc=$_census_rc)"
@@ -1687,6 +1746,7 @@ if [ -x "$CENSUS" ]; then
        printf '%s\n' "$_census_out" | grep -vE '^  ok ' | sed 's/^/         /'
        FAILS+=("G-AE: $_census_line -> commit the plist into a repo (~/code/darwin-mac-ops/launchagents/ is the usual home) and re-run, or bootout+disable the job if it is dead. Census: bash ~/Scripts/launchd-census.sh") ;;
   esac
+  fi
 
   # G-AE#drill -- the census's own control, run here rather than trusted. Same reasoning as
   # G-H#drill and G-AI: a drill nobody runs is a comment. It is fixture-only (LC_* overrides),
