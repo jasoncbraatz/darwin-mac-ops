@@ -162,13 +162,37 @@ print()
 print("=== phase 2 · subtractive records (a stale entry here is invisible by construction) ===")
 
 def entries_of(path):
-    """<pattern>  # <reason>  — the estate's shared allowlist grammar."""
+    """<pattern>  # <reason>  — the estate's shared allowlist grammar.
+
+    A reason may WRAP onto the following lines, indented and comment-led. All three launchd
+    allowlists in this repo are written that way, because a one-line reason for a subtle
+    ratification is a reason nobody writes. Those lines ARE the entry's reason and come back
+    joined to it. Before feynmanSync-08 they were discarded as file comments, which made every
+    RETIRE-WHEN:/REVIEWED: clause written past the first line invisible to phase 4 — the only
+    check that reads them. Measured on darwin 2026-09-07: com.braatz.travel-mode-rearm carried
+    BOTH clauses, exactly as its file's own documented bar demands, and phase 4 counted it as
+    carrying neither. So the file's bar and the census's meter disagreed, silently, and the
+    FLOOR that is "supposed to fall" charged an author for doing the work.
+
+    Note the shape, because it is the point. `row()` already guards the SIBLING case — a clause
+    pushed past print column 44 — and its docstring says why: "a control that cannot see its
+    subject is not a control." Guarding truncation and not wrapping is the nearby-handled-case
+    trap: the careful guard one line below reads as coverage and stops the search. Both are the
+    same fact, that what phase 4 PARSES must be the whole reason its author actually wrote.
+
+    A comment at column 0 is a file or section header, NOT a continuation — otherwise a header
+    could inject a retirement clause into whatever entry happened to precede it.
+    """
     out = []
     if not os.path.exists(path):
         return None
     for raw in open(path, errors="ignore"):
         s = raw.strip()
-        if not s or s.startswith("#"):
+        if not s:
+            continue
+        if s.startswith("#"):
+            if out and raw[:1] in (" ", "\t"):
+                out[-1] = (out[-1][0], out[-1][1] + " " + s.lstrip("#").strip())
             continue
         pat = s.split("#")[0].strip()
         if pat:
@@ -178,11 +202,19 @@ def entries_of(path):
 def row(record, entry, n, why, full=None, verdict=None):
     """`why` is what PRINTS (truncated to fit); `full` is what phase 4 PARSES. They must be
     separate: a RETIRE-WHEN: clause written past column 44 would otherwise be invisible to the
-    only check that reads it, and a control that cannot see its subject is not a control."""
+    only check that reads it, and a control that cannot see its subject is not a control.
+
+    `verdict` overrides the default below. THE DEFAULT IS A DERIVATION AND DERIVATIONS GO BLIND:
+    it reads `n` alone, so it cannot see a checker that decided, on grounds of its own, not to
+    file a finding. That is exactly what the TRANSIENT suppression did — see the SELF-CHECK just
+    above the summary, which is the guard that makes the two agree from now on."""
     v = verdict or ("live" if n else "STALE")
     ROWS.append((record, entry, n, why, v))
     REASONS.append((record, entry, full if full is not None else why))
-    print("      %-6s n=%-4d %-46s %s" % (v, n, entry[:46], why))
+    # %-7s, not %-6s: "dormant" is seven characters, and a verdict column that only fits
+    # the verdicts that existed when it was written is the same species of thing this
+    # census hunts — a shape that silently mis-renders whatever was added after it.
+    print("      %-7s n=%-4d %-46s %s" % (v, n, entry[:46], why))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -311,8 +343,14 @@ else:
             # Deliberately narrow — it is not an excuse for a job that simply died. (2026-08-24)
             m = re.match(r"TRANSIENT:\s*(.+)", why)
             transient = bool(m) and len(m.group(1).strip()) >= 25
+            # DORMANT, not STALE. The suppression below (skip the stale() call) and the verdict
+            # in row() are computed in two different places, and nothing joined them: the finding
+            # was correctly silenced while the row still read STALE, so the summary printed
+            # "stale: 2" directly above rc 0 and "every ratification still describes something
+            # true." Both lines were produced by the same run. (feynmanSync-08, measured on
+            # darwin — the launchd phase never runs on a Linux box, so this needed darwin to see.)
             row(name, pat, n, ("transient · " + m.group(1).strip())[:44] if transient else why[:44],
-                full=why)
+                full=why, verdict=("dormant" if (transient and not n) else None))
             if not n and not transient:
                 stale("%s: '%s' matches NO loaded launchd label today — it excuses a job that is "
                       "no longer running. Delete it, or say in the file why it is kept "
@@ -721,12 +759,35 @@ if ABSENT:
            "The box of record is the one with the whole estate cloned; re-run there "
            "before retiring any of these." % (len(ABSENT), BOX))
     print()
-live   = sum(1 for r in ROWS if r[2])
-absent = sum(1 for r in ROWS if len(r) > 4 and r[4] == "absent")
-dead   = sum(1 for r in ROWS if not r[2]) - absent
+live    = sum(1 for r in ROWS if r[2])
+absent  = sum(1 for r in ROWS if len(r) > 4 and r[4] == "absent")
+dormant = sum(1 for r in ROWS if len(r) > 4 and r[4] == "dormant")
+dead    = sum(1 for r in ROWS if not r[2]) - absent - dormant
+
+# ── SELF-CHECK · the summary may not contradict the findings ─────────────────────────────
+# A row's verdict and a checker's decision to FILE are computed in two different places. The
+# verdict is DERIVED from `n` alone; a suppression is expressed by not calling stale(). So a
+# suppression is invisible to the derivation — and invisible reads as the default, which is
+# STALE. That is how "stale: 2" came to print one line above "ok every ratification in the
+# estate still describes something true", both true to their own mechanism, in the same run.
+#
+# This is feynmanSync-07's open question with the subject swapped: when a conclusion is derived
+# from ONE mechanism, a fact expressed through a DIFFERENT one is invisible to that derivation.
+# Patching the one path would leave the next suppression free to make the same mistake, so the
+# guard asserts the JOIN instead: a row may be counted STALE only if some finding names it.
+# Any future suppression that moves without its verdict trips this without anyone remembering
+# it exists — and so does a finding phrased without naming its own entry, which is unactionable
+# for the same reason. Both make the count and the findings say different things.
+for _rec, _pat, _n, _why, _v in ROWS:
+    if _v == "STALE" and not any(_pat in _f for _f in FAILS):
+        stale("SELF-CHECK: %s: '%s' is counted STALE in the summary but NO finding names it. "
+              "Either a suppression moved without its verdict, or a finding was filed that does "
+              "not name its own entry. Either way the count and the findings disagree, and a "
+              "session reading one of them is reading a different census." % (_rec, _pat))
+
 print("=" * 78)
-print("  entries checked: %d   still true: %d   stale: %d   unjudgeable on %s: %d"
-      % (len(ROWS), live, dead, BOX, absent))
+print("  entries checked: %d   still true: %d   dormant: %d   stale: %d   unjudgeable on %s: %d"
+      % (len(ROWS), live, dormant, dead, BOX, absent))
 if NOTES:
     print("  WARN — %d entr(ies) are matching but unreviewed (rc unaffected, deliberately):" % len(NOTES))
     for n in NOTES:

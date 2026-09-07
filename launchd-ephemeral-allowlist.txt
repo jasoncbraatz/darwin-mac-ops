@@ -34,7 +34,10 @@
 com.braatz.travel-mode-rearm   # TRANSIENT: loaded only while travel mode is armed (travel-mode.py enter plants it, clear_rearm removes it); absent on an ordinary day by design. generator: ~/repos/strike-zone/tools/travel-mode/travel-mode.py
                                 # (plant_rearm/clear_rearm) — plist body is parameterized with
                                 # `until_dt` at plant time, so no fixed copy is ever committed.
-                                # RETIRE-WHEN: travel-mode.py stops planting a launchd job for
-                                # rearm (e.g. switches to a cron-less poll) — this entry then
-                                # matches nothing and should be deleted, not left inert.
+                                # RETIRE-WHEN: "text-gone:~/repos/strike-zone/tools/travel-mode/travel-mode.py::plant_rearm"
+                                # i.e. travel-mode.py stops planting a launchd job for rearm
+                                # (e.g. switches to a cron-less poll) — this entry then matches
+                                # nothing and should be deleted, not left inert. Written as prose
+                                # until 2026-09-07: the clause was here, and unreadable to the one
+                                # check that reads clauses, which is the same as not being here.
                                 # REVIEWED: 2026-09-05 (smDrainGate4 S1, gid 1218198174895655)

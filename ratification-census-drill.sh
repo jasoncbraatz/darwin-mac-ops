@@ -246,6 +246,70 @@ else
   printf '  ok    %-46s reported, did not crash\n' "no traceback on a launchctl-less box"; PASS=$((PASS+1))
 fi
 
+# ─────────────────────────────────────────────────────────────────────────────
+# feynmanSync-08 · the verdict/finding JOIN, and the reason that wraps.
+# Both of these were live on darwin on 2026-09-07 and INVISIBLE on feynman, because the
+# launchd phase does not run on a box with no launchctl. A control that can only pass on
+# one box is why they survived: the drill ran green on the box that could not look.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 24. A TRANSIENT job that is legitimately absent today must read DORMANT, and must NOT be
+#     counted in the summary's stale tally. Before this, the finding was correctly suppressed
+#     while the row still said STALE, so the census printed "stale: 2" one line above rc 0 and
+#     "every ratification still describes something true." Both from the same run.
+E="$T/transient"; mkestate "$E"
+printf '%s\n%s\n' \
+  'com.fixture.live.*   # a label the fake launchctl really lists' \
+  'com.fixture.gone.*   # TRANSIENT: only registers a label while an update is actually installing' \
+  > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+run "$E"; check "transient absentee reads dormant, not stale" 0 "dormant" "$RC" "$OUT"
+check "and the summary tallies it as stale: 0"            0 "stale: 0"  "$RC" "$OUT"
+
+# 25. NEGATIVE TWIN, and the load-bearing control of this pair. Take a COPY of the census with
+#     exactly the verdict-join removed -- the pre-feynmanSync-08 behaviour, where row() derives
+#     STALE from n alone and cannot see the suppression -- and demand the SELF-CHECK catch the
+#     contradiction rather than print a tally that disagrees with its own findings.
+#     The mutation lands on a copy inside $T. The live census is never touched: that is the
+#     lesson roster-oncommit-drill taught the hard way (-07), where step 1 installed a known-
+#     broken tool over the real one with nothing standing between it and step 2.
+#     The sed is VERIFIED to have changed something first -- a no-op mutation would make this
+#     control pass for the wrong reason, which is the whole species of bug it is here to catch.
+MUT="$T/census-desync.sh"
+sed 's/verdict=("dormant" if (transient and not n) else None)/verdict=None/' "$CENSUS" > "$MUT"
+if cmp -s "$MUT" "$CENSUS"; then
+  printf '  FAIL  %-46s the mutation changed nothing (anchor moved?)\n' "self-check control mutates for real"
+  FAIL=$((FAIL+1))
+else
+  printf '  ok    %-46s mutation applied\n' "self-check control mutates for real"; PASS=$((PASS+1))
+  OUT="$(RC_HOME="$E" RC_SCAN_ROOTS="$E/Scripts:$E/code/darwin-mac-ops:$E/repos/claude-blackbook/scripts" \
+        RC_LAUNCHCTL="$E/labels" RC_NO_SWEEP=1 bash "$MUT" 2>&1)"; RC=$?
+  check "a desynced verdict is caught by SELF-CHECK" 1 "SELF-CHECK" "$RC" "$OUT"
+fi
+
+# 26. A reason that WRAPS. Phase 4 is the only check that reads RETIRE-WHEN:, and it read
+#     exactly one line. Every clause an author wrapped for readability was invisible to it --
+#     and invisible reads as "carries no clause", which is what the FLOOR counts. Measured on
+#     darwin: com.braatz.travel-mode-rearm carried RETIRE-WHEN *and* REVIEWED, precisely as its
+#     own file's documented bar demands, and phase 4 scored it as carrying neither.
+#     Here the wrapped clause is one whose condition is MET, so seeing it must turn the census
+#     RED. A control that only proved the clause was *parsed* would pass on a parser that read
+#     it and threw it away.
+E="$T/wrap"; mkestate "$E"
+{ printf 'com.fixture.diverge  # the vault copy differs on purpose\n'
+  printf '                     # RETIRE-WHEN: path-gone:~/Scripts/not-here.sh — drop it when that goes\n'
+} > "$E/code/darwin-mac-ops/launchd-divergence-allowlist.txt"
+run "$E"; check "wrapped RETIRE-WHEN is read (and bites)" 1 "condition is now MET" "$RC" "$OUT"
+
+# 27. POSITIVE TWIN of 26, so the fix cannot degrade into "any comment anywhere is a clause".
+#     A comment at column 0 is a file or section header. If those attached to whatever entry
+#     happened to precede them, a header could retire a live ratification it was never about --
+#     the same destructive direction as the STALE remedy itself ("delete the entry").
+E="$T/wrapcol0"; mkestate "$E"
+{ printf 'com.fixture.diverge  # the vault copy differs on purpose\n'
+  printf '# RETIRE-WHEN: path-gone:~/Scripts/not-here.sh — a section header, not this entry.\n'
+} > "$E/code/darwin-mac-ops/launchd-divergence-allowlist.txt"
+run "$E"; check "a column-0 comment is NOT a continuation" 0 "still describes something true" "$RC" "$OUT"
+
 echo
 if [ "$FAIL" -gt 0 ]; then
   bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="

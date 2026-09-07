@@ -19,7 +19,9 @@ com.adobe.*                     # Creative Cloud / Acrobat vendor agents, instal
 com.anthropic.claudefordesktop.*  # TRANSIENT: Claude desktop app updater (Squirrel/ShipIt) —
                                 # registers a launchd label ONLY while an update is installing,
                                 # so it is absent on any ordinary day. App itself is installed
-                                # and running; verified 2026-08-24. Vendor-installed, not ours.
+                                # and running. Vendor-installed, not ours.
+                                # REVIEWED: 2026-08-24 (the day this was verified; recorded as
+                                # prose until 2026-09-07, so phase 4 could not count it)
 com.autodesk.*                  # Fusion 360 vendor agent
 com.docker.*                    # Docker Desktop vendor helper
 com.google.*                    # GoogleUpdater / Keystone, vendor-installed
