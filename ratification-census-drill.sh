@@ -43,6 +43,11 @@ J
       > "$d/code/darwin-mac-ops/launchd-divergence-allowlist.txt"
   : > "$d/code/darwin-mac-ops/gate-secret-sweep.allow"
   : > "$d/Scripts/repo-doctor.allow"
+  # portability-guard.allow (feynmanSync-02): the census gained a checker for it, so the
+  # miniature estate has to carry one too -- a new control that its own drill cannot run is
+  # exactly the "decorative control" this drill exists to catch. Empty is a valid fixture:
+  # entries_of returns [], the checker says "nothing to go stale", and the clean run stays 0.
+  : > "$d/Scripts/portability-guard.allow"
   : > "$d/Scripts/asana-read-lint.baseline"
   : > "$d/Scripts/card-lint.baseline"
   # the self-policing consumers, with their re-examination logic intact
@@ -74,6 +79,21 @@ E="$T/lc"; mkestate "$E"
 printf 'com.fixture.uninstalled.*  # the app was deleted in June\n' \
     > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
 run "$E"; check "dead launchd glob is found" 1 "NO loaded launchd label" "$RC" "$OUT"
+
+# 3b. a portability-guard glob that ratifies NOTHING (feynmanSync-02). The checker compares
+#     globs against what git actually TRACKS, so this fixture needs a REAL repo -- without one
+#     the control would pass for the wrong reason (no repo -> CANNOT VERIFY, not a red), which
+#     is the same species of lie this drill exists to catch.
+E="$T/pg"; mkestate "$E"
+(
+  cd "$E/Scripts" && git init -q . && : > real.plist && git add real.plist \
+    && git -c user.email=d@d -c user.name=d commit -qm fixture
+) >/dev/null 2>&1
+printf '%s\n%s\n' \
+  '*.plist    | live: really matches real.plist' \
+  '*.goneext  | the darwin-only file this excused was deleted in June' \
+  > "$E/Scripts/portability-guard.allow"
+run "$E"; check "dead portability-guard glob is found" 1 "ratifies nothing" "$RC" "$OUT"
 
 # 4. FAIL CLOSED on a record shape the census has never seen. This is the -24 control:
 #    a selector that only knows the familiar fails OPEN on everything added later.
