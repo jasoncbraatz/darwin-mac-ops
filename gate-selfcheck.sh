@@ -706,8 +706,14 @@ $_paths")
       _st="${_line:0:2}"; _p="${_line:3}"
       _p="${_p##* -> }"                       # renames: report the destination
       _p="${_p%\"}"; _p="${_p#\"}"             # git quotes paths with odd characters
-      _mt="$(stat -f %m "$_p" 2>/dev/null || echo 0)"
-      _when="$(stat -f '%Sm' -t '%H:%M' "$_p" 2>/dev/null || echo '--:--')"
+      # BSD stat (macOS) and GNU stat (feynman) share no flags. Without the -c fallback
+      # _mt was 0 on Linux, the -gt 0 test below was always false, and the SIBLING-SESSION
+      # WARNING never fired on feynman -- silently, on the box with the newest sessions.
+      # (feynmanSync-01 2026-09-07. Line ~473 already had this fallback; this one did not.)
+      _mt="$(stat -f %m "$_p" 2>/dev/null || stat -c %Y "$_p" 2>/dev/null || echo 0)"
+      _when="$(stat -f '%Sm' -t '%H:%M' "$_p" 2>/dev/null)"
+      [ -n "$_when" ] || _when="$(stat -c %y "$_p" 2>/dev/null | cut -c12-16)"
+      [ -n "$_when" ] || _when='--:--'
       _tag=""
       [ "$_mt" -gt 0 ] && [ $((_now - _mt)) -lt 1200 ] \
         && _tag="   <-- touched <20min ago: a SIBLING session may own this (~/Scripts/roster who)"
