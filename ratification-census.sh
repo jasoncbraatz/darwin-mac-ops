@@ -77,6 +77,7 @@ CARD_LINT    = os.environ.get("RC_CARD_LINT",    H("Scripts/card-lint.py"))
 ARL          = os.environ.get("RC_ARL",          H("Scripts/asana-read-lint.py"))
 FDA_CANARY   = os.environ.get("RC_FDA_CANARY",   H("Scripts/fda-canary.sh"))
 LAUNCHCTL    = os.environ.get("RC_LAUNCHCTL",    "")     # a file of labels, for the drill
+LAUNCHCTL_ABSENT = None                                  # set when the binary is not on this box
 NO_SWEEP     = os.environ.get("RC_NO_SWEEP", "") == "1"  # skip the git-grep secret replay
 SCAN_ROOTS   = [p for p in os.environ.get(
     "RC_SCAN_ROOTS", ":".join([H("Scripts"), H("code/darwin-mac-ops"),
@@ -174,13 +175,67 @@ def entries_of(path):
             out.append((pat, s))
     return out
 
-def row(record, entry, n, why, full=None):
+def row(record, entry, n, why, full=None, verdict=None):
     """`why` is what PRINTS (truncated to fit); `full` is what phase 4 PARSES. They must be
     separate: a RETIRE-WHEN: clause written past column 44 would otherwise be invisible to the
     only check that reads it, and a control that cannot see its subject is not a control."""
-    ROWS.append((record, entry, n, why))
+    v = verdict or ("live" if n else "STALE")
+    ROWS.append((record, entry, n, why, v))
     REASONS.append((record, entry, full if full is not None else why))
-    print("      %-5s n=%-4d %-46s %s" % ("live" if n else "STALE", n, entry[:46], why))
+    print("      %-6s n=%-4d %-46s %s" % (v, n, entry[:46], why))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ABSENT vs STALE — the box is not the estate (feynmanSync-07, 2026-09-07)
+#
+# Every subtractive check below judges an entry by walking THIS BOX's filesystem.
+# The estate has boxes with different repo sets: darwin clones ~64, feynman 15.
+# So a pattern pointing into a repo that was never cloned here matches zero files,
+# and the check printed STALE and told the session to DELETE the entry — a false
+# accusation, with a destructive remedy, against a shared git-backed allowlist,
+# produced by nothing but this box's own incompleteness. Measured on feynman
+# 2026-09-07: 20 of 20 STALE findings were false, every one of them a subject
+# living in a repo that is not cloned here.
+#
+# It is also exactly the shape -06 spent its day on: an enumeration that fails by
+# returning EMPTY, read as a substantive finding rather than as "I could not look."
+#
+# The discriminator is the directory that WOULD contain the subject:
+#   container present, subject missing  -> the subject really died. STALE (rc 1).
+#   container absent                    -> this box cannot know.     CANNOT VERIFY (rc 2).
+# rc 2 is not a new code invented for this; it is the one this census already
+# defines as "a subject enumeration came back empty, so a clean report would mean
+# nothing." That is precisely the situation. It was simply never wired to the
+# PARTIAL case: the pre-existing guards fire only when a walk finds ZERO files
+# estate-wide, and a box that is half-populated sails straight through them.
+#
+# There is deliberately NO env var to force this. An "absent" a session can assert
+# is an off-switch, and which repos exist on a box is a fact to be measured, not a
+# flag to be passed. The drill drives both directions through RC_HOME fixtures, so
+# it executes this real function rather than grading a copy of it.
+ABSENT = []
+BOX = os.uname().nodename.split(".")[0]
+
+def container_of(pat):
+    """The directory that would hold `pat`, i.e. the dirname of its glob-free prefix."""
+    p = pat.replace("~/", HOME + "/", 1) if pat.startswith("~/") else pat
+    if not p.startswith(HOME + "/"):
+        return None                      # not a path-shaped subject under HOME
+    cut = [i for i, c in enumerate(p) if c in "*?["]
+    lit = p[:cut[0]] if cut else p
+    d = lit if lit.endswith("/") else os.path.dirname(lit)
+    d = d.rstrip("/")
+    return d or None
+
+def absent_here(record, pat, where=None):
+    """True if `pat` cannot be judged on this box. Records it; never accuses."""
+    if where is None:
+        d = container_of(pat)
+        if d is None or os.path.isdir(d):
+            return False
+        where = "%s is not on %s" % (rel(d), BOX)
+    ABSENT.append((record, pat, where))
+    return True
 
 # --- 2a. bb-writers-allowlist.json (consumer: bb-writers-audit.py, gate G-AD) ---
 print("  --- %s ---" % rel(BB_ALLOW))
@@ -201,8 +256,10 @@ else:
     for e in bb:
         pat = e["pattern"]
         n = sum(1 for f in bbfiles if fnmatch.fnmatch(f, pat))
-        row("bb-writers", pat, n, (e.get("reason", "") or "")[:44], full=e.get("reason", "") or "")
-        if not n:
+        ab = (not n) and absent_here("bb-writers", pat)
+        row("bb-writers", pat, n, (e.get("reason", "") or "")[:44], full=e.get("reason", "") or "",
+            verdict="absent" if ab else None)
+        if not n and not ab:
             stale("bb-writers-allowlist.json: pattern '%s' matches NO file today. It ratifies "
                   "nothing — and pre-ratifies whatever lands at that path next, carrying a "
                   "reason written for something else. Delete it." % pat)
@@ -211,11 +268,26 @@ else:
 if LAUNCHCTL:
     labels = {l.strip() for l in open(LAUNCHCTL) if l.strip()}
 else:
-    out = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
+    # NO launchctl ON LINUX. Before feynmanSync-07 this line raised an UNCAUGHT
+    # FileNotFoundError: the census died mid-phase-2, python exited 1, and G-AK read
+    # that 1 as its specific finding — "an exception record excuses a subject that no
+    # longer exists". It was neither true nor a finding; phases 2b through 5 simply
+    # never ran, on every wrap on this box. The author DID foresee an empty label set
+    # (the `not labels` branch below, and drill control 6) — but an absent TOOL and an
+    # empty RESULT are different failures, and only the second one had been imagined.
+    try:
+        out = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
+    except (FileNotFoundError, NotADirectoryError, PermissionError) as _e:
+        out = ""; LAUNCHCTL_ABSENT = _e
     labels = {p[2].strip() for p in (l.split("\t") for l in out.splitlines()[1:])
               if len(p) >= 3 and p[2].strip()}
 print("  --- launchd allowlists (loaded labels: %d) ---" % len(labels))
-if not labels:
+if LAUNCHCTL_ABSENT is not None:
+    cannot("launchctl is not installed on %s (%s), so NOT ONE of the three launchd "
+           "allowlists was judged here. This is a routing fact, not a finding: the "
+           "launchd records can only be re-read on the box that runs launchd (darwin)."
+           % (BOX, LAUNCHCTL_ABSENT.__class__.__name__))
+elif not labels:
     cannot("launchctl listed ZERO labels — every launchd allowlist entry would read as stale")
 else:
     for path, name in ((FOREIGN, "launchd-foreign"), (DIVERGE, "launchd-divergence"), (EPHEMERAL, "launchd-ephemeral")):
@@ -288,11 +360,20 @@ else:
                 for ln in p.stdout.splitlines():
                     keys.append("%s/%s" % (os.path.basename(repo), ln.split(":")[0]))
             print("      sweep hits before suppression: %d (across %d repos)" % (len(keys), len(repos)))
+            repo_names = {os.path.basename(r) for r in repos}
             for pat, line in ge:
                 n = sum(1 for k in keys if fnmatch.fnmatch(k, pat))
                 reason = line.split("#", 1)[-1].strip()
-                row("gate-secret-sweep", pat, n, reason[:44], full=reason)
-                if not n:
+                # Same discriminator as bb-writers, different namespace: these keys are
+                # "<repo basename>/<path>", so the container is the repo itself.
+                head = pat.split("/")[0]
+                ab = (not n) and not any(c in head for c in "*?[") and head not in repo_names
+                if ab:
+                    absent_here("gate-secret-sweep", pat,
+                                "repo '%s' is not cloned on %s" % (head, BOX))
+                row("gate-secret-sweep", pat, n, reason[:44], full=reason,
+                    verdict="absent" if ab else None)
+                if not n and not ab:
                     stale("gate-secret-sweep.allow: '%s' suppresses NOTHING in today's sweep. "
                           "G-E prints one aggregate count, so a dead rule is invisible there — "
                           "it sits ready to silence a future match nobody chose to excuse." % pat)
@@ -541,11 +622,19 @@ def retires(pred):
     verb, _, arg = pred.partition(":")
     if verb not in RETIRE_VERBS or not arg.strip():
         return "BAD", "unknown or empty verb"
-    if verb == "path-gone":
+    # A path predicate is evaluated against THIS BOX. If the directory that would hold
+    # the subject is not here, no answer is available in either direction — and this is
+    # the most destructive place to guess, because a satisfied path-gone tells the next
+    # session to DELETE a live ratification. `text-gone` already got this right (missing
+    # file -> None); the two path verbs did not. (feynmanSync-07)
+    if verb in ("path-gone", "path-here"):
         hits = glob.glob(_p(arg))
-        return (not hits), ("nothing at %s" % arg) if not hits else ("%d path(s) still there" % len(hits))
-    if verb == "path-here":
-        hits = glob.glob(_p(arg))
+        if not hits and container_of(_p(arg).replace(HOME + "/", "~/", 1)) \
+           and not os.path.isdir(container_of(_p(arg).replace(HOME + "/", "~/", 1))):
+            return None, "%s is not on %s — cannot tell whether the subject is gone or absent" % (
+                arg, BOX)
+        if verb == "path-gone":
+            return (not hits), ("nothing at %s" % arg) if not hits else ("%d path(s) still there" % len(hits))
         return bool(hits), ("%d path(s) landed at %s" % (len(hits), arg)) if hits else ("still nothing at %s" % arg)
     if verb == "text-gone":
         f, _, needle = arg.partition("::")
@@ -622,10 +711,22 @@ if REASONS and covered == 0:
 
 # ─────────────────────────────────────────────────────────────────────────────
 print()
-live  = sum(1 for r in ROWS if r[2])
-dead  = sum(1 for r in ROWS if not r[2])
+if ABSENT:
+    print("=== phase 2z · entries this box CANNOT judge (%d) ===" % len(ABSENT))
+    for _rec, _pat, _where in ABSENT:
+        print("      absent %-46s %s" % (_pat[:46], _where))
+    cannot("%d subtractive entr(ies) point into a container that does not exist on %s. "
+           "Zero matches HERE is not evidence the subject died — it is evidence this box "
+           "never had it, and the remedy those findings print is 'delete the entry'. "
+           "The box of record is the one with the whole estate cloned; re-run there "
+           "before retiring any of these." % (len(ABSENT), BOX))
+    print()
+live   = sum(1 for r in ROWS if r[2])
+absent = sum(1 for r in ROWS if len(r) > 4 and r[4] == "absent")
+dead   = sum(1 for r in ROWS if not r[2]) - absent
 print("=" * 78)
-print("  entries checked: %d   still true: %d   stale: %d" % (len(ROWS), live, dead))
+print("  entries checked: %d   still true: %d   stale: %d   unjudgeable on %s: %d"
+      % (len(ROWS), live, dead, BOX, absent))
 if NOTES:
     print("  WARN — %d entr(ies) are matching but unreviewed (rc unaffected, deliberately):" % len(NOTES))
     for n in NOTES:

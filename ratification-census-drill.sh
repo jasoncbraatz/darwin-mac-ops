@@ -13,10 +13,13 @@
 # rc 0 = every control holds.  rc 1 = at least one control failed.
 set -uo pipefail
 CENSUS="${CENSUS:-$HOME/code/darwin-mac-ops/ratification-census.sh}"
-PASS=0; FAIL=0
+PASS=0; FAIL=0; NEG=0
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 check() { # check <name> <expected-rc> <expected-grep-or-->
   local name="$1" want="$2" pat="$3" got="$4" out="$5"
+  # A hardcoded "N of them negative" in the summary is doc-rot with a countdown, so the
+  # drill counts its own. Negative = a control that demands the census NOT return 0.
+  [ "$want" != "0" ] && NEG=$((NEG+1))
   if [ "$got" != "$want" ]; then
     printf '  FAIL  %-46s rc=%s (wanted %s)\n' "$name" "$got" "$want"; FAIL=$((FAIL+1)); return
   fi
@@ -179,10 +182,74 @@ printf 'com.fixture.live.*   # REVIEWED: 2000-01-01 — nobody has looked since\
     > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
 run "$E"; check "stale REVIEWED: warns without biting" 0 "has not been re-read" "$RC" "$OUT"
 
+# ── THE BOX IS NOT THE ESTATE (feynmanSync-07, 2026-09-07) ────────────────────
+#    Every subtractive check judges an entry by walking THIS BOX. darwin clones ~64
+#    repos, feynman 15 — so a pattern pointing into a repo that was never cloned here
+#    matched zero files, and the census printed STALE and told the session to DELETE
+#    the entry out of a shared, git-backed allowlist. Measured on feynman the day these
+#    controls were written: 25 of 25 "stale" findings were this, and NOT ONE was real.
+#    The pre-existing vacuity guards could not catch it — they fire only when a walk
+#    finds ZERO files estate-wide, and a half-populated box sails straight through.
+
+# 16. an absent container is CANNOT VERIFY, never STALE.
+E="$T/absent"; mkestate "$E"
+cat > "$E/repos/claude-blackbook/scripts/bb-writers-allowlist.json" <<'J'
+{"_doc":"fixture","entries":[{"pattern":"~/repos/never-cloned-here/writer.py","reason":"lives on another box"}]}
+J
+run "$E"; check "absent container is CANNOT VERIFY, not STALE" 2 "CANNOT judge" "$RC" "$OUT"
+#     ...and it must not ALSO be accused. The remedy a stale finding prints is "delete the
+#     entry", so an accusation alongside the excuse is the whole bug still shipping.
+if printf '%s' "$OUT" | grep -q "matches NO file today"; then
+  printf '  FAIL  %-46s absent entry was ALSO accused of staleness\n' "absent is not also accused"; FAIL=$((FAIL+1))
+else
+  printf '  ok    %-46s no stale accusation\n' "absent is not also accused"; PASS=$((PASS+1))
+fi
+
+# 17. THE DISCRIMINATOR MUST DISCRIMINATE. Control 16 alone would still pass if the fix
+#     were "never call anything stale again", which is an off-switch wearing a fix's
+#     clothes. Same estate, one absent container AND one genuine corpse in a repo that IS
+#     here: the corpse must still red while the absent one is still excused.
+E="$T/absent_mix"; mkestate "$E"
+cat > "$E/repos/claude-blackbook/scripts/bb-writers-allowlist.json" <<'J'
+{"_doc":"fixture","entries":[
+ {"pattern":"~/repos/never-cloned-here/writer.py","reason":"lives on another box"},
+ {"pattern":"~/repos/realrepo/DELETED-LAST-YEAR.py","reason":"the repo IS here; the file is not"}]}
+J
+run "$E"; check "a real corpse still reds beside an absent one" 1 "matches NO file today" "$RC" "$OUT"
+check "  ...and the absent one is still excused"        1 "CANNOT judge"           "$RC" "$OUT"
+
+# 18. the same discriminator on phase 4, where guessing is most expensive: a satisfied
+#     path-gone tells the next session to DELETE a live ratification. text-gone already
+#     returned CANNOT VERIFY for an unreadable subject (control 13); the two PATH verbs
+#     did not, so on a box missing the repo they reported the retirement as MET.
+E="$T/retire_absent"; mkestate "$E"
+printf 'com.fixture.live.*   # RETIRE-WHEN: path-gone:~/repos/never-cloned-here/writer.py — drop when it goes\n' \
+    > "$E/code/darwin-mac-ops/launchd-foreign-allowlist.txt"
+run "$E"; check "path-gone into an absent repo is CANNOT VERIFY" 2 "cannot tell whether the subject is gone" "$RC" "$OUT"
+
+# 19. a MISSING launchctl BINARY is CANNOT VERIFY, not a traceback. Control 6 covers an
+#     EMPTY label list; this covers the tool not existing at all — which is every Linux
+#     box in the fleet, and which used to kill the census mid-phase-2 with an uncaught
+#     FileNotFoundError. Python exits 1 for that, and G-AK reads 1 as its specific
+#     finding: "an exception record excuses a subject that no longer exists". It was
+#     neither true nor a finding, and phases 2b-5 never ran at all.
+#     PATH is stripped rather than trusting the OS, so this control does real work on
+#     darwin instead of passing for free on the box that already lacks launchctl.
+E="$T/nolaunchctl"; mkestate "$E"; mkdir -p "$T/emptybin"
+OUT="$(PATH="$T/emptybin" RC_HOME="$E" \
+      RC_SCAN_ROOTS="$E/Scripts:$E/code/darwin-mac-ops:$E/repos/claude-blackbook/scripts" \
+      RC_NO_SWEEP=1 "${BASH:-/bin/bash}" "$CENSUS" 2>&1)"; RC=$?
+check "missing launchctl BINARY is CANNOT VERIFY" 2 "launchctl is not installed" "$RC" "$OUT"
+if printf '%s' "$OUT" | grep -q "Traceback"; then
+  printf '  FAIL  %-46s the census crashed instead of reporting\n' "no traceback on a launchctl-less box"; FAIL=$((FAIL+1))
+else
+  printf '  ok    %-46s reported, did not crash\n' "no traceback on a launchctl-less box"; PASS=$((PASS+1))
+fi
+
 echo
 if [ "$FAIL" -gt 0 ]; then
   bold "=== drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="
   exit 1
 fi
-bold "=== drill: PASS — $PASS controls, 10 of them negative (the census can still go red) ==="
+bold "=== drill: PASS — $PASS controls, $NEG of them negative (the census can still go red, and can still say 'I could not look') ==="
 exit 0
