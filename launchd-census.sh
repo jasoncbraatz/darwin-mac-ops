@@ -152,7 +152,7 @@ UNBACKED_LIST=""; DIVERGED_LIST=""
 # Non-vacuity: an EMPTY index means the roots are not on this machine or find broke, not that
 # nothing is backed. Without this, all 36 jobs would read "unbacked" and the remedy would tell
 # someone to commit 36 plists that are already committed -- the acmeLedger-23 exit-3 lesson.
-PLIST_INDEX="$(mktemp -t lcidx)"
+PLIST_INDEX="$(mktemp "${TMPDIR:-/tmp}/lcidx.XXXXXX")"
 trap 'rm -f "$PLIST_INDEX"' EXIT
 find $SEARCH_ROOTS -name '*.plist' -not -path "$AGENTS/*" -not -path '*/.git/*' 2>/dev/null | sort > "$PLIST_INDEX"
 if [ ! -s "$PLIST_INDEX" ]; then

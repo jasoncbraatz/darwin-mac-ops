@@ -17,7 +17,7 @@ set -uo pipefail
 CENSUS="${CENSUS:-$HOME/code/darwin-mac-ops/launchd-census.sh}"
 [ -x "$CENSUS" ] || { echo "DRILL CANNOT RUN: $CENSUS missing or not executable" >&2; exit 2; }
 
-WORK="$(mktemp -d -t lcdrill)"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/lcdrill.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
 ck() {  # ck <name> <want_rc> <got_rc> [extra]

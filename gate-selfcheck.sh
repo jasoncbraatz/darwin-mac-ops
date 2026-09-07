@@ -1617,7 +1617,7 @@ if [ -f "$BB_AUDIT" ]; then
   # shape acmeLedger-23 fixed in G-AE by giving rc=3 its own remedy: telling someone to fix
   # the wrong thing costs more than saying nothing. The card line's EMPTINESS is the
   # discriminator, and stderr is kept so the traceback survives to be read.
-  _bb_err="$(mktemp -t gaderr)"
+  _bb_err="$(mktemp "${TMPDIR:-/tmp}/gaderr.XXXXXX")"
   _bb_line="$(python3 "$BB_AUDIT" --card-line 2>"$_bb_err")"; _bb_rc=$?
   if [ "$_bb_rc" -eq 0 ] && [ -n "$_bb_line" ]; then
     printf '  ok     %s\n' "$_bb_line"
@@ -1912,7 +1912,7 @@ fi
 #      terminator is the local example.
 bold "=== G-AH · a log line is not evidence (no filer logs a success it did not confirm) ==="
 _ah_bad=0; declare -a _ah_notes=()
-_ah_list="$(mktemp -t gah)"; _ah_n=0
+_ah_list="$(mktemp "${TMPDIR:-/tmp}/gah.XXXXXX")"; _ah_n=0
 if ! command -v grep >/dev/null 2>&1; then
   printf '  FAIL   CANNOT VERIFY: grep is not on PATH\n'
   FAILS+=("G-AH CANNOT VERIFY: grep is not on PATH, so no script was scanned. A verdict produced by not looking is not a pass.")
@@ -1956,7 +1956,7 @@ fi
 # matched nothing because it is broken, and its silence about the estate means nothing either.
 # (The estate hits are counted with the tripwire paths subtracted, so the fixtures cannot
 # inflate the finding or the denominator.)
-_ah_tw_dir="$(mktemp -d -t gahtw)"
+_ah_tw_dir="$(mktemp -d "${TMPDIR:-/tmp}/gahtw.XXXXXX")"
 printf '#!/bin/bash\n# G-AH tripwire: prong 1 MUST match the next line.\nasana_write "$gid"; log "PASS -- commented + completed"\n' > "$_ah_tw_dir/tripwire-sameline.sh"
 printf '#!/bin/bash\n# G-AH tripwire: prong 2 MUST match the log line after the terminator.\npython3 - <<PYEOF\nprint(1)\nPYEOF\nlog "OK"\n' > "$_ah_tw_dir/tripwire-heredoc.sh"
 if [ "${_ah_n:-0}" -gt 0 ]; then
