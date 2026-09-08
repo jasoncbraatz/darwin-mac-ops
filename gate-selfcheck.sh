@@ -3678,6 +3678,57 @@ else
   FAILS+=("G-AX CANNOT VERIFY: $KA_DRILL is missing, so nothing proved the keepalive still heals a 401. Restore: git -C ~/code/darwin-mac-ops checkout -- scripts/oauth-keepalive-drill.sh")
 fi
 
+# -- G-AY . the MAILBOX is read at wrap (FF-2; born 2026-09-08, sweeperArch-01) ------------------
+# `not-my-lane` was the plurality reason on the State Machine: a sibling finds a defect in a repo
+# THIS session live-holds and, forbidden to touch a held repo, files a card where the holder never
+# looks. sm-file now DELIVERS that finding to the holder's roster mailbox instead (roster mail;
+# hub-backed, crosses boxes like claims). This step is the other half of the door: the holder
+# cannot wrap with a finding unread. Each one must be FIXED (sha), CARDED (gid -- it became real
+# debt, with a reason) or DECLINED (why) -- `roster mail ack`. Absent is not one of those.
+# The store is the HUB: a dark hub is CANNOT VERIFY, reported as a WARN and not a FAIL, because
+# on a dark hub sm-file already fell back to filing cards (nothing was mailed that cannot be
+# seen elsewhere) and the fleet exchange is dark for the same reason -- one outage, one warning.
+gate_ran "G-AY"
+_gay_who="${GATE_ROSTER_WHO:-}"
+if [ -z "$_gay_who" ]; then
+  bold "=== G-AY . the mailbox is read at wrap ==="
+  printf '  FAIL   CANNOT VERIFY: no identity (roster whoami empty), so nobody'"'"'s mailbox could be read\n'
+  FAILS+=("G-AY CANNOT VERIFY: no identity (\`roster whoami\` empty: did you \`roster leave\` before the gate?). A mailbox belongs to a NAME; re-run as GATE_ROSTER_WHO=<tier>-<project>-<n> or join first.")
+else
+  _gay_json="$("$HOME/Scripts/roster" mail count --who "$_gay_who" --json 2>/dev/null)"; _gay_rc=$?
+  if [ "$_gay_rc" -eq 0 ]; then
+    _gay_n="$(printf '%s' "$_gay_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("unread", "X"))' 2>/dev/null || echo X)"
+    case "$_gay_n" in
+      0) : ;;   # the mailbox is empty or every finding is disposed. Silent.
+      X|'') bold "=== G-AY . the mailbox is read at wrap ==="
+         FAILS+=("G-AY CANNOT VERIFY: roster mail count returned something that is not a count ($_gay_json). The instrument is broken, which is not the same as an empty mailbox.") ;;
+      *) bold "=== G-AY . the mailbox is read at wrap ==="
+         "$HOME/Scripts/roster" mail read --who "$_gay_who" 2>/dev/null | sed 's/^/       /'
+         FAILS+=("G-AY: $_gay_n UNREAD finding(s) in $_gay_who's mailbox -- a sibling found a defect in a repo YOU hold and delivered it to you instead of the board (FF-2). Each needs a disposition before you wrap: ~/Scripts/roster mail ack --id <id> --as fixed --note <sha> | --as carded --gid <sm-card> | --as declined --note <why>. Absent is a decision nobody made.") ;;
+    esac
+  else
+    bold "=== G-AY . the mailbox is read at wrap ==="
+    printf '  WARN   CANNOT VERIFY: the mailbox store (hub) is unreachable -- %s\n' "$(printf '%s' "$_gay_json" | head -c 120)"
+    WARNS+=("G-AY CANNOT VERIFY: the mailbox store on the hub is unreachable, so $_gay_who's findings could not be counted. On a dark hub sm-file falls back to filing cards, so nothing is lost -- but read your mail when the hub is back: ~/Scripts/roster mail read")
+  fi
+fi
+
+# -- G-AY#drill . the mailbox can still refuse (send/unread/ack, and a dark store is not 'empty') --
+MAIL_DRILL="${MAIL_DRILL:-$HOME/Scripts/roster-mail-drill.py}"
+gate_ran "G-AY#drill"
+if [ -r "$MAIL_DRILL" ]; then
+  _gmd_out="$(python3 "$MAIL_DRILL" 2>&1)"; _gmd_rc=$?
+  case "$_gmd_rc" in
+    0) : ;;
+    *) bold "=== G-AY#drill . the mailbox can still refuse ==="
+       printf '%s\n' "$_gmd_out" | grep -E 'FAIL|failure' | sed 's/^/       /'
+       FAILS+=("G-AY#drill: roster-mail-drill failed (rc $_gmd_rc) -- G-AY above ran on a mailbox that cannot prove it refuses a shrug or tells a dark store from an empty one. Run: python3 ~/Scripts/roster-mail-drill.py") ;;
+  esac
+else
+  bold "=== G-AY#drill . the mailbox can still refuse ==="
+  FAILS+=("G-AY#drill CANNOT VERIFY: $MAIL_DRILL is missing -- G-AY ran uncontrolled this session. Restore: git -C ~/Scripts checkout -- roster-mail-drill.py")
+fi
+
 # -- G-AW#drill . the census can still go red (its own fixture-only selftest) --------------
 gate_ran "G-AW#drill"
 if [ -x "$DC" ]; then

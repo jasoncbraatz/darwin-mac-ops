@@ -79,6 +79,8 @@ G-AV	-	the roll call can still tell reach from silence (its own drill)
 G-AW	-	every drill is named by a runner (drill-census ratchet; a new orphan is red)
 G-AW#drill	-	the drill census can still go red
 G-AX	-	the fuel gauge can heal a 401 (oauth-keepalive drill)
+G-AY	-	the MAILBOX is read at wrap: every not-my-lane finding delivered to this session is FIXED, CARDED or DECLINED (FF-2)
+G-AY#drill	-	the mailbox can still refuse (roster-mail-drill: a shrug is refused, a dark store is not empty)
 
 # --- verdict aliases -------------------------------------------------------
 G-T#43u	G-T#43	sz-tick box probe answered but unparseable
