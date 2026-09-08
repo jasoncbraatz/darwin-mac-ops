@@ -515,6 +515,18 @@ else
   # filenames. So the fixture plants real files, the call runs with the CWD inside them, and the
   # dirty path is one the pattern covers but the DIRECTORY does not contain -- which is precisely
   # the case an expansion silently loses.
+  # THE COLLAPSED-DIRECTORY EDGE. `git status --porcelain` reports a wholly-untracked directory
+  # as `?? dir/` -- a SUMMARY, not a path -- so a declaration naming files under it cannot match
+  # and the repo stays a red. That is fail-closed and correct (nothing here can know what else is
+  # inside an unlisted directory), but it surprises a declarer, so it is pinned rather than left
+  # to be rediscovered as a bug. Same behaviour, same reason, in red-owner.py's selftest.
+  chk "" "$(_dirt_all_generated "$G" '?? state/sm-intake/')" "#26i '?? dir/' — porcelain's summary for a wholly-untracked directory — can NEVER satisfy a declaration, even one ending in '*' (which matches the empty string, so it WOULD have excused every unlisted file underneath)"
+  _v="$(_dirt_all_generated "$G" ' M state/sm-intake/motd.json')"
+  case "$_v" in
+    'state/sm-intake/*'*) ok "#26i-twin POSITIVE CONTROL: the same declaration still matches a real listed path — the trailing-slash refusal is narrow, not a blanket veto" ;;
+    *) bad "#26i-twin the '/' refusal swallowed a legitimate declared path (got='$_v')" ;;
+  esac
+
   N4="$S/patternonly"; mkdir -p "$N4"
   : > "$N4/a.tick"; : > "$N4/b.tick"
   printf '*.tick\tfixture: a.tick and b.tick exist here, so a word-split would expand this into filenames and destroy the pattern\n' > "$N4/.gate-generated"

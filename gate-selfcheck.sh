@@ -650,6 +650,14 @@ _dirt_all_generated() {   # <repo-path> <porcelain> -> "<matched-globs>\t<note>"
   while IFS= read -r _line; do
     [ -n "$_line" ] || continue
     _p="${_line:3}"; _p="${_p##* -> }"; _p="${_p%\"}"; _p="${_p#\"}"
+    # A PATH ENDING IN `/` IS A DIRECTORY SUMMARY, NOT A PATH, and it can never satisfy a
+    # declaration. `git status --porcelain` collapses a wholly-untracked directory to a single
+    # `?? dir/` row, listing NOTHING of what is inside it -- and a declared glob ending in `*`
+    # MATCHES that row, because `*` also matches the empty string. So `state/sm-intake/*` would
+    # have excused `?? state/sm-intake/` and, with it, every unlisted file underneath. Found by a
+    # control that had been passing for the WRONG reason; the honest answer is to refuse, because
+    # nothing here can know what git did not list.
+    case "$_p" in */) return 0 ;; esac
     _hit=""
     while IFS= read -r _glob; do
       [ -n "$_glob" ] || continue
