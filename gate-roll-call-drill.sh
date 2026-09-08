@@ -23,6 +23,13 @@
 #   1  a control FAILED — the roll call is not measuring what it claims
 #   2  CANNOT VERIFY — the library or its subject is missing. NOT a pass.
 #
+# v1.2 (feynmanSync-11, 2026-09-08) adds controls 20-29 for the JUDGMENT half. Their
+# load-bearing line is check 22, one step out from check 1: for the nineteen HANDOFF-GATE.md
+# steps a session walks by reading prose, A STEP NOBODY WITNESSED AND A STEP NOBODY DECLARED
+# WERE THE SAME FACT until v1.2, because neither left anything behind. Check 26 is the fence
+# around it -- no judgment row may ever render as `pass`, because `pass` is the mechanical
+# half's word for a measured silence and a prose step has none to report.
+#
 # Portable on purpose: bash 3.2 (darwin) and bash 5 (feynman). No `mapfile`, no `declare -A`,
 # no `readlink -f`, no BSD-only `mktemp -t`, and `stat` is never called.
 
@@ -58,6 +65,11 @@ G-GONE	-	declared, deliberately never reached
 G-PARENT	-	speaks under an alias
 G-A	-	one letter, and NOT the owner of G-AB
 G-PARENT#kid	G-PARENT	the alias
+G-JW	judgment	a prose step whose artifact the gate can see
+G-JD	judgment	a prose step the session asserts it walked
+G-JU	judgment	a prose step nothing witnessed at all
+G-JV	judgment	a prose step that speaks a verdict for itself
+G-J	judgment	one letter after the hyphen, and NOT the owner of G-JW
 MF
 
 # ── the fixture gate ──────────────────────────────────────────────────────────────────
@@ -82,6 +94,12 @@ gate_ran "G-A"
 gate_ran "G-STOWAWAY"                    # reached, no manifest row
 FAILS+=("G-AB: undeclared, and NOT G-A's problem")
 # G-GONE is declared and never reached, on purpose.
+# --- the judgment half ---------------------------------------------------------------
+gate_witness "G-JW" "the artifact is on disk at /fixture/HANDOFF-x-01.md"
+gate_witness "G-JW" "...and a second call must not make a second row"
+gate_witness "G-JSTRAY" "a witness for an id no manifest row declares"
+FAILS+=("G-JV: this prose step spoke a verdict for itself")
+# G-JD is claimed via GATE_ANSWERED in run_fixture; G-JU and G-J are claimed by nothing.
 gate_rollcall_emit >/dev/null
 exit 0
 FX
@@ -89,6 +107,7 @@ FX
 run_fixture() {   # <lib-path> -> writes $WORK/out/fixturebox.tsv
   rm -rf "$WORK/out"; mkdir -p "$WORK/out"
   LIB_UNDER_TEST="$1" MF_UNDER_TEST="$WORK/manifest" OUT_UNDER_TEST="$WORK/out" \
+    GATE_ANSWERED="G-JD" \
     bash "$WORK/fixture.sh" >/dev/null 2>&1
   return 0
 }
@@ -199,7 +218,68 @@ else
   note: skipped checks 15-16 -- gate-selfcheck.sh or gate-checks.manifest not readable from here"
 fi
 
-# ── 17-19. MUTANTS · does this drill measure the roll call, or something incidental? ──
+# ── 20-26. THE JUDGMENT HALF (v1.2, feynmanSync-11) ───────────────────────────────────
+# The mechanical half's headline is "a silent pass and a check that never ran are different
+# facts". The judgment half's headline is one step further out and was true of nineteen
+# HANDOFF-GATE.md sections until v1.2: A STEP NOBODY WITNESSED AND A STEP NOBODY EVEN
+# DECLARED WERE THE SAME FACT, because neither left anything behind. Check 22 is the load-
+# bearing one here, and check 26 is the line that keeps the whole thing honest.
+[ "$(state_of G-JW)" = "WITNESSED" ] && ok "20 a prose step whose ARTIFACT the gate can see reads WITNESSED" \
+  || bad "20 G-JW -> '$(state_of G-JW)'" "an artifact the gate looked at and found is the only objective evidence available here"
+[ "$(state_of G-JD)" = "DECLARED" ] && ok "21 a step the SESSION asserts reads DECLARED -- a different word from WITNESSED, on purpose" \
+  || bad "21 G-JD -> '$(state_of G-JD)'" "an assertion recorded as an assertion is worth something; recorded as a measurement it is worth less than nothing"
+[ "$(state_of G-JU)" = "UNWITNESSED" ] && ok "22 a step with NO artifact and NO assertion reads UNWITNESSED, not silence" \
+  || bad "22 G-JU -> '$(state_of G-JU)'" "this is the whole reason the judgment rows exist: a step nobody witnessed must not be indistinguishable from one nobody declared"
+[ "$(state_of G-JV)" = "fail" ] && ok "23 a prose step that SPOKE a verdict keeps the verdict -- it does not read WITNESSED over its own failure" \
+  || bad "23 G-JV -> '$(state_of G-JV)'" "'it happened' must never be substituted for 'it went well'"
+[ "$(state_of G-JSTRAY)" = "UNDECLARED" ] && ok "24 a witness for an id no manifest row declares is named UNDECLARED" \
+  || bad "24 G-JSTRAY -> '$(state_of G-JSTRAY)'" "a witness nothing will ever read looks like coverage from inside the gate and is invisible from outside it"
+[ "$(state_of G-J)" = "UNWITNESSED" ] && ok "25 G-JW's witness is NOT attributed to G-J (no prefix inference on the judgment side either)" \
+  || bad "25 G-J -> '$(state_of G-J)'" "ownership comes from the manifest on both halves, never from a shared prefix"
+# 26. THE LINE. Not one judgment row may ever render as `pass`. `pass` in this sidecar means
+#     "a mechanical check ran and the gate's arrays are silent about it" -- a measurement. No
+#     amount of witnessing tells you a prose step was answered WELL, and the day a judgment
+#     row can say `pass` is the day this instrument starts certifying answers it never read.
+# Derived from the fixture MANIFEST, not from a name prefix -- a control that identifies its
+# own subjects by string prefix is committing the bug check 25 exists to catch, inside the
+# check that is supposed to be watching for it.
+_jids="$(awk -F'\t' '!/^#/ && NF>=2 && $2=="judgment" { print $1 }' "$WORK/manifest" 2>/dev/null)"
+_jpass=""
+for _jid in $_jids; do
+  [ "$(state_of "$_jid")" = "pass" ] && _jpass="$_jpass $_jid"
+done
+[ -z "$_jpass" ] && ok "26 no judgment row renders as 'pass' -- the sidecar never certifies an answer it did not read" \
+  || bad "26 judgment row(s) reading 'pass':$_jpass" \
+         "'pass' is the mechanical half's word for a measured silence; a prose step has no measured silence to report"
+
+# ── 27. a judgment row must name a section that actually exists in the gate DOC ────────
+# The manifest's reverse closure for the mechanical half is "an id that speaks with no row".
+# For the judgment half it is the other way round: these rows have no marker to compare
+# against, so the only thing that can rot is the row naming a HANDOFF-GATE.md section that
+# was renamed or removed -- and it would rot SILENTLY, still printing UNWITNESSED forever
+# about a step that no longer exists. Static, cheap, and it reads the canonical doc.
+GATE_DOC="${GATE_DOC:-$HOME/Desktop/downloads/HANDOFF-GATE.md}"
+if [ -r "$REAL_MANIFEST" ] && [ -r "$GATE_DOC" ]; then
+  _jrows="$(LC_ALL=C awk -F'\t' '!/^#/ && NF>=2 && $2=="judgment" { print $1 }' "$REAL_MANIFEST" | sort -u)"
+  _jorphan=""
+  for _jid in $_jrows; do
+    LC_ALL=C grep -aqE "^#{2,3} *${_jid}([^A-Za-z0-9#]|\$)" "$GATE_DOC" || _jorphan="$_jorphan $_jid"
+  done
+  [ -z "$_jorphan" ] && ok "27 every judgment row names a section that still exists in HANDOFF-GATE.md" \
+    || bad "27 judgment row(s) naming no section in the gate doc:$_jorphan" \
+           "the row would print UNWITNESSED forever about a step that no longer exists -- rot that looks exactly like honest reporting"
+else
+  NOTE="$NOTE
+  note: skipped check 27 -- gate-checks.manifest or $GATE_DOC not readable from here"
+fi
+
+# ── MUTANTS · does this drill measure the roll call, or something incidental? ─────────
+# These print LAST and their labels (17-19, 28-29) are therefore out of numeric order. That
+# is deliberate and not worth "fixing": a mutant replaces the library under test, so every
+# state check above has to be finished before the first one runs. The labels are IDENTIFIERS
+# -- other files and past handoffs cite them by number -- and renumbering a control to tidy
+# the print order would silently repoint every one of those references.
+echo "  -- mutants (library replaced; every state check above is complete) --"
 # Each mutant breaks ONE mechanism in a copy of the library and asserts that the ONE check
 # aimed at it flips. A mutant that flips nothing means the check is decorative; a mutant
 # that flips everything means the checks are not independent.
@@ -247,6 +327,21 @@ if mutant_flips C 's/^          \*) _state="NOT-REACHED"$/          *) _state="p
   ok "19 MUTANT C (unreached defaults to pass): NOT-REACHED moves, a genuinely-reached pass does not"
 else
   bad "19 MUTANT C: $MUT_WHY" "check 2 is not measuring the headline state"
+fi
+
+# D · neuter the witness lookup. Only the witnessed step may move; the declared one must not,
+#     or checks 20 and 21 are not measuring two different mechanisms.
+if mutant_flips D 's|^        elif printf .%s. "\$GATE_ROLL_WIT" .*|        elif false; then|' G-JW WITNESSED G-JD DECLARED; then
+  ok "28 MUTANT D (witness lookup neutered): the witnessed step moves, the self-declared one does not"
+else
+  bad "28 MUTANT D: $MUT_WHY" "check 20 is not measuring the artifact witness"
+fi
+# E · make an unwitnessed step default to WITNESSED. This is the judgment half's version of
+#     the ORIGINAL BUG -- certifying a step nothing looked at -- injected on purpose.
+if mutant_flips E 's/^          _jstate="UNWITNESSED"$/          _jstate="WITNESSED"/' G-JU UNWITNESSED G-JW WITNESSED; then
+  ok "29 MUTANT E (unwitnessed defaults to WITNESSED): the unwitnessed step moves, a genuinely witnessed one does not"
+else
+  bad "29 MUTANT E: $MUT_WHY" "check 22 is not measuring the headline state of the judgment half"
 fi
 
 run_fixture "$LIB"   # leave the scratch in a truthful state

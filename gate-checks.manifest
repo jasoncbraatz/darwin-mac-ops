@@ -93,3 +93,45 @@ G-AL#board	G-AL	the generated DONE board is stale
 G-AL#done	G-AL	the charter's paperwork has a finding
 G-AQ#verify	G-AQ	a carried thread ships no one-line verify: line
 G-AS#door	G-AS	cards that walked past the door in the last 24h
+
+# --- judgment steps ---------------------------------------------------------
+# Added v1.2 (opus-feynmanSync-11, 2026-09-08). These are HANDOFF-GATE.md sections a SESSION
+# walks by reading prose. They have no `gate_ran` marker and must not grow one -- a script
+# cannot answer "is what remains crystal clear?", and a script that pretends to is a guard
+# that cannot fire.
+#
+# WHY THEY ARE HERE AT ALL. Before v1.2 the manifest said `units_declared=51` and stopped,
+# which reads as "the gate has 51 checks". The gate DOC declares 53 ids; the 51 reach units
+# cover 29 of them. The other 19 were not merely unmeasured, they were UNNAMED -- a session
+# that skipped G-D entirely and a session that ran it and found nothing left byte-identical
+# evidence. That is feynmanSync-09's G-AK problem one layer out, and the fix is the same one:
+# give the absence a word.
+#
+# Their states are WITNESSED / DECLARED / UNWITNESSED and never `pass`; see gate-rollcall.sh.
+# UNWITNESSED is the expected answer for eighteen of them today. That is the measurement, not
+# a red, and nothing here may ever fail a wrap over it.
+#
+# THE THIRD COLUMN IS A TO-DO LIST, and deliberately so: each row names what a witness for
+# THAT step would be. The next session to want one pays a row-read instead of re-deriving
+# this whole question. A row that gets a witness keeps its `judgment` parent; a row that
+# becomes genuinely mechanical moves to parent "-" and grows a `gate_ran` marker, and drill
+# check 16 goes red if only one half of that move happens.
+G-A	judgment	did we capture WHAT happened? A witness would be: the outbound handoff carries a narrative section, not only a file list
+G-B	judgment	did we capture WHY -- the hard-won knowledge (the LUT)? A witness would be: G-U already counts leaves banked this session; wire its count here rather than re-measuring
+G-C	judgment	is 'the boss' -- what REMAINS -- crystal clear? A witness would be: the outbound handoff names a next at-bat that someone could mark right or wrong, the same test rail-on already applies to a project
+G-D	judgment	did we VERIFY, not just assert? A witness would be: G-AR already re-runs asserted exit codes; a broader one would count claims in the handoff that ship a command against those that do not
+G-F	judgment	write the copy-paste prompt for a fresh Opus (REQUIRED final output). WITNESSED when the outbound handoff exists on disk at gate time -- which is precisely what G-F.1 asks for and nothing enforced before v1.2
+G-G	judgment	improve the system itself (the part Jason loves). A witness would be: a commit this session touching an instrument rather than only a deliverable -- the gate already knows the session tag and the repo shas
+G-J	judgment	mirror remote-only source-of-truth into its repo. A witness would be: G-T#44's vaulted-crontab comparison generalised to any remote SSOT the session touched
+G-K	judgment	blast radius -- did your change break something ELSE? A witness would be: the session ran a drill or test in a repo it did NOT edit
+G-M	judgment	cushion the next chunk -- leave a hands-dirty plan doc. A witness would be: docs/HANDOFF.md in the touched repo is newer than the session's first commit
+G-N	judgment	teacher-out -- did this session FEED the tree of wisdom? A witness would be: a claude-blackbook commit in this session's window; distinct from G-U, which counts the leaves rather than the act
+G-O	judgment	continuation prompt -- verify it is CURRENT, then PASTE it into the chat (the last act). Un-witnessable from inside the gate by construction: the paste happens in the chat, after the gate. Say so out loud rather than pretending
+G-P	judgment	arming a dormant capability -- OFF to ON in a live system. Conditional: most sessions arm nothing, so a witness must first establish the step APPLIED -- an n/a here is a real answer and UNWITNESSED is not
+G-Q	judgment	DONE vs DORMANT-INCOMPLETE -- a gated, tested half is not a finished whole. A witness would be: the board's own MET/UNMET/CANNOT-VERIFY row for the session's criterion, once board.py can say CANNOT VERIFY (card 1218276652192070)
+G-R	judgment	reference integrity -- every ID/path you cite must RESOLVE. A witness would be: resolve every gid and path in the outbound handoff. The most nearly-mechanical of the nineteen -- the likeliest next one to promote to a reach unit
+G-AB	judgment	a successful WRITE is not a verified write -- read the artifact back. A witness would be: for each file the session wrote outside a repo, evidence it was read back
+G-AC	judgment	a repo dirtied by ANOTHER session is not yours to clean. A witness would be: the roster claim board already knows who holds what; G-H reports the dirt without asking whose it is
+G-AM	judgment	a customer-facing UI is not done until it has been proven ON A PHONE. Conditional -- most sessions ship no UI; an applies/does-not-apply witness comes first
+G-AN	judgment	a Definition of Done contains only what CLAUDE can do. A witness would be: G-AL already reads the charter; a criterion naming Jason's hand is mechanically findable there
+G-AR	judgment	a handoff that ASSERTS an exit code must have it RE-RUN. Already half-mechanical inside G-AQ's family; the missing half is the outbound's asserted rcs, not the inbound's

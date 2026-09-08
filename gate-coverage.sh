@@ -83,6 +83,36 @@ done
 first="$(echo $FILES | awk '{print $1}')"
 IDS="$(awk -F'\t' '!/^#/ && NF>=2 { print $1 }' "$first")"
 
+# --- the JUDGMENT half is NOT a coverage question, and must not be scored as one --------
+# gate-rollcall.sh v1.2 added rows for the 19 HANDOFF-GATE.md steps a session walks by
+# reading prose. They have no box routing: a judgment step is walked by a SESSION, so every
+# box will report the same thing about it, and "UNWITNESSED on both boxes" is not a gap in
+# coverage -- it is the honest state of nearly all of them today.
+#
+# Scoring them here would be worse than useless in the specific way this tool exists to
+# prevent: they are neither NOT-REACHED nor ABSENT, so the pre-v1.2 loop would have counted
+# every one of them as REACHED ON EVERY BOX and quietly inflated a clean "zero gaps" answer
+# with 19 rows nothing measured. A census that counts unmeasured things as measured is the
+# whole disease.
+#
+# Collected from ALL sidecars, not just the first: a row that is WITNESSED on one box and
+# UNWITNESSED on another is still a judgment row, and reading only the first sidecar would
+# let the second box's copy fall through into the mechanical table.
+# NEWLINE-SENTINELLED ON BOTH SIDES. A prefix match here would let "G-A" answer for "G-AB"
+# -- the same confident-wrong-owner bug gate-rollcall.sh refuses in three separate places,
+# and the one the roll-call drill's control 11 exists to hold. It would be quiet, too: G-A is
+# a judgment row and G-AB is a judgment row, so today it would merely skip the right rows for
+# the wrong reason, and go wrong the day one of them is promoted to a mechanical check.
+JUDG_IDS="
+"
+for f in $FILES; do
+  JUDG_IDS="$JUDG_IDS$(awk -F'\t' '!/^#/ && ($2=="WITNESSED" || $2=="DECLARED" || $2=="UNWITNESSED") { print $1 }' "$f")
+"
+done
+_is_judg() { case "$JUDG_IDS" in *"
+$1
+"*) return 0 ;; esac; return 1; }
+
 printf '  %-21s' "check"
 for b in $BOXES; do printf '%-14s' "$b"; done
 printf '\n'
@@ -92,6 +122,7 @@ printf '\n'
 
 GAPS=0; DEAD=0
 for id in $IDS; do
+  _is_judg "$id" && continue
   row=""; reached=0; unreached=0
   for f in $FILES; do
     s="$(awk -F'\t' -v i="$id" '!/^#/ && $1==i { print $2; exit }' "$f")"
@@ -107,6 +138,28 @@ for id in $IDS; do
   elif [ "$unreached" -gt 0 ]; then mark="!"; GAPS=$((GAPS+1)); fi
   printf '%s %-21s%s\n' "$mark" "$id" "$row"
 done
+
+# --- the judgment half, reported and never scored ------------------------------------
+_JN="$(printf '%s\n' "$JUDG_IDS" | sed '/^$/d' | sort -u | grep -c . || true)"
+if [ "${_JN:-0}" -gt 0 ]; then
+  echo
+  echo "  ── judgment steps · walked by a session, not by any box ──"
+  printf '  %-21s' "step"
+  for b in $BOXES; do printf '%-14s' "$b"; done
+  printf '\n'
+  for id in $(printf '%s\n' "$JUDG_IDS" | sed '/^$/d' | sort -u); do
+    row=""
+    for f in $FILES; do
+      s2="$(awk -F'\t' -v i="$id" '!/^#/ && $1==i { print $2; exit }' "$f")"
+      [ -n "$s2" ] || s2="ABSENT"
+      row="$row$(printf '%-14s' "$s2")"
+    done
+    printf '  %-21s%s\n' "$id" "$row"
+  done
+  echo "  (UNWITNESSED is not a gap and not a red. It is the gate saying out loud that"
+  echo "   nothing recorded whether a prose step happened -- a fact it could not state"
+  echo "   at all before roll-call v1.2. It does not enter the exit code below.)"
+fi
 
 echo
 echo "  ── the answer ──"

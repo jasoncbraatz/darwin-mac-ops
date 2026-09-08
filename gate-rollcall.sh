@@ -44,6 +44,42 @@
 # named. Reverse: a check added without a manifest row is named. A one-directional roll
 # call would let a new check be invisible in the exact way G-AK was.
 #
+# ── THE JUDGMENT HALF (v1.2, feynmanSync-11, 2026-09-08) ──────────────────────────────
+# v1.1 closed both directions for the MECHANICAL half of the gate and was silent about the
+# other half, which is the larger one nobody had counted. HANDOFF-GATE.md declares 53 ids;
+# 51 reach units cover 29 of them. The remaining 19 subjects -- G-A "did we capture what
+# happened", G-C "is what remains clear", G-D "did we VERIFY, not just assert", G-F "write
+# the copy-paste prompt", G-G "improve the system itself", and fourteen more -- are walked
+# by a session READING PROSE. Nothing recorded whether a session performed them.
+#
+#   A session that skipped G-D entirely and a session that ran it and found nothing
+#   produced byte-identical evidence: none.
+#
+# That is the G-AK disease one layer out, and worse: G-AK at least rendered a header
+# sometimes. So judgment steps get manifest rows (parent `judgment`) and three states of
+# their own, and NOT ONE OF THEM IS `pass`, because nothing here grades an answer:
+#
+#   WITNESSED    the gate found the ARTIFACT this step is supposed to produce. Objective,
+#                and deliberately NOT a prose regex -- a heading-shape guess would answer
+#                "does this document contain a phrase I imagined", which is neither of the
+#                two questions and would read as if it were both.
+#   DECLARED     the session ASSERTED it performed the step (GATE_ANSWERED="G-C G-G").
+#                Self-reported, and the word says so. An assertion recorded as an assertion
+#                is worth something; an assertion recorded as a verdict is worth less than
+#                nothing.
+#   UNWITNESSED  no artifact, no assertion. Nobody can say whether this step happened.
+#
+# UNWITNESSED IS THE EXPECTED STATE TODAY AND THAT IS THE MEASUREMENT, not a red. Exactly
+# one witness ships with v1.2 (G-F: its deliverable is a file, so its existence is checkable
+# without guessing at anything). The other eighteen rows each carry, in the manifest's third
+# column, a sentence naming what a witness for THAT step would be -- so the next session
+# picks one up for the price of reading a row, instead of re-deriving this whole question.
+#
+# WHY NOT SIMPLY MECHANIZE THEM: most cannot be. "Is what remains crystal clear?" has no
+# mechanical answer and pretending otherwise is how a guard that cannot fire gets built.
+# The claim here is narrower and true: the gate can say whether anything witnessed the step,
+# and that is strictly more than the nothing it could say before.
+#
 # ── PORTABILITY ───────────────────────────────────────────────────────────────────────
 # darwin ships bash 3.2: NO associative arrays, no `mapfile`, no `${var^^}`. The seen-set
 # is a space-sentinelled string, the same idiom gate-selfcheck.sh already uses for REPOS.
@@ -57,7 +93,7 @@
 # guarded, and a manifest that cannot be read produces a sidecar SAYING SO rather than a
 # silent empty one — three states, never collapsed into two.
 
-GATE_ROLLCALL_LIB_VERSION="1.1"
+GATE_ROLLCALL_LIB_VERSION="1.2"
 
 # --- fingerprint the manifest, portably ------------------------------------------------
 # gate-coverage.sh refuses to join sidecars measured against DIFFERENT manifests, because
@@ -84,6 +120,7 @@ _rc_manifest_fp() {   # <path> -> "<algo>:<digest>" or "none"
 
 GATE_ROLL_SEEN=" "        # space-sentinelled set of ids reached this run
 GATE_ROLL_NA=""           # "<id>\t<why>" lines, for checks with no subject on this box
+GATE_ROLL_WIT=""          # "<id>\t<evidence>" lines, for judgment steps with an artifact
 
 # --- which box is this? ---------------------------------------------------------------
 # estate-boxes.txt is the fleet SSOT and names boxes darwin/feynman; `hostname -s` answers
@@ -127,6 +164,36 @@ gate_ran_na() {
 "
 }
 
+# --- record that a JUDGMENT step produced its artifact ---------------------------------
+# Called by the gate when it can SEE the thing a prose step was supposed to produce. It
+# takes the evidence as a string and stores it verbatim, because "witnessed" with no note
+# is an assertion wearing a measurement's clothes -- a reader must be able to check the
+# claim without re-running the gate.
+#
+# This function does NOT grade the artifact and must never be given a quality judgment as
+# its evidence. It answers "did this step leave a trace", full stop. The moment it starts
+# answering "was the trace any good" it has collapsed the two questions this whole library
+# exists to keep apart.
+gate_witness() {   # <judgment-id> <evidence, verbatim and checkable>
+  [ -n "${1:-}" ] || return 0
+  case "$GATE_ROLL_WIT" in *"
+$1	"*) return 0 ;; esac
+  GATE_ROLL_WIT="${GATE_ROLL_WIT}
+$1	${2:-artifact present}"
+}
+
+# --- did the session ASSERT it walked this step? ---------------------------------------
+# GATE_ANSWERED="G-C G-G" (spaces or commas). Deliberately a SEPARATE state from WITNESSED:
+# -10 chose an unconditional sidecar over an opt-in flag because opt-in instruments get
+# forgotten, and that reasoning holds here -- which is exactly why an unset GATE_ANSWERED
+# must produce UNWITNESSED rows rather than nothing at all. The flag being forgotten is then
+# VISIBLE in the sidecar, instead of being the silence it replaced.
+_rc_declared() {   # <id> -> 0 if the session claimed this step
+  [ -n "${GATE_ANSWERED:-}" ] || return 1
+  case " $(printf '%s' "$GATE_ANSWERED" | tr ',' ' ') " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
 # --- the head id of a gate message ----------------------------------------------------
 # The gate writes "<id>: ..." or "<id> CANNOT VERIFY: ...", so the id is everything up to
 # the first ':' or space. No prefix guessing anywhere in this file: a message belongs to
@@ -148,10 +215,14 @@ _rc_join() {   # join "$@" one per line, empty-safe under set -u
 #
 # MANIFEST FORMAT — three tab-separated columns:
 #   <id>  <parent>  <what it checks>
-# parent "-" means the row is a REACH UNIT: a place `gate_ran` is called, one per check.
-# Any other parent means the row is a VERDICT ALIAS — a label the gate speaks under from
-# inside a reach unit's branches (G-AL#board lives inside G-AL). Aliases are declared
-# rather than inferred, so the roll call never has to guess who spoke.
+# parent "-"        the row is a REACH UNIT: a place `gate_ran` is called, one per check.
+# parent "judgment" the row is a JUDGMENT STEP: a HANDOFF-GATE.md section a session walks by
+#                   reading prose. No `gate_ran` marker exists or should; its states are
+#                   WITNESSED / DECLARED / UNWITNESSED and never `pass`. The third column
+#                   names what a witness for that step would be.
+# any other parent  the row is a VERDICT ALIAS — a label the gate speaks under from inside a
+#                   reach unit's branches (G-AL#board lives inside G-AL). Aliases are declared
+#                   rather than inferred, so the roll call never has to guess who spoke.
 gate_rollcall_emit() {
   {
     local _dir _mf _box _boxsrc _bl _stamp _out _latest _line
@@ -166,8 +237,10 @@ gate_rollcall_emit() {
       echo "# gate roll call — every check this run REACHED, and what became of it."
       echo "# lib=$GATE_ROLLCALL_LIB_VERSION box=$_box box_resolved_by=$_boxsrc utc=$_stamp"
       echo "# manifest=$_mf"
-      echo "# manifest_fp=$(_rc_manifest_fp "$_mf") units_declared=$(awk -F'\t' '!/^#/ && NF>=2 && $2=="-"' "$_mf" 2>/dev/null | grep -c . || echo 0)"
+      echo "# manifest_fp=$(_rc_manifest_fp "$_mf") units_declared=$(awk -F'\t' '!/^#/ && NF>=2 && $2=="-"' "$_mf" 2>/dev/null | grep -c . || echo 0) judgment_declared=$(awk -F'\t' '!/^#/ && NF>=2 && $2=="judgment"' "$_mf" 2>/dev/null | grep -c . || echo 0)"
       echo "# NOT-REACHED = declared and never reached. UNDECLARED = spoke without a manifest row."
+      echo "# WITNESSED / DECLARED / UNWITNESSED are the JUDGMENT states -- prose steps a session walks."
+      echo "# Not one of the three is 'pass': nothing here grades an answer, only whether one left a trace."
       printf '#id\tstate\tnote\n'
     } > "$_out" 2>/dev/null || { echo "gate-rollcall: cannot write $_out" >&2; return 0; }
 
@@ -182,14 +255,23 @@ gate_rollcall_emit() {
     fi
 
     # --- read the manifest: units (parent "-") in order, and alias->parent -------------
-    local _units _aliasmap _id _par
-    _units=""; _aliasmap=""
+    local _units _aliasmap _judg _judgdesc _id _par _desc
+    _units=""; _aliasmap=""; _judg=""; _judgdesc=""
     while IFS= read -r _line; do
       case "$_line" in ''|'#'*) continue ;; esac
-      _id="${_line%%	*}"; _line="${_line#*	}"; _par="${_line%%	*}"
+      _id="${_line%%	*}"; _line="${_line#*	}"; _par="${_line%%	*}"; _desc="${_line#*	}"
       [ -n "$_id" ] || continue
       if [ "$_par" = "-" ]; then
         _units="$_units$_id
+"
+      elif [ "$_par" = "judgment" ]; then
+        # NOT an alias. A judgment row parented to the literal word `judgment` would
+        # otherwise map its verdicts onto a phantom check called "judgment" -- one
+        # nonexistent owner absorbing nineteen steps, which is exactly the confident-wrong-
+        # owner failure this library refuses everywhere else.
+        _judg="$_judg$_id
+"
+        _judgdesc="$_judgdesc$_id	$_desc
 "
       else
         _aliasmap="$_aliasmap$_id	$_par
@@ -219,6 +301,14 @@ gate_rollcall_emit() {
 $_units" in *"
 $_head
 "*) _owner="$_head" ;; esac
+        # A judgment row IS declared -- it is not UNDECLARED merely because no `gate_ran`
+        # marker names it. It owns anything spoken under its own id.
+        if [ -z "$_owner" ]; then
+          case "
+$_judg" in *"
+$_head
+"*) _owner="$_head" ;; esac
+        fi
         if [ -z "$_owner" ]; then
           _owner="$(printf '%s' "$_aliasmap" | sed -n "s/^$_head	//p" | head -1)"
         fi
@@ -270,6 +360,58 @@ $_id
       printf '%s\tUNDECLARED\treached (gate_ran fired) but no manifest row declares it — the roll call can see it, a census reading the manifest cannot\n' "$_id" >> "$_out"
     done
 
+    # --- the JUDGMENT half: one row per prose step the gate declares but cannot run ----
+    # Emitted AFTER the reach units and never mixed with them, because the two halves answer
+    # different questions and a table that interleaves them invites exactly one mistake:
+    # reading UNWITNESSED as a coverage gap. It is not. A judgment step has no box routing --
+    # it is walked by a session, and every box will report the same thing about it.
+    #
+    # RESOLUTION ORDER, and the first line of it is the interesting one: if a judgment id
+    # actually SPOKE a verdict, that verdict wins over any witness. A step that failed did
+    # not merely leave a trace; saying WITNESSED over the top of its own FAIL would be the
+    # substitution of "it happened" for "it went well" that the whole library refuses.
+    local _jstate _jnote
+    if [ -n "$_judg" ]; then
+      printf '#--- judgment steps: HANDOFF-GATE.md sections a session walks by reading prose ---\n' >> "$_out"
+      while IFS= read -r _id; do
+        [ -n "$_id" ] || continue
+        _jnote=""
+        if   printf '%s' "$_owned" | grep -q "^$_id	fail$";    then _jstate="fail"
+        elif printf '%s' "$_owned" | grep -q "^$_id	skipped$"; then _jstate="skipped"
+        elif printf '%s' "$_owned" | grep -q "^$_id	warn$";    then _jstate="warn"
+        elif printf '%s' "$_owned" | grep -q "^$_id	na$";      then _jstate="n/a"
+        elif printf '%s' "$GATE_ROLL_WIT" | grep -q "^$_id	"; then
+          _jstate="WITNESSED"
+          _jnote="$(printf '%s' "$GATE_ROLL_WIT" | sed -n "s/^$_id	//p" | head -1)"
+        elif _rc_declared "$_id"; then
+          _jstate="DECLARED"
+          _jnote="the session asserted it walked this step (GATE_ANSWERED) -- an assertion, recorded as one; nothing checked it"
+        else
+          _jstate="UNWITNESSED"
+          _jnote="no artifact, no assertion -- nobody can say whether this step happened. A witness would be: $(printf '%s' "$_judgdesc" | sed -n "s/^$_id	//p" | head -1)"
+        fi
+        printf '%s	%s	%s\n' "$_id" "$_jstate" "$_jnote" >> "$_out"
+      done <<JUDG
+$_judg
+JUDG
+    fi
+
+    # --- a witness for a step no manifest row declares --------------------------------
+    # Same reverse closure the mechanical half gets. A gate_witness call for an id nobody
+    # declared is a witness nothing will ever read, which is worse than no witness: it looks
+    # like coverage from inside the gate and is invisible from outside it.
+    # printf '%s\n', not '%s': GATE_ROLL_WIT has no trailing newline, and `read` returns
+    # non-zero at EOF WITHOUT one, so the last witness -- the most recently added, the one a
+    # session is most likely to be debugging -- would be silently dropped by the loop.
+    printf '%s\n' "$GATE_ROLL_WIT" | sed '/^$/d' | while IFS="	" read -r _id _rest; do
+      [ -n "$_id" ] || continue
+      case "
+$_judg" in *"
+$_id
+"*) continue ;; esac
+      printf '%s	UNDECLARED	gate_witness fired for this id but no manifest row declares it as a judgment step -- add a row: <id> <TAB> judgment <TAB> <what a witness would be>\n' "$_id" >> "$_out"
+    done
+
     cp "$_out" "$_latest" 2>/dev/null || true
     printf '%s\n' "$_out"
   } 2>/dev/null || true
@@ -285,9 +427,25 @@ gate_rollcall_print() {   # [tsv-path]
   fi
   echo "── gate roll call · $_f ──"
   grep '^#' "$_f" | sed 's/^/  /'
-  awk -F'\t' '!/^#/ && NF>=2 { printf "  %-16s %-12s %s\n", $1, $2, substr($3,1,88) }' "$_f"
-  local _bad
+  awk -F'\t' '!/^#/ && NF>=2 && $2!="WITNESSED" && $2!="DECLARED" && $2!="UNWITNESSED" \
+    { printf "  %-16s %-12s %s\n", $1, $2, substr($3,1,88) }' "$_f"
+  local _bad _jn _jw _jd _ju
   _bad="$(awk -F'\t' '!/^#/ && ($2=="NOT-REACHED" || $2=="UNDECLARED" || $2=="cannot-verify")' "$_f" | grep -c . || true)"
   echo "  ── $_bad row(s) the coverage question cares about ──"
+  # The judgment half prints as its own block. Interleaving it would invite the one wrong
+  # reading available here: UNWITNESSED is not a coverage gap and not a red -- it is the
+  # gate saying out loud that nothing recorded whether a prose step happened, which is a
+  # fact it could not state at all before v1.2.
+  _jn="$(awk -F'\t' '!/^#/ && ($2=="WITNESSED" || $2=="DECLARED" || $2=="UNWITNESSED")' "$_f" | grep -c . || true)"
+  if [ "${_jn:-0}" -gt 0 ]; then
+    echo
+    echo "  ── judgment steps · walked by a session, not by this script ──"
+    awk -F'\t' '!/^#/ && ($2=="WITNESSED" || $2=="DECLARED" || $2=="UNWITNESSED") \
+      { printf "  %-16s %-12s %s\n", $1, $2, substr($3,1,88) }' "$_f"
+    _jw="$(awk -F'\t' '!/^#/ && $2=="WITNESSED"'   "$_f" | grep -c . || true)"
+    _jd="$(awk -F'\t' '!/^#/ && $2=="DECLARED"'    "$_f" | grep -c . || true)"
+    _ju="$(awk -F'\t' '!/^#/ && $2=="UNWITNESSED"' "$_f" | grep -c . || true)"
+    echo "  ── $_jn judgment step(s): $_jw witnessed, $_jd declared, $_ju with no evidence either way ──"
+  fi
   return 0
 }

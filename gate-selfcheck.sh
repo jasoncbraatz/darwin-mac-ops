@@ -122,6 +122,7 @@ else
   GATE_ROLLCALL_LOADED=0
   gate_ran() { :; }
   gate_ran_na() { :; }
+  gate_witness() { :; }
   gate_rollcall_emit() { echo "gate-rollcall: library not found at $_GATE_ROLLCALL_LIB" >&2; }
   gate_rollcall_print() { echo "gate-rollcall: library not found at $_GATE_ROLLCALL_LIB" >&2; return 2; }
 fi
@@ -3259,6 +3260,40 @@ else
 fi
 
 
+# -- THE JUDGMENT HALF gets a witness wherever an ARTIFACT exists (feynmanSync-11) -------
+# This script's own header has said since 2026-06 that the gate has two kinds of checks and
+# "this script does NOT touch" the human-judgment ones. That is still true of ANSWERING them
+# -- no script can decide whether what remains is crystal clear. What changed in v1.2 of the
+# roll call is narrower and was simply missing: nothing anywhere recorded whether a session
+# WALKED them. A session that skipped G-D and a session that ran it and found nothing left
+# byte-identical evidence, which is feynmanSync-09's G-AK problem in the half of the gate
+# nobody had counted.
+#
+# So the manifest now declares 19 judgment steps and the sidecar states them as WITNESSED /
+# DECLARED / UNWITNESSED -- never `pass`, because nothing here grades an answer.
+#
+# EXACTLY ONE WITNESS SHIPS TODAY, and it is deliberately the one that needs no guessing.
+# G-F's deliverable is a FILE. Its existence is checkable; a heading-shape regex over the
+# other eighteen would answer "does this document contain a phrase I imagined", which is
+# neither "did the step happen" nor "was it any good" while reading like both. Measured
+# before deciding: candidate regexes for G-C and G-G hit 58 and 105 of 168 real handoffs
+# in the everything folder -- so a witness built on them would have called two thirds of a
+# corpus of genuinely-good handoffs unwitnessed. That is not a measurement, it is noise
+# with a state name.
+#
+# NO VERDICT IS PUSHED HERE IN EITHER DIRECTION. The roll call is an observer, and an
+# absent handoff at gate time is the NORMAL case for rail lanes and scheduled runs. What it
+# does buy: G-F.1 ("CHECKPOINT THE HANDOFF EARLY -- the gate cannot see its own output") has
+# asked sessions to write the handoff before the gate runs since v2.45 and has had no
+# instrument at all. Now the sidecar says, per run, whether it was there.
+#
+# _htc_out is G-AQ's derivation, reused rather than repeated: it already survived the octal
+# bug, the zero-padding bug and the tier-prefix bug. A second copy of that resolution is how
+# G-AL grew two matchers.
+if [ -n "${_htc_out:-}" ] && [ -f "${_htc_out:-}" ]; then
+  gate_witness "G-F" "outbound handoff on disk at gate time: ${_htc_out/#$HOME/~} ($(LC_ALL=C awk 'END{print NR}' "$_htc_out" 2>/dev/null || echo '?') lines) -- G-F.1 satisfied"
+fi
+
 # -- G-AV . the ROLL CALL can still tell reach from silence (born 2026-09-08, feynmanSync-10) --
 # Every census in this file has a #drill sibling the gate RUNS, for the reason G-AK#drill
 # states: a control nobody runs is a comment. The roll call needs one more than most,
@@ -3307,7 +3342,25 @@ fi
 # would want to read it for.
 _GATE_ROLL_TSV="$(gate_rollcall_emit)"
 if [ -n "$_GATE_ROLL_TSV" ] && [ -s "$_GATE_ROLL_TSV" ]; then
-  [ "$QUIET" -eq 1 ] || echo "  roll call: $_GATE_ROLL_TSV (read it: gate-selfcheck.sh --roll-call)"
+  # Name the judgment tally on the same line. The whole point of declaring 19 prose steps is
+  # that "nothing witnessed them" becomes a NUMBER a reader sees at every wrap instead of a
+  # silence nobody can quote. Read straight off the sidecar this run just wrote -- deriving
+  # it from anything else would be the rehearsal problem all over again.
+  if [ "$QUIET" -ne 1 ]; then
+    # `read` into three names, NOT `set --`: this is 3000 lines into a script whose argv was
+    # parsed at the top, and silently rewriting $@ to publish a statistic is the kind of
+    # convenience that comes back as somebody else's bug three sessions from now.
+    _grj_n=0; _grj_w=0; _grj_d=0
+    LC_ALL=C awk -F'\t' '!/^#/ && ($2=="WITNESSED"||$2=="DECLARED"||$2=="UNWITNESSED"){n++}
+                          !/^#/ && $2=="WITNESSED"{w++}
+                          !/^#/ && $2=="DECLARED"{d++}
+                          END{printf "%d %d %d\n", n+0, w+0, d+0}' "$_GATE_ROLL_TSV" 2>/dev/null \
+      | { read -r _grj_n _grj_w _grj_d
+          echo "  roll call: $_GATE_ROLL_TSV (read it: gate-selfcheck.sh --roll-call)"
+          if [ "${_grj_n:-0}" -gt 0 ]; then
+            echo "  judgment: $_grj_n prose step(s) declared -- $_grj_w witnessed, $_grj_d self-declared, $(( _grj_n - _grj_w - _grj_d )) with no evidence either way (not a red; it IS the measurement)"
+          fi; }
+  fi
 elif [ "${GATE_ROLLCALL_LOADED:-0}" -eq 0 ]; then
   # THE INSTRUMENT IS ABSENT, not merely unlucky. G-AV's drill passing proves the roll call
   # WORKS; it does not prove THIS RUN RECORDED ANYTHING, and confusing those two is the
