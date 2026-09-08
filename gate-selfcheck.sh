@@ -3580,6 +3580,31 @@ else
   FAILS+=("G-AW CANNOT VERIFY: $DC is missing or not executable. Restore it: git -C ~/Scripts checkout -- drill-census.sh")
 fi
 
+# -- G-AX . the fuel gauge can HEAL a 401 (oauth-keepalive drill; born 2026-09-08, smDrainDesk-15) --
+# The keepalive (scripts/oauth-keepalive.sh; LaunchAgent on darwin, systemd twin on feynman)
+# runs `claude -p ok --max-turns 1` when the fuel probe reads 401 and leaves everything else
+# alone -- SM 1218243323095056, ejected from the AAR where feynman's tank read 401 for a day
+# because nothing there ever refreshed the token. Its drill is hermetic (stub claude, stub
+# gauge, temp state, KEEPALIVE_LOG so the live log is never written) and ran 5/5 by hand on
+# both boxes at -14 -- and was the FIRST orphan G-AW found the hour it was born: nothing ran
+# it. Now the gate does. It proves the mechanism, not this box's token; the token's state is
+# the fuel line on `rail`.
+KA_DRILL="${KA_DRILL:-$HOME/code/darwin-mac-ops/scripts/oauth-keepalive-drill.sh}"
+gate_ran "G-AX"
+if [ -x "$KA_DRILL" ] || [ -r "$KA_DRILL" ]; then
+  _ka_out="$(bash "$KA_DRILL" 2>&1)"; _ka_rc=$?
+  case "$_ka_rc" in
+    0) : ;;  # 5/5: a 401 heals, a 503 is left alone, a healthy gauge is not touched. Silent.
+    *) bold "=== G-AX . the fuel gauge can heal a 401 ==="
+       printf '%s\n' "$_ka_out" | grep -E 'FAIL|fail|[0-9]/[0-9]' | sed 's/^/       /'
+       FAILS+=("G-AX: oauth-keepalive-drill failed (rc $_ka_rc) -- the keepalive can no longer be shown to heal a 401, or it now calls claude when it should not. A tank reading 401 for a day is how the AAR started. Run: bash ~/code/darwin-mac-ops/scripts/oauth-keepalive-drill.sh") ;;
+  esac
+else
+  bold "=== G-AX . the fuel gauge can heal a 401 ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing -- the keepalive ran uncontrolled\n' "$(printf '%s' "$KA_DRILL" | sed "s|^$HOME|~|")"
+  FAILS+=("G-AX CANNOT VERIFY: $KA_DRILL is missing, so nothing proved the keepalive still heals a 401. Restore: git -C ~/code/darwin-mac-ops checkout -- scripts/oauth-keepalive-drill.sh")
+fi
+
 # -- G-AW#drill . the census can still go red (its own fixture-only selftest) --------------
 gate_ran "G-AW#drill"
 if [ -x "$DC" ]; then

@@ -76,6 +76,7 @@ G-AS	-	the State Machine has a DOOR, and this session used it
 G-AV	-	the roll call can still tell reach from silence (its own drill)
 G-AW	-	every drill is named by a runner (drill-census ratchet; a new orphan is red)
 G-AW#drill	-	the drill census can still go red
+G-AX	-	the fuel gauge can heal a 401 (oauth-keepalive drill)
 
 # --- verdict aliases -------------------------------------------------------
 G-T#43u	G-T#43	sz-tick box probe answered but unparseable
