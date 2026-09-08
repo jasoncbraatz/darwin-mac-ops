@@ -114,7 +114,12 @@ REPO_ALIASES = {
 GID_RE = re.compile(r"(?<![0-9A-Za-z])(1[0-9]{14,17})(?![0-9A-Za-z])")
 BACKTICK_RE = re.compile(r"`([^`\n]+)`")
 SHA_PAIR_RE = re.compile(r"`([A-Za-z][A-Za-z0-9._-]{2,40})\s+([0-9a-f]{7,40})`")
-REFOK_RE = re.compile(r"REF-OK:\s*(\S+)\s*(?:--|—|-)\s*(.+?)\s*$", re.MULTILINE)
+# The separator MUST be a spaced `--` or em dash, never a bare hyphen: with `-` in the
+# alternation the engine takes the SHORTEST token that still lets the rest match, so
+# `REF-OK: claude-blackbook 7bc465f2 -- reason` exempted a token called `claude`. And the
+# token half is `.+?` rather than `\S+` because a sha declaration is `<repo> <sha>`, two
+# words. Both halves found by pointing this tool at its own session's handoff.
+REFOK_RE = re.compile(r"REF-OK:\s*(.+?)\s+(?:--|\u2014)\s+(.+?)\s*$", re.MULTILINE)
 META = set("$|\"'<>{}()!;&")
 
 
@@ -409,7 +414,11 @@ def report(found, resolver, resolver_why, since=None):
         key = f"{repo} {sha}"
         if key in found["exempt"] or sha in found["exempt"]:
             st, _d = resolve_sha(repo, sha, since)
-            if st == "unresolved":
+            # cannotverify counts as LIVE. We cannot show the exemption excuses
+            # nothing, and telling someone to retire a marker on the strength of a
+            # blind spot is the same error this whole tool was written against --
+            # one state wearing another's name, pointed at the operator this time.
+            if st in ("unresolved", "cannotverify"):
                 used.add(key if key in found["exempt"] else sha)
             continue
         state, detail = resolve_sha(repo, sha, since)
@@ -422,7 +431,7 @@ def report(found, resolver, resolver_why, since=None):
 
     for gid in found["gids"]:
         if gid in found["exempt"]:
-            if resolver is not None and resolver(gid)[0] == "unresolved":
+            if resolver is not None and resolver(gid)[0] in ("unresolved", "cannotverify"):
                 used.add(gid)
             continue
         if resolver is None:
@@ -746,6 +755,28 @@ def selftest():
         "and says so -- an exemption excusing nothing is an exception record outliving its subject",
         "", f"findings={kinds(f2)} live={lv2} dead={dd2}")
 
+    # 15x -- an exemption on a reference we CANNOT VERIFY stays live. Retiring a
+    #        marker on the strength of a blind spot would be this tool's own defect
+    #        aimed at the reader.
+    _cvtxt = ("cited `1218281330139051`\n"
+              "REF-OK: 1218281330139051 -- kept deliberately while the API is unreachable")
+    f, _, _, lv, dd = report(scan(_cvtxt), _r({"1218281330139051": ("cannotverify", "403")}), None)
+    (ok if (not f and lv == 1 and dd == 0) else bad)(
+        "15x an exemption on a CANNOT-VERIFY reference counts live, never dead", "",
+        f"findings={kinds(f)} live={lv} dead={dd}")
+
+    # 16/16t -- the declaration parser. A hyphenated repo name and a two-word
+    #           `<repo> <sha>` token are the two shapes that broke it; the twin is
+    #           the same line with a simple token, so only the parse can differ.
+    _p1 = scan("`no-such-repo-xyz 0123abc`\nREF-OK: no-such-repo-xyz 0123abc -- "
+               "kept on purpose as a worked example of an absent repo")
+    (ok if list(_p1["exempt"]) == ["no-such-repo-xyz 0123abc"] else bad)(
+        "16  a `<repo> <sha>` declaration with a hyphenated repo parses whole", "",
+        repr(list(_p1["exempt"])))
+    _p2 = scan("REF-OK: ~/x -- kept on purpose as a worked example of an absent file")
+    (ok if list(_p2["exempt"]) == ["~/x"] else bad)(
+        "16t POSITIVE TWIN: a single-word token still parses", "", repr(list(_p2["exempt"])))
+
     # 9/9t -- the classifier itself, fed both worlds. Controls 1 and 2 above
     #         inject a resolver, so until this pair existed the 404-vs-403
     #         judgement was exercised only by never being exercised.
@@ -763,7 +794,7 @@ def selftest():
     else:
         ok("9x transport noise (timeout, DNS, empty) never reads as a broken reference")
 
-    print(f"=== selftest: {33 - len(fails)} passed, {len(fails)} failed ===")
+    print(f"=== selftest: {36 - len(fails)} passed, {len(fails)} failed ===")
     return 1 if fails else 0
 
 
