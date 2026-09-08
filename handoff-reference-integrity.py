@@ -431,7 +431,11 @@ def report(found, resolver, resolver_why, since=None):
 
     for gid in found["gids"]:
         if gid in found["exempt"]:
-            if resolver is not None and resolver(gid)[0] in ("unresolved", "cannotverify"):
+            # No resolver (--offline) is a CANNOT VERIFY, not a resolve: the census runs this
+            # tool offline, and the old `is not None and` left every offline gid exemption
+            # un-used, so it fell through to "resolves on its own now" -- 16 EXEMPT-DEAD on
+            # feynman for four attestation gids that 404 online (smDrainDesk-14, 2026-09-08).
+            if resolver is None or resolver(gid)[0] in ("unresolved", "cannotverify"):
                 used.add(gid)
             continue
         if resolver is None:
@@ -763,6 +767,14 @@ def selftest():
     f, _, _, lv, dd = report(scan(_cvtxt), _r({"1218281330139051": ("cannotverify", "403")}), None)
     (ok if (not f and lv == 1 and dd == 0) else bad)(
         "15x an exemption on a CANNOT-VERIFY reference counts live, never dead", "",
+        f"findings={kinds(f)} live={lv} dead={dd}")
+
+    # 15y -- the OFFLINE twin of 15x: no resolver at all is the census's own way of running
+    #        this tool, and a gid exemption there must count live too. Before this control the
+    #        offline path called every gid REF-OK dead (smDrainDesk-14).
+    f, _, _, lv, dd = report(scan(_cvtxt), None, "--offline")
+    (ok if (not f and lv == 1 and dd == 0) else bad)(
+        "15y an exemption on a gid with NO resolver (--offline) counts live, never dead", "",
         f"findings={kinds(f)} live={lv} dead={dd}")
 
     # 16/16t -- the declaration parser. A hyphenated repo name and a two-word
