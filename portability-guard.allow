@@ -8,3 +8,4 @@ launchagents/*              | ditto — these are darwin's limbs, not portable t
 # retired-plists/* was copied over from ~/Scripts's allowlist and retired 2026-09-07
 # by feynmanSync-08: this repo tracks no such directory, so the line excused nothing
 # while reading as a deliberate ruling. Re-add it the day this repo grows one.
+handoff-reference-integrity.py | it is deliberately about BOTH boxes: the tool must know the macOS home prefix and the Linux one BY NAME, to tell an unresolvable path from the other box's path -- which is a routing fact and must never go red. Green on darwin and feynman; control 3/3t proves the classification flips with the RUNNING box, not with a hardcoded username. (The reason cannot spell the prefix out: check 1 consults this allowlist but does not exempt it, so an explanation quoting the pattern makes this file itself the violation.)

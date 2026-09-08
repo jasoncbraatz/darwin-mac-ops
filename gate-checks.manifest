@@ -67,6 +67,8 @@ G-AP#drill	-	the verdict-contract census can still go red
 G-AQ	-	an inherited thread survives the handoff
 G-AQ#number	-	the predecessor's filename is derived correctly
 G-AQ#drill	-	the continuity check can still go red
+G-R	-	reference integrity -- every gid/path/sha the outbound handoff cites RESOLVES
+G-R#drill	-	the reference check can still go red
 G-AT	-	THE MAILBOX LAW: no Jason-work stranded on Claude's board
 G-AU	-	shared-$HOME scratch is owner-prefixed, never wildcard-rm'd
 G-AS	-	the State Machine has a DOOR, and this session used it
@@ -131,7 +133,6 @@ G-N	judgment	teacher-out -- did this session FEED the tree of wisdom? A witness 
 G-O	judgment	continuation prompt -- verify it is CURRENT, then PASTE it into the chat (the last act). Un-witnessable from inside the gate by construction: the paste happens in the chat, after the gate. Say so out loud rather than pretending
 G-P	judgment	arming a dormant capability -- OFF to ON in a live system. Conditional: most sessions arm nothing, so a witness must first establish the step APPLIED -- an n/a here is a real answer and UNWITNESSED is not
 G-Q	judgment	DONE vs DORMANT-INCOMPLETE -- a gated, tested half is not a finished whole. A witness would be: the board's own MET/UNMET/CANNOT-VERIFY row for the session's criterion, once board.py can say CANNOT VERIFY (card 1218276652192070)
-G-R	judgment	reference integrity -- every ID/path you cite must RESOLVE. A witness would be: resolve every gid and path in the outbound handoff. The most nearly-mechanical of the nineteen -- the likeliest next one to promote to a reach unit
 G-AB	judgment	a successful WRITE is not a verified write -- read the artifact back. A witness would be: for each file the session wrote outside a repo, evidence it was read back
 G-AC	judgment	a repo dirtied by ANOTHER session is not yours to clean. A witness would be: the roster claim board already knows who holds what; G-H reports the dirt without asking whose it is
 G-AM	judgment	a customer-facing UI is not done until it has been proven ON A PHONE. Conditional -- most sessions ship no UI; an applies/does-not-apply witness comes first

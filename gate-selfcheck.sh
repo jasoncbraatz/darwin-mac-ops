@@ -3265,6 +3265,59 @@ else
 fi
 
 
+# -- G-R . reference integrity: every ID/path you cite must RESOLVE (promoted 2026-09-08)
+# Was judgment row G-R, whose own third column named it "the most nearly-mechanical of the
+# nineteen -- the likeliest next one to promote to a reach unit". This is that promotion, and
+# it moves BOTH halves at once because gate-roll-call-drill check 16 goes red if only one does.
+# It grades the OUTBOUND handoff, reusing the filename G-AQ already derived above -- a second
+# copy of that resolution is how G-AL grew two matchers.
+gate_ran "G-R"
+_HRI="$HOME/code/darwin-mac-ops/handoff-reference-integrity.py"
+if [ ! -x "$_HRI" ]; then
+  bold "=== G-R . reference integrity ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${_HRI/#$HOME/~}"
+  FAILS+=("G-R CANNOT VERIFY: $_HRI is missing or not executable, so no gid, path or sha in the outbound handoff was resolved. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-reference-integrity.py")
+elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
+  bold "=== G-R . reference integrity ==="
+  gate_na "G-R" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} whose references could be resolved -- point it at one with HTC_OUTBOUND=/path"
+else
+  _hri_o="$(/usr/bin/python3 "$_HRI" --handoff "$_htc_out" </dev/null 2>&1)"; _hri_rc=$?
+  case "$_hri_rc" in
+    0) # Silent on clean. But CANNOT-VERIFY lines are not clean, and the tool says so
+       # itself rather than letting a 403 pass as a resolved reference.
+       if printf '%s\n' "$_hri_o" | grep -q '^CANNOT-VERIFY '; then
+         bold "=== G-R . reference integrity ==="
+         printf '%s\n' "$_hri_o" | grep -E '^(CANNOT-VERIFY|-- )' | sed 's/^/         /'
+         WARNS+=("G-R: some references in $(basename "$_htc_out") could not be verified (403 or transport, not a 404). A blind spot is not a broken reference and is not a clean one either -- say which in the handoff, or exempt it with REF-OK.")
+       fi ;;
+    1) bold "=== G-R . reference integrity ==="
+       printf '%s\n' "$_hri_o" | sed 's/^/         /'
+       FAILS+=("G-R: $(basename "$_htc_out") cites a reference that does NOT resolve -- a gid that is nowhere in Asana, a commit no repo on this box holds, or a path that is not there. A successor reads those as gospel, because doubting the document it is orienting from is the one thing it cannot cheaply do. Fix the citation, or declare it with 'REF-OK: <token> -- <reason>'. Re-run: /usr/bin/python3 ~/code/darwin-mac-ops/handoff-reference-integrity.py --handoff $_htc_out") ;;
+    *) bold "=== G-R . reference integrity ==="
+       printf '%s\n' "$_hri_o" | sed 's/^/         /'
+       FAILS+=("G-R CANNOT VERIFY: the reference check exited $_hri_rc -- it could not read the handoff at all, which is precisely the state in which a broken citation is invisible. It is not a pass.") ;;
+  esac
+fi
+
+# -- G-R#drill . the reference check can still go red (run its controls, do not trust them)
+# 27 controls, every negative paired with a positive twin on the same input, and 11 mutants
+# against copies of the live code. Three of these controls were green under their own mutant
+# on the first cut -- the same three shapes feynmanSync-12 named, one session later.
+gate_ran "G-R#drill"
+if [ -x "$_HRI" ]; then
+  _hrid_o="$(/usr/bin/python3 "$_HRI" --selftest </dev/null 2>&1)"; _hrid_rc=$?
+  if [ "$_hrid_rc" -ne 0 ]; then
+    bold "=== G-R#drill . the reference check can still go red ==="
+    printf '%s\n' "$_hrid_o" | sed 's/^/         /'
+    FAILS+=("G-R#drill: the reference check failed its own controls ($_hrid_rc). A check that can no longer tell a 404 from a 403 will report an unreachable API as a corpus full of broken links, or a broken link as clean. Run: /usr/bin/python3 ~/code/darwin-mac-ops/handoff-reference-integrity.py --selftest")
+  fi
+else
+  bold "=== G-R#drill . the reference check can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${_HRI/#$HOME/~}"
+  FAILS+=("G-R#drill CANNOT VERIFY: $_HRI is missing, so nothing proved the reference check can still go red.")
+fi
+
+
 # -- G-AT . THE MAILBOX LAW: no Jason-work stranded on Claude's board (2026-09-06)
 # Batter's Box is JASON'S board; the State Machine is CLAUDE'S; he does NOT read the State
 # Machine. A card needing his hand/eye/judgement/credit card, filed there, is invisible to the
