@@ -3517,6 +3517,56 @@ else
   FAILS+=("G-AV CANNOT VERIFY: $RC_DRILL is missing or not executable, so nothing proved this run's roll call can still tell a silent pass from a check that never ran. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-roll-call-drill.sh")
 fi
 
+# -- G-AW . every drill is NAMED BY A RUNNER (born 2026-09-08, smDrainDesk-15; SM 1218230456563529) --
+# A drill nobody runs is a comment that rots, and it rots QUIETLY: roster-liveness-drill was
+# red for five days, roster-oncommit-drill was CANNOT VERIFY on every box, oauth-keepalive-
+# drill wrote the live log -- three separate rots, none noticed, because nothing read their
+# exit codes. The DIRECTORY predicted it: drills beside this gate are wired almost without
+# exception (each census here has its #drill), drills in ~/Scripts almost never (0 of 33 at
+# the card's filing). This is ask 3 of that card, the force function: drill-census.sh lists
+# every *drill* under ~/Scripts and this repo, asks whether a RUNNER (this gate, the manifest,
+# a board's criteria, launchd/systemd, a hook, bootstrap-box) names it -- another drill does
+# NOT count -- and fails on a NEW orphan. It is a RATCHET: the 33 orphans alive at birth are
+# on drill-census.baseline with a sentence each; a baselined row that gets wired is reported
+# STALE (tighten with --rebaseline); nothing adds a row but a hand with a reason.
+DC="${DC:-$HOME/Scripts/drill-census.sh}"
+gate_ran "G-AW"
+if [ -x "$DC" ]; then
+  _dc_out="$(bash "$DC" --check 2>&1)"; _dc_rc=$?
+  case "$_dc_rc" in
+    0) if printf '%s\n' "$_dc_out" | grep -q '^  STALE'; then
+         bold "=== G-AW . every drill is named by a runner (a baseline row is now wired) ==="
+         printf '%s\n' "$_dc_out" | grep '^  STALE' | sed 's/^/       /'
+         WARNS+=("G-AW: a drill on drill-census.baseline is now named by a runner -- the ratchet may only tighten. Drop the row: bash ~/Scripts/drill-census.sh --rebaseline (leaves a .bak), then commit ~/Scripts")
+       fi ;;
+    1) bold "=== G-AW . every drill is named by a runner (a NEW orphan) ==="
+       printf '%s\n' "$_dc_out" | grep -E '^  ORPHAN|^  drill-census:' | sed 's/^/       /'
+       FAILS+=("G-AW: a drill exists that NO runner names and that is not on the baseline -- it will be red by Christmas with nobody watching. Wire it (this gate, a board criterion, launchd/systemd, a hook) or add a row to ~/Scripts/drill-census.baseline WITH A SENTENCE. See: bash ~/Scripts/drill-census.sh --list") ;;
+    2) bold "=== G-AW . every drill is named by a runner ==="
+       printf '%s\n' "$_dc_out" | sed 's/^/       /'
+       FAILS+=("G-AW CANNOT VERIFY: drill-census.sh could not enumerate (no drills found, or no runner surface readable). Exit 2 is NOT a clean estate. Run: bash ~/Scripts/drill-census.sh --list") ;;
+    *) FAILS+=("G-AW: drill-census.sh exited unexpectedly ($_dc_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  bold "=== G-AW . every drill is named by a runner ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- nothing asked whether a drill was written that nobody runs\n' "$(printf '%s' "$DC" | sed "s|^$HOME|~|")"
+  FAILS+=("G-AW CANNOT VERIFY: $DC is missing or not executable. Restore it: git -C ~/Scripts checkout -- drill-census.sh")
+fi
+
+# -- G-AW#drill . the census can still go red (its own fixture-only selftest) --------------
+gate_ran "G-AW#drill"
+if [ -x "$DC" ]; then
+  _dcd_out="$(bash "$DC" --selftest 2>&1)"; _dcd_rc=$?
+  case "$_dcd_rc" in
+    0) : ;;
+    *) bold "=== G-AW#drill . the drill census can still go red ==="
+       printf '%s\n' "$_dcd_out" | grep -E '^  FAIL|passed' | sed 's/^/       /'
+       FAILS+=("G-AW#drill: drill-census.sh failed its own controls (rc $_dcd_rc) -- G-AW above ran on an instrument that cannot prove it would flag an orphan. Run: bash ~/Scripts/drill-census.sh --selftest") ;;
+  esac
+else
+  FAILS+=("G-AW#drill CANNOT VERIFY: $DC missing -- G-AW ran uncontrolled this session")
+fi
+
 
 # The N/A ledger is printed in BOTH verdicts, above them, so a reader can tell "did not apply"
 # from "did not run" without reading the whole transcript back.
