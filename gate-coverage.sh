@@ -106,7 +106,7 @@ IDS="$(awk -F'\t' '!/^#/ && NF>=2 { print $1 }' "$first")"
 JUDG_IDS="
 "
 for f in $FILES; do
-  JUDG_IDS="$JUDG_IDS$(awk -F'\t' '!/^#/ && ($2=="WITNESSED" || $2=="DECLARED" || $2=="UNWITNESSED") { print $1 }' "$f")
+  JUDG_IDS="$JUDG_IDS$(awk -F'\t' '!/^#/ && ($2=="WITNESSED" || $2=="DECLARED" || $2=="UNWITNESSED" || $2=="UNWITNESSABLE") { print $1 }' "$f")
 "
 done
 _is_judg() { case "$JUDG_IDS" in *"
@@ -156,7 +156,9 @@ if [ "${_JN:-0}" -gt 0 ]; then
     done
     printf '  %-21s%s\n' "$id" "$row"
   done
-  echo "  (UNWITNESSED is not a gap and not a red. It is the gate saying out loud that"
+  echo "  (UNWITNESSED is not a gap and not a red. UNWITNESSABLE is the manifest saying no"
+  echo "   witness can exist by construction -- G-O pastes after the gate. Both mean: the gate is"
+  echo "   saying out loud that"
   echo "   nothing recorded whether a prose step happened -- a fact it could not state"
   echo "   at all before roll-call v1.2. It does not enter the exit code below.)"
 fi

@@ -3539,15 +3539,16 @@ if [ -n "$_GATE_ROLL_TSV" ] && [ -s "$_GATE_ROLL_TSV" ]; then
     # `read` into three names, NOT `set --`: this is 3000 lines into a script whose argv was
     # parsed at the top, and silently rewriting $@ to publish a statistic is the kind of
     # convenience that comes back as somebody else's bug three sessions from now.
-    _grj_n=0; _grj_w=0; _grj_d=0
-    LC_ALL=C awk -F'\t' '!/^#/ && ($2=="WITNESSED"||$2=="DECLARED"||$2=="UNWITNESSED"){n++}
+    _grj_n=0; _grj_w=0; _grj_d=0; _grj_x=0
+    LC_ALL=C awk -F'\t' '!/^#/ && ($2=="WITNESSED"||$2=="DECLARED"||$2=="UNWITNESSED"||$2=="UNWITNESSABLE"){n++}
                           !/^#/ && $2=="WITNESSED"{w++}
                           !/^#/ && $2=="DECLARED"{d++}
-                          END{printf "%d %d %d\n", n+0, w+0, d+0}' "$_GATE_ROLL_TSV" 2>/dev/null \
-      | { read -r _grj_n _grj_w _grj_d
+                          !/^#/ && $2=="UNWITNESSABLE"{x++}
+                          END{printf "%d %d %d %d\n", n+0, w+0, d+0, x+0}' "$_GATE_ROLL_TSV" 2>/dev/null \
+      | { read -r _grj_n _grj_w _grj_d _grj_x
           echo "  roll call: $_GATE_ROLL_TSV (read it: gate-selfcheck.sh --roll-call)"
           if [ "${_grj_n:-0}" -gt 0 ]; then
-            echo "  judgment: $_grj_n prose step(s) declared -- $_grj_w witnessed, $_grj_d self-declared, $(( _grj_n - _grj_w - _grj_d )) with no evidence either way (not a red; it IS the measurement)"
+            echo "  judgment: $_grj_n prose step(s) declared -- $_grj_w witnessed, $_grj_d self-declared, $(( _grj_n - _grj_w - _grj_d - _grj_x )) with no evidence either way (not a red; it IS the measurement), $_grj_x unwitnessable by construction"
           fi; }
   fi
 elif [ "${GATE_ROLLCALL_LOADED:-0}" -eq 0 ]; then

@@ -93,7 +93,7 @@
 # guarded, and a manifest that cannot be read produces a sidecar SAYING SO rather than a
 # silent empty one — three states, never collapsed into two.
 
-GATE_ROLLCALL_LIB_VERSION="1.2"
+GATE_ROLLCALL_LIB_VERSION="1.3"
 
 # --- fingerprint the manifest, portably ------------------------------------------------
 # gate-coverage.sh refuses to join sidecars measured against DIFFERENT manifests, because
@@ -200,6 +200,10 @@ _rc_declared() {   # <id> -> 0 if the session claimed this step
 # the row the MANIFEST says it belongs to, and to nothing otherwise. Prefix inference is
 # how "G-A" would silently answer for "G-AB" — a confident wrong owner, which is the
 # family of bug this whole instrument exists to stop reproducing.
+# The manifest token that grants a judgment row the fourth word (v1.3). ONE definition, so the
+# drill's mutant F can neuter the lookup by rewriting this line alone.
+_rc_unwit_tok='^\[unwitnessable\]'
+
 _rc_head() {   # <message> -> id, or empty
   printf '%s\n' "$1" | sed -n '1s/^\(G-[A-Za-z0-9#]*\)[: ].*/\1/p'
 }
@@ -239,7 +243,8 @@ gate_rollcall_emit() {
       echo "# manifest=$_mf"
       echo "# manifest_fp=$(_rc_manifest_fp "$_mf") units_declared=$(awk -F'\t' '!/^#/ && NF>=2 && $2=="-"' "$_mf" 2>/dev/null | grep -c . || echo 0) judgment_declared=$(awk -F'\t' '!/^#/ && NF>=2 && $2=="judgment"' "$_mf" 2>/dev/null | grep -c . || echo 0)"
       echo "# NOT-REACHED = declared and never reached. UNDECLARED = spoke without a manifest row."
-      echo "# WITNESSED / DECLARED / UNWITNESSED are the JUDGMENT states -- prose steps a session walks."
+      echo "# WITNESSED / DECLARED / UNWITNESSED / UNWITNESSABLE are the JUDGMENT states -- prose steps a session walks."
+      echo "# UNWITNESSABLE = the manifest row is marked [unwitnessable]: no witness can exist by construction (G-O)."
       echo "# Not one of the three is 'pass': nothing here grades an answer, only whether one left a trace."
       printf '#id\tstate\tnote\n'
     } > "$_out" 2>/dev/null || { echo "gate-rollcall: cannot write $_out" >&2; return 0; }
@@ -315,6 +320,13 @@ $_head
         if [ -z "$_owner" ]; then
           _owned="$_owned$_head	UNDECLARED
 "
+        elif [ "$_owner" != "$_head" ]; then
+          # An ALIAS spoke for its parent (manifest: `G-AL#done  G-AL`). The verdict lands on
+          # the parent by design -- but the parent's row must SAY who spoke, or a parent that
+          # passed in its own voice and a parent that warned in its own voice read the same
+          # once a child warns (SM 1218279533293599: `G-AL  warn  ` with G-AL itself silent).
+          _owned="$_owned$_owner	$_sev	$_head
+"
         else
           _owned="$_owned$_owner	$_sev
 "
@@ -327,10 +339,10 @@ $_head
     while IFS= read -r _id; do
       [ -n "$_id" ] || continue
       _note=""
-      if   printf '%s' "$_owned" | grep -q "^$_id	fail$";    then _state="fail"
-      elif printf '%s' "$_owned" | grep -q "^$_id	skipped$"; then _state="skipped"
-      elif printf '%s' "$_owned" | grep -q "^$_id	warn$";    then _state="warn"
-      elif printf '%s' "$_owned" | grep -q "^$_id	na$";      then _state="n/a"
+      if   printf '%s' "$_owned" | grep -q "^$_id	fail";    then _state="fail"
+      elif printf '%s' "$_owned" | grep -q "^$_id	skipped"; then _state="skipped"
+      elif printf '%s' "$_owned" | grep -q "^$_id	warn";    then _state="warn"
+      elif printf '%s' "$_owned" | grep -q "^$_id	na";      then _state="n/a"
       elif printf '%s' "$GATE_ROLL_NA" | grep -q "^$_id	"; then
         _state="n/a"; _note="$(printf '%s' "$GATE_ROLL_NA" | sed -n "s/^$_id	//p" | head -1)"
       else
@@ -340,6 +352,9 @@ $_head
              _note="declared in the manifest and never reached this run — a silent pass and a skipped check are NOT the same fact" ;;
         esac
       fi
+      # The speaker, when it was not the row itself. Only ALIASES carried by this run are
+      # named; a verdict the unit spoke in its own voice leaves the note as it was.
+      [ -n "$_note" ] || _note="$(printf '%s' "$_owned" | awk -F'\t' -v i="$_id" -v s="$_state" '$1==i && $2==s && $3!="" { print "spoken by " $3 " (an alias declared under this row); the row itself was silent"; exit }')"
       printf '%s\t%s\t%s\n' "$_id" "$_state" "$_note" >> "$_out"
     done <<UNITS
 $_units
@@ -376,16 +391,27 @@ $_id
       while IFS= read -r _id; do
         [ -n "$_id" ] || continue
         _jnote=""
-        if   printf '%s' "$_owned" | grep -q "^$_id	fail$";    then _jstate="fail"
-        elif printf '%s' "$_owned" | grep -q "^$_id	skipped$"; then _jstate="skipped"
-        elif printf '%s' "$_owned" | grep -q "^$_id	warn$";    then _jstate="warn"
-        elif printf '%s' "$_owned" | grep -q "^$_id	na$";      then _jstate="n/a"
+        if   printf '%s' "$_owned" | grep -q "^$_id	fail";    then _jstate="fail"
+        elif printf '%s' "$_owned" | grep -q "^$_id	skipped"; then _jstate="skipped"
+        elif printf '%s' "$_owned" | grep -q "^$_id	warn";    then _jstate="warn"
+        elif printf '%s' "$_owned" | grep -q "^$_id	na";      then _jstate="n/a"
         elif printf '%s' "$GATE_ROLL_WIT" | grep -q "^$_id	"; then
           _jstate="WITNESSED"
           _jnote="$(printf '%s' "$GATE_ROLL_WIT" | sed -n "s/^$_id	//p" | head -1)"
         elif _rc_declared "$_id"; then
           _jstate="DECLARED"
           _jnote="the session asserted it walked this step (GATE_ANSWERED) -- an assertion, recorded as one; nothing checked it"
+        elif printf '%s' "$_judgdesc" | sed -n "s/^$_id	//p" | head -1 | grep -q "$_rc_unwit_tok"; then
+          # THE FOURTH WORD (v1.3, SM 1218279408870769). A step the manifest itself marks
+          # `[unwitnessable]` -- G-O: the paste happens in the chat, AFTER the gate -- can never
+          # earn a witness, so leaving it in the UNWITNESSED bucket beside the rows that merely
+          # lack a detector trains readers to scroll past that bucket: permanent red as
+          # wallpaper, the disease the roll call treats, applied to its own instrument. The
+          # token lives in the MANIFEST, not here, so the word cannot be applied by hand to a
+          # row that is simply unbuilt; and it sits BELOW every rung above on purpose -- a
+          # verdict spoken under the id, an artifact, or an assertion still outranks it.
+          _jstate="UNWITNESSABLE"
+          _jnote="cannot be witnessed from inside the gate by construction -- not a gap, not a red, not a detector nobody built. Row: $(printf '%s' "$_judgdesc" | sed -n "s/^$_id	\[unwitnessable\] *//p" | head -1)"
         else
           _jstate="UNWITNESSED"
           # "Row:" and not "A witness would be:" -- the manifest's third column already says

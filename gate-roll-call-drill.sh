@@ -70,6 +70,8 @@ G-JD	judgment	a prose step the session asserts it walked
 G-JU	judgment	a prose step nothing witnessed at all
 G-JV	judgment	a prose step that speaks a verdict for itself
 G-J	judgment	one letter after the hyphen, and NOT the owner of G-JW
+G-JX	judgment	[unwitnessable] a prose step the manifest says can never be witnessed
+G-JXV	judgment	[unwitnessable] ...and one that speaks a verdict anyway; the verdict must win
 MF
 
 # ── the fixture gate ──────────────────────────────────────────────────────────────────
@@ -99,7 +101,9 @@ gate_witness "G-JW" "the artifact is on disk at /fixture/HANDOFF-x-01.md"
 gate_witness "G-JW" "...and a second call must not make a second row"
 gate_witness "G-JSTRAY" "a witness for an id no manifest row declares"
 FAILS+=("G-JV: this prose step spoke a verdict for itself")
+FAILS+=("G-JXV: unwitnessable on paper, but it spoke -- and what it said was a failure")
 # G-JD is claimed via GATE_ANSWERED in run_fixture; G-JU and G-J are claimed by nothing.
+# G-JX is claimed by nothing either -- the MANIFEST marks it, which is the whole point.
 gate_rollcall_emit >/dev/null
 exit 0
 FX
@@ -113,6 +117,9 @@ run_fixture() {   # <lib-path> -> writes $WORK/out/fixturebox.tsv
 }
 state_of() {   # <id> -> state, or empty
   awk -F'\t' -v id="$1" '!/^#/ && $1==id { print $2; exit }' "$WORK/out/fixturebox.tsv" 2>/dev/null
+}
+note_of() {    # <id> -> note column, or empty
+  awk -F'\t' -v id="$1" '!/^#/ && $1==id { print $3; exit }' "$WORK/out/fixturebox.tsv" 2>/dev/null
 }
 rows_for() {   # <id> -> row count
   awk -F'\t' -v id="$1" '!/^#/ && $1==id { n++ } END { print n+0 }' "$WORK/out/fixturebox.tsv" 2>/dev/null
@@ -236,6 +243,29 @@ fi
   || bad "24 G-JSTRAY -> '$(state_of G-JSTRAY)'" "a witness nothing will ever read looks like coverage from inside the gate and is invisible from outside it"
 [ "$(state_of G-J)" = "UNWITNESSED" ] && ok "25 G-JW's witness is NOT attributed to G-J (no prefix inference on the judgment side either)" \
   || bad "25 G-J -> '$(state_of G-J)'" "ownership comes from the manifest on both halves, never from a shared prefix"
+# 34-35. WHO SPOKE (v1.3, SM 1218279533293599). When an alias carries a verdict onto its
+#     parent (check 8), the parent's NOTE names the alias -- otherwise `G-AL  warn` with G-AL
+#     itself silent reads exactly like G-AL warning in its own voice, and the sidecar has
+#     collapsed two facts into one word. A unit that spoke for itself gets no such note.
+case "$(note_of G-PARENT)" in
+  *"spoken by G-PARENT#kid"*) ok "34 a verdict carried by an ALIAS names the alias in the parent's note" ;;
+  *) bad "34 G-PARENT note -> '$(note_of G-PARENT)'" "a parent that was silent and a parent that spoke must not produce the same row" ;;
+esac
+case "$(note_of G-NOISY)" in
+  *"spoken by"*) bad "35 G-NOISY note -> '$(note_of G-NOISY)'" "a unit that failed in its OWN voice must not be described as spoken-for" ;;
+  *) ok "35 a unit that spoke for itself carries no 'spoken by' note (the annotation is for aliases only)" ;;
+esac
+# 30-32. THE FOURTH WORD (v1.3, SM 1218279408870769). A row the manifest marks [unwitnessable]
+#     reads UNWITNESSABLE; the SAME shape of row without the token stays UNWITNESSED (check 22
+#     is that control -- G-JU); and a verdict spoken under the id still outranks the token.
+#     The token is read from the MANIFEST, never from the note text, so the word cannot be
+#     applied by hand to a row that merely lacks a detector.
+[ "$(state_of G-JX)" = "UNWITNESSABLE" ] && ok "30 a row the manifest marks [unwitnessable] reads UNWITNESSABLE -- its own word, not the unbuilt bucket" \
+  || bad "30 G-JX -> '$(state_of G-JX)'" "permanent red filed beside merely-unbuilt rows teaches readers to scroll past the bucket"
+[ "$(state_of G-JU)" = "UNWITNESSED" ] && ok "31 the same shape WITHOUT the token still reads UNWITNESSED (the word is the manifest's to give, not the library's)" \
+  || bad "31 G-JU -> '$(state_of G-JU)'" "if unmarked rows can read UNWITNESSABLE the word means nothing"
+[ "$(state_of G-JXV)" = "fail" ] && ok "32 an [unwitnessable] row that SPOKE keeps its verdict -- the token never outranks a fail" \
+  || bad "32 G-JXV -> '$(state_of G-JXV)'" "'cannot be witnessed' must never be substituted for 'it went badly'"
 # 26. THE LINE. Not one judgment row may ever render as `pass`. `pass` in this sidecar means
 #     "a mechanical check ran and the gate's arrays are silent about it" -- a measurement. No
 #     amount of witnessing tells you a prose step was answered WELL, and the day a judgment
@@ -342,6 +372,14 @@ if mutant_flips E 's/^          _jstate="UNWITNESSED"$/          _jstate="WITNES
   ok "29 MUTANT E (unwitnessed defaults to WITNESSED): the unwitnessed step moves, a genuinely witnessed one does not"
 else
   bad "29 MUTANT E: $MUT_WHY" "check 22 is not measuring the headline state of the judgment half"
+fi
+
+# F · neuter the token lookup. The marked row must fall back to UNWITNESSED (proving check 30
+#     reads the token and nothing else); the unmarked control must not move.
+if mutant_flips F 's/^_rc_unwit_tok=.*/_rc_unwit_tok="^NEVER-MATCHES"/' G-JX UNWITNESSABLE G-JU UNWITNESSED; then
+  ok "33 MUTANT F (token lookup neutered): the marked row falls back to UNWITNESSED, the unmarked one does not move"
+else
+  bad "33 MUTANT F: $MUT_WHY" "check 30 is not measuring the manifest token"
 fi
 
 run_fixture "$LIB"   # leave the scratch in a truthful state
