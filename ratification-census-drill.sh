@@ -235,11 +235,20 @@ run "$E"; check "path-gone into an absent repo is CANNOT VERIFY" 2 "cannot tell 
 #     neither true nor a finding, and phases 2b-5 never ran at all.
 #     PATH is stripped rather than trusting the OS, so this control does real work on
 #     darwin instead of passing for free on the box that already lacks launchctl.
+#     smDrainDesk-13 (2026-09-08): the OS is now a PARAMETER (RC_UNAME, this file's own
+#     override family), so this control runs BOTH directions on BOTH boxes: a Darwin box
+#     with no launchctl is CANNOT VERIFY (19); a Linux box is n/a with the subject named and
+#     rc 0 (19b) -- the same shape as the gate's G-X#platform control. Neither direction may
+#     pass for free on the box that happens to match it.
 E="$T/nolaunchctl"; mkestate "$E"; mkdir -p "$T/emptybin"
-OUT="$(PATH="$T/emptybin" RC_HOME="$E" \
+OUT="$(PATH="$T/emptybin" RC_HOME="$E" RC_UNAME=Darwin \
       RC_SCAN_ROOTS="$E/Scripts:$E/code/darwin-mac-ops:$E/repos/claude-blackbook/scripts" \
       RC_NO_SWEEP=1 "${BASH:-/bin/bash}" "$CENSUS" 2>&1)"; RC=$?
-check "missing launchctl BINARY is CANNOT VERIFY" 2 "launchctl is not installed" "$RC" "$OUT"
+check "missing launchctl BINARY on Darwin is CANNOT VERIFY" 2 "launchctl is not installed" "$RC" "$OUT"
+OUT="$(PATH="$T/emptybin" RC_HOME="$E" RC_UNAME=Linux \
+      RC_SCAN_ROOTS="$E/Scripts:$E/code/darwin-mac-ops:$E/repos/claude-blackbook/scripts" \
+      RC_NO_SWEEP=1 "${BASH:-/bin/bash}" "$CENSUS" 2>&1)"; RC=$?
+check "19b: no launchctl on Linux is n/a, rc 0, subject named" 0 "n/a: launchd has no subject" "$RC" "$OUT"
 if printf '%s' "$OUT" | grep -q "Traceback"; then
   printf '  FAIL  %-46s the census crashed instead of reporting\n' "no traceback on a launchctl-less box"; FAIL=$((FAIL+1))
 else

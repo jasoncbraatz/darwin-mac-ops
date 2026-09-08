@@ -78,6 +78,7 @@ ARL          = os.environ.get("RC_ARL",          H("Scripts/asana-read-lint.py")
 FDA_CANARY   = os.environ.get("RC_FDA_CANARY",   H("Scripts/fda-canary.sh"))
 LAUNCHCTL    = os.environ.get("RC_LAUNCHCTL",    "")     # a file of labels, for the drill
 LAUNCHCTL_ABSENT = None                                  # set when the binary is not on this box
+UNAME = os.environ.get("RC_UNAME") or os.uname().sysname  # the OS is a PARAMETER (drill runs both values); no off-switch
 NO_SWEEP     = os.environ.get("RC_NO_SWEEP", "") == "1"  # skip the git-grep secret replay
 SCAN_ROOTS   = [p for p in os.environ.get(
     "RC_SCAN_ROOTS", ":".join([H("Scripts"), H("code/darwin-mac-ops"),
@@ -324,7 +325,15 @@ else:
     labels = {p[2].strip() for p in (l.split("\t") for l in out.splitlines()[1:])
               if len(p) >= 3 and p[2].strip()}
 print("  --- launchd allowlists (loaded labels: %d) ---" % len(labels))
-if LAUNCHCTL_ABSENT is not None:
+if LAUNCHCTL_ABSENT is not None and UNAME != "Darwin":
+    # smDrainDesk-13 (2026-09-08): on a non-macOS box launchd has NO SUBJECT, so this is the
+    # gate's platform n/a (gate_platform_na, -06 a7261d7), not CANNOT VERIFY. The distinction
+    # is the whole card: CANNOT VERIFY on every Linux wrap forever is camouflage, and it was
+    # the last red between feynman and a zero-red session-out (SM 1218237358595987). A Darwin
+    # box with no launchctl is still CANNOT VERIFY below -- the OS decides, nothing else.
+    print("  n/a: launchd has no subject on %s (%s) -- the three launchd allowlists are judged on "
+          "darwin, where launchd runs. Recorded, not excused; rc unaffected." % (UNAME, BOX))
+elif LAUNCHCTL_ABSENT is not None:
     cannot("launchctl is not installed on %s (%s), so NOT ONE of the three launchd "
            "allowlists was judged here. This is a routing fact, not a finding: the "
            "launchd records can only be re-read on the box that runs launchd (darwin)."
