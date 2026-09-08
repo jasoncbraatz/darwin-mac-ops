@@ -1,6 +1,10 @@
 #!/bin/bash
 # oauth-keepalive.sh — self-heal darwin's fuel gauge when the OAuth token has gone 401.
-# Run by launchagents/com.braatz.oauth-keepalive.plist in the launchd GUI domain, every 30 min.
+# Run by launchagents/com.braatz.oauth-keepalive.plist in the launchd GUI domain, every 30 min
+# on darwin; by systemd/oauth-keepalive.timer (systemd --user) every 30 min on Linux, where
+# ~/.claude/.credentials.json is a plain file any shell can refresh (smDrainDesk-14, 2026-09-08:
+# feynman's personal tank read 401 for a day because nothing there ever ran `claude -p ok`).
+# Install on either: scripts/oauth-keepalive-agent.sh --install
 #
 # WHY (AAR fuel-gauge-lost-its-needle A1, 2026-09-07 · FEYNMAN-FRICTION F13/F20): the macOS login
 # keychain is LOCKED to every shell that is not launchd's GUI domain — ssh AND darlish. So when the
@@ -19,7 +23,10 @@ ST="$HOME/.local/state/pitching-machine"
 FU="${FUEL_USAGE_JSON:-$ST/fuel-usage.json}"
 PM="${PM_DIR:-$HOME/repos/pitching-machine}"
 LOG="$ST/oauth-keepalive.log"
-CLAUDE="${CLAUDE_BIN:-/opt/homebrew/bin/claude}"
+# The CLI's path differs by box (homebrew on darwin, /usr/local/bin on feynman); PATH first,
+# then darwin's homebrew as the last resort -- a keepalive that cannot find `claude` refreshes
+# nothing and logs "FAILED — token needs a human" for a token a human never had to touch.
+CLAUDE="${CLAUDE_BIN:-$(command -v claude 2>/dev/null || echo /opt/homebrew/bin/claude)}"
 mkdir -p "$ST"
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 http=$(/usr/bin/python3 - "$FU" <<'PY' 2>/dev/null

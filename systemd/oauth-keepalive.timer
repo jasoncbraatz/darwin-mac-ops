@@ -1,0 +1,13 @@
+# oauth-keepalive.timer -- 30 minutes, matching darwin's launchd StartInterval of 1800s.
+# Offset 5 min behind fuel-probe.timer so a 401 the probe just wrote is read, not raced.
+[Unit]
+Description=Run the OAuth keepalive every 30 minutes
+
+[Timer]
+OnBootSec=7min
+OnUnitActiveSec=30min
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
