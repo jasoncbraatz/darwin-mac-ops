@@ -585,6 +585,87 @@ else:
 ' 2>/dev/null | head -1
 }
 
+# G-H #22j (feynmanSync-12, 2026-09-08 -- found on this session's own wrap). THE RUNG THAT
+# ASKS WHAT, NOT WHO. Every other rung in this ladder asks one question in a different voice:
+# #22c by filename, #22c-content by signature, #22e by claim journal, #22f by mtime window,
+# #22g-unrostered by the last commit's clock. Six ways to answer "WHOSE half-finished work is
+# this" -- and not one of them ever asks whether the dirt is AUTHORED WORK AT ALL.
+#
+# MEASURED, on the gate run that found it: ~/repos/claude-blackbook read ORPHAN, author
+# `fable-braatz911-01`, carrying the standing instruction "Do NOT commit a dead session's
+# half-finished work as your own". The two dirty paths were `state/sm-intake/intake.jsonl`
+# (one appended line) and `state/sm-intake/motd.json` (a regenerated timestamp and a counter).
+# Neither has an author in the sense this ladder means. A TOOL wrote them; the session that
+# happened to run the tool then died, which converted a daemon tick into an orphan.
+#
+# AND THE ESTATE HAS BEEN OVERRULING THIS BY HAND FOR TWO WEEKS. 51 commits in 14 days carry
+# `state/` in claude-blackbook, and their own subject lines are the evidence:
+#     "state(sm-intake): carry estate-sync-watch's tick (daemon, append-only)"
+#     "sm-intake: carry one journal line -- written by fable-smDrainDesk-10, not by me"
+# Sessions have been writing, in prose, in a commit message, the exact attribution the gate
+# refused to make. Meanwhile the gate's prescribed remedy -- a State Machine card, the red left
+# red for its taker -- would file a card whose subject is a JSON timestamp. Nobody takes that
+# card, so the red recurs on every wrap and people learn to scroll past it. That is the disease
+# the roll call exists to treat, arriving through the front door.
+#
+# DECLARED, NEVER INFERRED. Same fence as the manifest's `parent` column, same idiom as
+# portability-guard.allow: a repo declares its OWN generated paths in `.gate-generated` at its
+# root, one `<glob><TAB><why>` row each, and A ROW WITH NO `why` IS NOT A DECLARATION. The
+# allowlist is a record of intent, not a snooze button. A central list would have to be edited
+# on one box for a repo that lives on both; a file in the repo travels with it.
+#
+# THE FENCE THAT MATTERS: this fires ONLY when EVERY dirty path is declared. One undeclared
+# path and the whole repo falls through to the ladder below, unchanged -- so a real edit can
+# never be smuggled in beside a tick. Fail-closed in every other direction: no `.gate-generated`,
+# an unreadable one, a declaration with no usable rows, or no dirt at all each answer empty,
+# which is exactly the behaviour that shipped before this rung existed.
+#
+# It sits BELOW the live-claimant rung deliberately. A repo somebody is holding stays "do NOT
+# commit" whatever the dirt looks like; this rung only ever speaks where the alternative was an
+# unowned red.
+#
+# FOR ANYONE EXTENDING IT: the globs are compared with `case`, the shell's own pattern matcher,
+# and are never word-split. `for tok in $globs` would PATHNAME-EXPAND them into filenames before
+# the comparison -- which is precisely how G-AQ#selfcount's first cut went blind on the one
+# input it existed for (feynmanSync-11 LUT). `read` does no pathname expansion; keep it that way.
+_dirt_all_generated() {   # <repo-path> <porcelain> -> "<matched-globs>\t<note>" or empty
+  local _decl="$1/.gate-generated" _line _p _glob _why _hit _matched="" _rows=""
+  [ -f "$_decl" ] || return 0
+  [ -r "$_decl" ] || return 0
+  [ -n "$2" ] || return 0
+  # The declaration, read first. A row needs BOTH a glob and a non-blank reason to count.
+  # `|| [ -n "$_line" ]` so a final row with no trailing newline is not silently dropped.
+  while IFS= read -r _line || [ -n "$_line" ]; do
+    case "$_line" in ''|'#'*) continue ;; esac
+    _glob="${_line%%	*}"
+    _why="${_line#*	}"
+    [ "$_why" != "$_line" ] || continue                       # no TAB at all -> not a declaration
+    [ -n "$_glob" ] || continue
+    case "$_why" in *[![:space:]]*) ;; *) continue ;; esac     # blank reason -> not a declaration
+    _rows="$_rows$_glob
+"
+  done < "$_decl"
+  [ -n "$_rows" ] || return 0
+  # EVERY dirty path must match at least one declared glob, or nothing is attributed.
+  while IFS= read -r _line; do
+    [ -n "$_line" ] || continue
+    _p="${_line:3}"; _p="${_p##* -> }"; _p="${_p%\"}"; _p="${_p#\"}"
+    _hit=""
+    while IFS= read -r _glob; do
+      [ -n "$_glob" ] || continue
+      case "$_p" in $_glob) _hit="$_glob"; break ;; esac
+    done <<EOF_GLOBS
+$_rows
+EOF_GLOBS
+    [ -n "$_hit" ] || return 0                                # one undeclared path => the ladder
+    case " $_matched " in *" $_hit "*) ;; *) _matched="$_matched $_hit" ;; esac
+  done <<EOF_DIRT
+$2
+EOF_DIRT
+  [ -n "$_matched" ] || return 0
+  printf '%s\t%s' "${_matched# }" "a tool wrote it and no session authored it"
+}
+
 _dirt_author_verdict() {   # <repo-path> -> "VERDICT<TAB>author<TAB>note" or empty
   [ -f "$_RED_OWNER" ] || return 0
   command -v python3 >/dev/null 2>&1 || return 0
@@ -748,6 +829,11 @@ for repo in "${REPOS[@]}"; do
       else
         WARNS+=("$name: $nd uncommitted change(s) — LIVE roster claim by '$_claimant', and THIS session did not export GATE_ROSTER_WHO so I cannot tell whether that is you. If it is you, commit it; if it is not, DO NOT — it is another session's work in flight. Verify: ~/Scripts/roster who")
       fi
+      [ "$level" = ok ] && level="WARN"
+    elif _gen="$(_dirt_all_generated "$repo" "$dirty")"; [ -n "$_gen" ]; then
+      _TG=$'\t'; _genglobs="${_gen%%${_TG}*}"; _gennote="${_gen#*${_TG}}"
+      flags="$flags DIRTY($nd,generated)"
+      WARNS+=("$name: $nd uncommitted change(s) — GENERATED STATE, not authored work: every dirty path matches a declared glob in $(basename "$repo")/.gate-generated ($_genglobs — $_gennote). A daemon tick has no author, so there is nobody to attribute it to and nothing to card. Carry it: git -C $repo commit -m 'state: carry the tick (daemon, append-only)' -- $_genglobs && git -C $repo push  (a PATHSPEC commit, not \`add -A\`: roster-brake blocks the add -A shape, and a pathspec cannot sweep in a path that appeared between this gate run and the commit — a race the fence above cannot see)  (G-H#22j — ONE undeclared path and this repo falls straight back to the attribution ladder)")
       [ "$level" = ok ] && level="WARN"
     else
       _owner="$(_paths_owned_by_sibling "$repo" "$dirty")"

@@ -451,5 +451,117 @@ if [ -n "$SWEEP" ]; then
   esac
 fi
 
+# ── #26 · G-H#22j · THE RUNG THAT ASKS *WHAT*, NOT *WHO* ────────────────────────
+# Six rungs above ask whose half-finished work the dirt is. None of them ever asked whether
+# it is authored work at all, so a daemon's appended line read ORPHAN and the prescribed
+# remedy was a State Machine card whose subject would have been a JSON timestamp. These
+# controls hold the fence, because the fence is the whole safety of the feature: a rung that
+# excuses dirt is one bad row away from excusing somebody's real edit.
+sed -n '/^_dirt_all_generated() {/,/^}/p' "$GATE" > "$S/fn6.sh"
+if ! grep -q 'gate-generated' "$S/fn6.sh"; then
+  bad "#26 could not extract _dirt_all_generated() from $GATE — G-H#22j is unproven this run"
+else
+  # shellcheck disable=SC1090
+  . "$S/fn6.sh"
+  G="$S/genrepo"; mkdir -p "$G/state/sm-intake"
+  printf 'state/sm-intake/*\tappend-only intake journal; a tool writes it\n' > "$G/.gate-generated"
+
+  _v="$(_dirt_all_generated "$G" ' M state/sm-intake/intake.jsonl
+ M state/sm-intake/motd.json')"
+  case "$_v" in
+    'state/sm-intake/*'*'no session authored it') ok "#26a every dirty path declared -> the rung answers, naming the glob that matched" ;;
+    *) bad "#26a all-declared dirt was not recognised (got='$_v')" ;;
+  esac
+
+  # THE FENCE. One undeclared path and the WHOLE repo falls back to the ladder — this is what
+  # stops a real edit riding into a commit beside a tick, and it is the only control here whose
+  # failure is dangerous rather than merely noisy.
+  chk "" "$(_dirt_all_generated "$G" ' M state/sm-intake/intake.jsonl
+ M scripts/sm-file.py')" "#26b ONE undeclared path among declared ones -> NOTHING attributed (the fence: a real edit cannot ride in beside a tick)"
+
+  chk "" "$(_dirt_all_generated "$S/norepo" ' M state/sm-intake/motd.json')" "#26c no .gate-generated at all -> nothing attributed (fail-closed; the pre-22j behaviour is the default)"
+  chk "" "$(_dirt_all_generated "$G" '')" "#26d no dirt -> nothing attributed, no crash"
+
+  # A ROW IS NOT A DECLARATION WITHOUT A REASON. This is the portability-guard.allow contract:
+  # the file is a record of intent, and a bare glob records none. Both shapes of missing reason
+  # are separate controls because they fail in different places in the parser.
+  N1="$S/noreason"; mkdir -p "$N1/state/sm-intake"
+  printf 'state/sm-intake/*\n' > "$N1/.gate-generated"
+  chk "" "$(_dirt_all_generated "$N1" ' M state/sm-intake/motd.json')" "#26e a glob with NO tab and no why is not a declaration -> nothing attributed"
+  N2="$S/blankreason"; mkdir -p "$N2/state/sm-intake"
+  printf 'state/sm-intake/*\t   \n' > "$N2/.gate-generated"
+  chk "" "$(_dirt_all_generated "$N2" ' M state/sm-intake/motd.json')" "#26f a whitespace-only why is not a declaration either -> nothing attributed (a snooze button needs a sentence)"
+
+  # THE LAST-LINE FAMILY (feynmanSync-11 LUT): a file whose final row has no trailing newline.
+  # `read` returns non-zero at EOF without one, so the most recently ADDED row — the one whoever
+  # is debugging this just wrote — is the one that silently would not count.
+  N3="$S/notrailing"; mkdir -p "$N3/state/sm-intake"
+  printf '# a comment\n\nstate/sm-intake/*\tthe last row of this file has NO trailing newline' > "$N3/.gate-generated"
+  _v="$(_dirt_all_generated "$N3" ' M state/sm-intake/motd.json')"
+  case "$_v" in
+    'state/sm-intake/*'*) ok "#26g a final row with no trailing newline still counts, and comments/blank lines are skipped" ;;
+    *) bad "#26g the last row of .gate-generated was dropped — the newest declaration is the one that silently would not count (got='$_v')" ;;
+  esac
+
+  # PATHNAME-EXPANSION CONTROL, and it is the reason this function reads with `read` and compares
+  # with `case`. If a glob were ever word-split (`for g in $globs`) the shell would expand it
+  # against the CWD *before* the comparison, and the check would go blind on exactly the input it
+  # exists for (feynmanSync-11 lost G-AQ#selfcount's first cut to this).
+  #
+  # THE FIRST VERSION OF THIS CONTROL WAS THEATRE AND A MUTANT PROVED IT. It declared a glob
+  # matching NOTHING on disk and asserted it still matched. Under `for g in $rows` an unmatched
+  # glob is left ALONE by the shell (no nullglob), so the mutant passed the control cleanly. The
+  # failure mode needs a glob that DOES expand: only then is the pattern destroyed and replaced by
+  # filenames. So the fixture plants real files, the call runs with the CWD inside them, and the
+  # dirty path is one the pattern covers but the DIRECTORY does not contain -- which is precisely
+  # the case an expansion silently loses.
+  N4="$S/patternonly"; mkdir -p "$N4"
+  : > "$N4/a.tick"; : > "$N4/b.tick"
+  printf '*.tick\tfixture: a.tick and b.tick exist here, so a word-split would expand this into filenames and destroy the pattern\n' > "$N4/.gate-generated"
+  _v="$(cd "$N4" && _dirt_all_generated "$N4" '?? c.tick')"
+  case "$_v" in
+    '*.tick'*) ok "#26h a declared glob is compared as a PATTERN even when the CWD is full of files it would expand to (mutation-proven: word-splitting the globs turns this red)" ;;
+    *) bad "#26h the globs are being pathname-expanded against the CWD instead of used as patterns — a dirty path the pattern covers was missed because the directory does not contain it (got='$_v')" ;;
+  esac
+fi
+
+# ── #27 · IS #22j WIRED IN, AT THE RIGHT RUNG, AND DID IT TAKE ANYTHING AWAY? ────
+if [ -n "$SWEEP" ]; then
+  _n="$(printf '%s\n' "$SWEEP" | grep -c '_dirt_all_generated "\$repo" "\$dirty"')"
+  chk "1" "$_n" "#27 the DIRTY branch consults _dirt_all_generated (G-H#22j)"
+  # ORDERING, both directions. A repo somebody is HOLDING must keep its "do NOT commit" answer
+  # whatever the dirt looks like, so #22j is asked AFTER the live-claimant rung; and it must be
+  # asked BEFORE the attribution rungs, or those will have already named an owner for a tick.
+  _cl_at="$(printf '%s\n' "$SWEEP" | grep -n '_claimant="\$(_roster_other_claimant' | head -1 | cut -d: -f1)"
+  _gn_at="$(printf '%s\n' "$SWEEP" | grep -n '_dirt_all_generated "\$repo" "\$dirty"' | head -1 | cut -d: -f1)"
+  _ow_at="$(printf '%s\n' "$SWEEP" | grep -n '_owner="\$(_paths_owned_by_sibling' | head -1 | cut -d: -f1)"
+  if [ -n "$_cl_at" ] && [ -n "$_gn_at" ] && [ -n "$_ow_at" ] && [ "$_cl_at" -lt "$_gn_at" ] && [ "$_gn_at" -lt "$_ow_at" ]; then
+    ok "#27a #22j sits BELOW the live-claimant rung and ABOVE the attribution rungs (a held repo still says 'do NOT commit'; a tick is never given an owner)"
+  else
+    bad "#27a #22j is at the wrong rung (claimant=$_cl_at generated=$_gn_at owner=$_ow_at) — either a held repo lost its 'do NOT commit', or a tick is being attributed to somebody"
+  fi
+  case "$SWEEP" in
+    *'WARNS+=("$name: $nd uncommitted change(s) — GENERATED STATE'*) ok "#27b #22j pushes a WARN, not a pass — it makes the tick VISIBLE with its carry command, it does not make the repo read clean" ;;
+    *) bad "#27b #22j no longer emits a WARN — a silenced tick accumulates until a real edit lands beside it" ;;
+  esac
+  case "$SWEEP" in
+    *'ONE undeclared path and this repo falls straight back to the attribution ladder'*) ok "#27c ...and the WARN states its own fence, so a reader learns the limit at the moment they read the excuse" ;;
+    *) bad "#27c the WARN no longer states the fence — the rung reads as a blanket amnesty for the repo" ;;
+  esac
+  # The carry command must be a PATHSPEC commit. Two independent reasons, and the first one was
+  # found the hard way: `git add -A` is a shape roster-brake BLOCKS, so the WARN's own remedy did
+  # not run. The second outlives that: the fence proves every path was declared AT GATE TIME, and
+  # `add -A` would also stage anything that appeared afterwards, which the fence never saw.
+  case "$SWEEP" in
+    *"commit -m 'state: carry the tick (daemon, append-only)' -- \$_genglobs"*)
+      ok "#27e the carry command is a PATHSPEC commit — roster-brake blocks \`add -A\`, and a pathspec cannot sweep in a path that arrived after the fence checked" ;;
+    *) bad "#27e the carry command is not a pathspec commit — either roster-brake will block the remedy the WARN prints, or an undeclared path can ride in after the fence ran" ;;
+  esac
+  # NEGATIVE CONTROL, the one that matters: adding a rung must not have removed one. The ORPHAN
+  # FAIL is the sentence #22j exists to stop firing WRONGLY — it must still fire RIGHTLY.
+  _o="$(printf '%s\n' "$SWEEP" | grep -c 'FAILS+=.*it is an ORPHAN')"
+  chk "1" "$_o" "#27d NEGATIVE CONTROL: the ORPHAN FAIL still exists beneath #22j — the rung narrows when it fires, it did not delete the verdict"
+fi
+
 echo "=== drill: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ] || exit 1
