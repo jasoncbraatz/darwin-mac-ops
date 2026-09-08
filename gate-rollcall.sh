@@ -388,7 +388,11 @@ $_id
           _jnote="the session asserted it walked this step (GATE_ANSWERED) -- an assertion, recorded as one; nothing checked it"
         else
           _jstate="UNWITNESSED"
-          _jnote="no artifact, no assertion -- nobody can say whether this step happened. A witness would be: $(printf '%s' "$_judgdesc" | sed -n "s/^$_id	//p" | head -1)"
+          # "Row:" and not "A witness would be:" -- the manifest's third column already says
+          # that in its own words, and the doubled phrase read as a stutter in the first live
+          # sidecar. The row is quoted verbatim so the note carries the STEP as well as the
+          # candidate witness; a reader who has never opened the manifest still learns both.
+          _jnote="no artifact, no assertion -- nobody can say whether this step happened. Row: $(printf '%s' "$_judgdesc" | sed -n "s/^$_id	//p" | head -1)"
         fi
         printf '%s	%s	%s\n' "$_id" "$_jstate" "$_jnote" >> "$_out"
       done <<JUDG
