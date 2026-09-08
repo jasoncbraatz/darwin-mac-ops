@@ -117,7 +117,35 @@ prose() {
   ' "$1"
 }
 
-gids_of() { prose "$1" | grep -oE '[0-9]{16}' | sort -u; }
+# A 16-DIGIT RUN IS NOT AUTOMATICALLY A CARD. Delivered into feynmanSync-15's roster mailbox
+# by orchestrator-braatz911-07 (mail 1788899803-2221), measured on their own wrap: G-AQ
+# reported `1213050213165325` -- the Batter's Box PROJECT gid, which every thread ledger cites
+# by design as an identifier -- and `7525553979705753`, a 16-digit WINDOW inside a longer
+# number. Both then read as "a thread your predecessor carried and you dropped", which is an
+# accusation pointed at a handoff that did nothing wrong. A check that cries liar is a check
+# somebody switches off.
+#
+# TWO NARROWINGS, and each is the smallest one that fixes its own case:
+#   1. digit BOUNDARIES, so a 16-digit window inside a 17+-digit run is not harvested. grep -oE
+#      has no \b for this (a digit-to-digit junction is not a word boundary), so the run is
+#      matched WITH its neighbours and rejected if either side is a digit.
+#   2. the two BOARD gids are excluded BY DECLARATION, never by a heuristic about magnitude or
+#      prefix. They are projects, not cards; they resolve 404 on /tasks/; and every honest
+#      thread ledger on this estate names them. Declared, so a future board is one line here
+#      and not a silent re-run of this bug.
+HTC_BOARD_GIDS="${HTC_BOARD_GIDS:-1213050213165325 1215913700958709}"
+gids_of() {
+  prose "$1" \
+    | grep -oE '(^|[^0-9])[0-9]{16}([^0-9]|$)' \
+    | grep -oE '[0-9]{16}' \
+    | sort -u \
+    | while read -r _g; do
+        case " $HTC_BOARD_GIDS " in
+          *" $_g "*) : ;;      # a board, not a card -- carried as an identifier, never a thread
+          *) printf '%s\n' "$_g" ;;
+        esac
+      done
+}
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 gids_of "$INBOUND"  > "$WORK/in"
@@ -129,7 +157,8 @@ if [ "$nin" -eq 0 ]; then
   echo "  CANNOT VERIFY: the inbound handoff '$INBOUND' yielded ZERO State Machine gids in prose."
   echo "  Either it cites no cards (nothing to inherit, so nothing this check can grade) or the"
   echo "  parse is broken. Both are unknowns, and an unknown is not a pass. Check by hand:"
-  echo "    command grep -oE '[0-9]{16}' '$INBOUND' | sort -u"
+  echo "    command grep -oE '(^|[^0-9])[0-9]{16}([^0-9]|\$)' '$INBOUND' | grep -oE '[0-9]{16}' | sort -u
+  (and ignore the two BOARD gids, which are projects rather than cards: $HTC_BOARD_GIDS)"
   exit 2
 fi
 

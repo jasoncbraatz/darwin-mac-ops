@@ -259,9 +259,46 @@ else
   bad "an inbound fenced-only gid should not be demanded (rc=$RC): $OUT"
 fi
 
+
+# ---- 14. A 16-DIGIT RUN IS NOT AUTOMATICALLY A CARD (feynmanSync-15, from FF-2 mail
+#          1788899803-2221, found by orchestrator-braatz911-07 on their own wrap) ---------
+# G-AQ harvested `1213050213165325` -- the Batter's Box PROJECT gid, which every honest thread
+# ledger on this estate cites by design -- and a 16-digit WINDOW inside a longer number. Both
+# then read as "a thread you dropped", an accusation aimed at a handoff that did nothing wrong.
+cat > "$T/boards-in.md" <<EOF
+# inbound
+- the two boards themselves: 1213050213165325 (Batter's Box) and 1215913700958709 (State Machine)
+- a longer number containing a 16-digit window: 7525553979705753123
+EOF
+cat > "$T/boards-out.md" <<EOF
+# outbound
+- carries neither of the above, on purpose.
+EOF
+run "$T/boards-in.md" "$T/boards-out.md"
+if [ "$RC" -eq 2 ]; then
+  ok "a doc citing ONLY the board gids and a long-number window parses to ZERO threads (rc 2, not a dropped-thread accusation)"
+else
+  bad "board gids / digit windows were harvested as threads (rc=$RC): $OUT"
+fi
+
+# POSITIVE TWIN, so the control above is not satisfied by a parser that harvests NOTHING --
+# which would be the same defect with the opposite sign, and just as silent.
+cat > "$T/boards-in2.md" <<EOF
+# inbound
+- the boards: 1213050213165325 and 1215913700958709
+- a long-number window: 7525553979705753123
+- and ONE real card: $G1
+EOF
+run "$T/boards-in2.md" "$T/boards-out.md"
+if [ "$RC" -eq 1 ]; then
+  ok "POSITIVE TWIN: a REAL card in the same document is still demanded -- the narrowing is narrow"
+else
+  bad "a real card beside the board gids was not demanded (rc=$RC): $OUT"
+fi
+
 printf 'VERDICTS-EXERCISED: %s\n' "$codes_seen"
 if [ "$fail" -eq 0 ]; then
-  printf '=== drill: PASS — %d controls (%d skipped), 8 of them negative or anti-gaming ===\n' "$pass" "$skip"
+  printf '=== drill: PASS — %d controls (%d skipped), 9 of them negative or anti-gaming ===\n' "$pass" "$skip"
   exit 0
 fi
 printf '=== drill: FAIL — %d of %d controls did not hold ===\n' "$fail" "$((pass+fail))"
