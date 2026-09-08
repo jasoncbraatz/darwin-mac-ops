@@ -3535,9 +3535,14 @@ if [ -x "$DC" ]; then
   _dc_out="$(bash "$DC" --check 2>&1)"; _dc_rc=$?
   case "$_dc_rc" in
     0) if printf '%s\n' "$_dc_out" | grep -q '^  STALE'; then
-         bold "=== G-AW . every drill is named by a runner (a baseline row is now wired) ==="
+         # INFORMATION, not a WARN -- on purpose. The baseline is estate-wide but a runner can be
+         # box-local (darwin holds braatz-mail-server, whose board names two mail-sec drills;
+         # feynman does not hold that repo -- G-AK). A --rebaseline on the box that sees the
+         # runner paints the other box RED on its next wrap. So the ratchet tightens BY HAND,
+         # from the box that holds the fewest repos, and this line is the reminder, not a nag.
+         bold "=== G-AW . every drill is named by a runner (a baseline row is wired ON THIS BOX) ==="
          printf '%s\n' "$_dc_out" | grep '^  STALE' | sed 's/^/       /'
-         WARNS+=("G-AW: a drill on drill-census.baseline is now named by a runner -- the ratchet may only tighten. Drop the row: bash ~/Scripts/drill-census.sh --rebaseline (leaves a .bak), then commit ~/Scripts")
+         printf '  ok     stale rows are information here: tighten from the box holding the FEWEST repos (drill-census.sh --rebaseline), never from the one that sees the runner\n'
        fi ;;
     1) bold "=== G-AW . every drill is named by a runner (a NEW orphan) ==="
        printf '%s\n' "$_dc_out" | grep -E '^  ORPHAN|^  drill-census:' | sed 's/^/       /'
