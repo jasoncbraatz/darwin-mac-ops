@@ -29,7 +29,8 @@
 # the document is the one handing over or the one being handed.
 #
 # WHAT IT DOES NOT DO. It does not judge whether a carried thread is carried WELL, and it
-# does not read the verify: line's command. A dropped gid is a FAIL because an inherited
+# does not RUN the verify: line's command. Since 2026-09-08 it does read one thing out of
+# that command -- see SELFCOUNT below -- and nothing else. A dropped gid is a FAIL because an inherited
 # thread that appears nowhere was decided by accident. A carried gid with no verify: line
 # nearby is a NOVERIFY advisory (the caller decides its severity) -- because the v2.23 rule
 # asks for a liveness check and a session that carries the thread has at least made the
@@ -43,6 +44,30 @@
 # @verdict 1  a finding: at least one inbound gid appears NOWHERE in the outbound prose
 # @verdict 2  CANNOT VERIFY: a handoff is missing/unreadable, or the inbound parsed to ZERO
 #             gids (an empty parse is a broken parser, never a clean bill of health)
+#
+# SELFCOUNT (advisory, added 2026-09-08 by opus-feynmanSync-11 -- no new exit code, so the
+# @verdict-contract above is unchanged and G-AP's census still reads three).
+#
+# A verify: line whose SUBJECT INCLUDES THE DOCUMENT IT IS WRITTEN IN cannot ever reach
+# zero, and its count RISES with the number of sessions diligent enough to carry the thread.
+#
+# The specimen, established this session over four handoffs. Card 1218232604204962 shipped
+#   verify: grep -rl "commit abc123" ~/Desktop/downloads/*.md | wc -l
+# against a defect where 87 real handoffs carried a fabricated reconcile footer. The debris
+# was cleaned on 2026-09-07 (downloads 274eff0: 87 -> 0, measured at the commit and its
+# parent). The verify line has answered 1, 2, 3, 4 ever since -- and the files it names are
+# feynmanSync-07, -08, -09 and -10, the four handoffs that CARRIED the card. Each one wrote
+# the marker string into its own handoff, inside the glob the verify line searches. Three
+# sessions read a rising number as a live measurement of a defect that had been fixed.
+#
+# The needle is NOT the discriminator and testing for it would be theatre: a verify line
+# that greps for a literal string always contains that string, so the string is in the
+# document by construction. The only question worth asking is whether the command's PATH
+# ARGUMENT covers the outbound handoff. Asked with the shell's own pattern matcher rather
+# than a regex approximation of one.
+#
+# A verify line naming the PREDECESSOR explicitly is not flagged: that path does not match
+# this document, and looking backwards at a fixed file is a perfectly good liveness check.
 # @drill ~/code/darwin-mac-ops/handoff-thread-continuity-drill.sh
 #
 # bash 3.2 (stock macOS, 3.2.57) is the only bash on darwin: NO mapfile/readarray, and
@@ -108,7 +133,39 @@ if [ "$nin" -eq 0 ]; then
   exit 2
 fi
 
-dropped=0; noverify=0
+# --- is this verify: command searching the document it is written in? ------------------
+# Tokens are matched with `case`, which is the shell's own globber -- `~/Desktop/downloads/*.md`
+# is compared to the outbound's absolute path as a PATTERN, not approximated with a regex.
+# Deliberately generous: `*` matches `/` in a case pattern, so a glob one directory up still
+# flags. Over-flagging here costs a sentence of prose; under-flagging costs three sessions
+# reading a self-portrait as a measurement, which is what it already cost.
+OUT_ABS="$OUTBOUND"
+case "$OUT_ABS" in /*) : ;; *) OUT_ABS="$PWD/$OUT_ABS" ;; esac
+
+selfcounts() {   # <verify-command-text> -> 0 if it searches the outbound itself
+  local _cmd="$1" _tok _pat _rc=1
+  # NOGLOB, and this is load-bearing rather than tidy: `for _tok in $_cmd` needs WORD
+  # SPLITTING and must not get PATHNAME EXPANSION. Without `set -f`, the glob we are trying
+  # to compare against -- `~/Desktop/downloads/*.md` -- would expand to 168 real filenames
+  # before the loop ever saw it, none of which is a pattern, and the check would go quietly
+  # blind on exactly the input it was written for.
+  set -f
+  for _tok in $_cmd; do
+    case "$_tok" in *"/"*) : ;; *) continue ;; esac
+    # strip the punctuation a path picks up from prose and from four levels of nested quoting
+    _pat="$(printf '%s' "$_tok" | sed "s/^[\"'\`(]*//; s/[\"'\`),;]*$//")"
+    case "$_pat" in
+      "~/"*)     _pat="$HOME/${_pat#\~/}" ;;
+      '$HOME/'*) _pat="$HOME/${_pat#\$HOME/}" ;;
+    esac
+    case "$_pat" in /*) : ;; *) continue ;; esac
+    case "$OUT_ABS" in $_pat) _rc=0; break ;; esac
+  done
+  set +f
+  return $_rc
+}
+
+dropped=0; noverify=0; selfcount=0
 while IFS= read -r g; do
   [ -n "$g" ] || continue
   if ! grep -q "$g" "$WORK/out"; then
@@ -124,11 +181,34 @@ while IFS= read -r g; do
       ' "$WORK/outprose"; then
     echo "NOVERIFY $g"
     noverify=$((noverify+1))
+  else
+    # It HAS a liveness check. Can that check ever change its answer, or is it counting the
+    # document it lives in? Read every verify: line inside this gid's block.
+    while IFS= read -r _vl; do
+      [ -n "$_vl" ] || continue
+      if selfcounts "${_vl#*verify:}"; then
+        echo "SELFCOUNT $g"
+        selfcount=$((selfcount+1))
+        break
+      fi
+    done <<VLINES
+$(awk -v g="$g" -v w="$VERIFY_WINDOW" '
+    index($0, g) { hit = NR }
+    hit && NR >= hit && NR <= hit + w && /verify:/ { print }
+  ' "$WORK/outprose")
+VLINES
   fi
 done < "$WORK/in"
 
 nout=$(wc -l < "$WORK/out" | tr -d ' ')
-echo "EVIDENCE inbound=$INBOUND gids=$nin  outbound=$OUTBOUND gids=$nout  dropped=$dropped  noverify=$noverify"
+echo "EVIDENCE inbound=$INBOUND gids=$nin  outbound=$OUTBOUND gids=$nout  dropped=$dropped  noverify=$noverify  selfcount=$selfcount"
+if [ "$selfcount" -gt 0 ]; then
+  echo "  ADVISORY: $selfcount carried thread(s) ship a verify: line that searches a path glob"
+  echo "  matching THIS handoff. Such a line counts its own carriers: it can never reach zero,"
+  echo "  and it rises by one for every session diligent enough to carry the thread. Point it"
+  echo "  at the state the card is actually about -- see card 1218232604204962, where exactly"
+  echo "  this line reported 1, 2, 3, 4 across four sessions for a defect fixed on day one."
+fi
 
 if [ "$dropped" -gt 0 ]; then
   echo "  FINDING: $dropped inherited thread(s) appear NOWHERE in the outbound handoff."

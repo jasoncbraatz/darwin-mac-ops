@@ -165,6 +165,54 @@ else
   bad "NOVERIFY must stay non-blocking; rc was $RC"
 fi
 
+# ---- SELFCOUNT · a verify: line that counts its own carriers --------------------------
+# Born 2026-09-08 (opus-feynmanSync-11) from a real four-session specimen: card
+# 1218232604204962 shipped `grep -rl "commit abc123" ~/Desktop/downloads/*.md | wc -l` for
+# debris that had been cleaned to zero on day one. It answered 1, 2, 3, 4 across
+# feynmanSync-07..-10 -- and the four files it named were those four handoffs, each of which
+# had written the marker string into itself as part of the verify line. Three sessions read
+# a rising number as a live measurement.
+#
+# The fixture puts the outbound in a downloads-shaped directory under a fake HOME, because
+# the whole question is whether the glob covers THIS document.
+SC_HOME="$T/schome"
+mkdir -p "$SC_HOME/Desktop/downloads"
+cat > "$SC_HOME/Desktop/downloads/HANDOFF-sc-11.md" <<EOF
+# outbound
+Carried: the smKondo punch list, gid $G1.
+verify: \`dx 'grep -rl "commit abc123" ~/Desktop/downloads/*.md | wc -l'\`
+Carried: the A1 dedupe ratchet, gid $G2.
+verify: \`dx 'grep -c BB_CLOSE_DOC_ROOTS ~/Scripts/bb-close.py'\`
+EOF
+OUT="$(HOME="$SC_HOME" bash "$HTC" --inbound "$T/in.md" --outbound "$SC_HOME/Desktop/downloads/HANDOFF-sc-11.md" 2>&1)"; RC=$?; saw "$RC"
+if printf '%s' "$OUT" | grep -q "SELFCOUNT $G1"; then
+  ok "SELFCOUNT: a verify: line whose glob covers THIS handoff is named"
+else
+  bad "the self-counting verify line should be named (rc=$RC): $OUT"
+fi
+if ! printf '%s' "$OUT" | grep -q "SELFCOUNT $G2"; then
+  ok "LOAD-BEARING NEGATIVE: a verify: line pointing at a DIFFERENT file is left alone -- the check is about the path, not about having a verify line"
+else
+  bad "an honest verify line must not be flagged: $OUT"
+fi
+if [ "$RC" -eq 0 ]; then
+  ok "NEGATIVE: SELFCOUNT does NOT move the exit code -- the thread IS carried; what is broken is the instrument, not the carrying"
+else
+  bad "SELFCOUNT must stay non-blocking; rc was $RC"
+fi
+# The one that would make this check silently worthless: `for tok in $cmd` without `set -f`
+# expands the glob against the real filesystem before the comparison ever happens, and the
+# check goes blind on exactly the input it exists for. Prove the glob survives as a PATTERN
+# by putting a decoy .md next to the outbound: if pathname expansion were happening, the
+# tokens would be filenames and neither would match.
+: > "$SC_HOME/Desktop/downloads/decoy.md"
+OUT="$(HOME="$SC_HOME" bash "$HTC" --inbound "$T/in.md" --outbound "$SC_HOME/Desktop/downloads/HANDOFF-sc-11.md" 2>&1)"; RC=$?; saw "$RC"
+if printf '%s' "$OUT" | grep -q "SELFCOUNT $G1"; then
+  ok "SELFCOUNT survives a directory that would satisfy the glob by expansion -- the token is compared as a PATTERN (set -f), not as a filename"
+else
+  bad "the glob was pathname-expanded before comparison -- set -f is missing or ineffective: $OUT"
+fi
+
 cat > "$T/verified.md" <<EOF
 # outbound
 Carried: the smKondo punch list, gid $G1.

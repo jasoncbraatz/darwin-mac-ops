@@ -93,6 +93,7 @@ G-AE#drill	G-AE	the launchd census's own control
 G-AL#board	G-AL	the generated DONE board is stale
 G-AL#done	G-AL	the charter's paperwork has a finding
 G-AQ#verify	G-AQ	a carried thread ships no one-line verify: line
+G-AQ#selfcount	G-AQ	a verify: line that searches a glob covering the handoff it is written in
 G-AS#door	G-AS	cards that walked past the door in the last 24h
 
 # --- judgment steps ---------------------------------------------------------

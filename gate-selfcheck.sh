@@ -3102,6 +3102,18 @@ else
        # check is a WARN, never a FAIL. Option-(b) shape, same as G-AL#borrow -- the finding
        # is made visible and the exit code is left alone, so a future tightening has to
        # argue with card 1218152478656223 instead of quietly with ${#FAILS[@]}.
+       # G-AQ#selfcount -- a verify: line that searches a glob covering THIS handoff counts
+       # its own carriers: it can never reach zero and it RISES by one per diligent session.
+       # Card 1218232604204962's line reported 1, 2, 3, 4 across feynmanSync-07..-10 for
+       # debris cleaned on day one (downloads 274eff0: 87 -> 0). WARN, same severity as
+       # NOVERIFY and for the same reason: the thread IS carried and the decision WAS made
+       # on purpose; what is broken is the instrument, not the carrying.
+       _htc_sc="$(printf '%s\n' "$_htc_o" | grep -c '^SELFCOUNT ')"
+       if [ "$_htc_sc" -gt 0 ]; then
+         bold "=== G-AQ#selfcount . a verify: line that counts its own carriers ==="
+         printf '%s\n' "$_htc_o" | grep '^SELFCOUNT ' | sed 's/^/         /'
+         WARNS+=("G-AQ#selfcount: $_htc_sc carried thread(s) in $(basename "$_htc_out") ship a verify: line whose path glob matches THIS handoff. It cannot ever reach zero and it rises by one for every session that carries the thread -- a number that moves reads as a live measurement, which is the whole trap. Point it at the state the card is about. Specimen: card 1218232604204962.")
+       fi
        _htc_nv="$(printf '%s\n' "$_htc_o" | grep -c '^NOVERIFY ')"
        if [ "$_htc_nv" -gt 0 ]; then
          bold "=== G-AQ . an inherited thread survives the handoff ==="
