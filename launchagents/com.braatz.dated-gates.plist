@@ -7,6 +7,13 @@
   Born fable-smDrainDesk-03, 2026-09-05: seven of 81 frozen cards were "come back on date X".
   Repo-backed here per the S38 launchd-census rule. Heartbeat: ~/.local/state/dated-gates/heartbeat
   (register in ~/Scripts/darwin-heartbeats.py — teed to smDrainScripts3's wrap, darwin-scripts was claimed).
+
+  NOT DARWIN'S ALONE (F27, ceo-desk 597c631/370d151, 2026-09-07): dated-gates.py takes an atomic day-lock on the HUB
+  (n8n:/var/tmp/dated-gates/<date>.lock, `box` inside says who fired) before it fires anything. This agent is the
+  09:30 CT first-chair; feynman's systemd user timer (ceo-desk/systemd/dated-gates.timer, 09:45 CT) is the
+  understudy and fires only if darwin lost the lock to nobody. The journal is repo-backed (ceo-desk/state/fired.jsonl,
+  pull-in/commit-out), so both boxes read one history. If darwin is asleep at 09:30, feynman fires; SUCCESS IS SILENT.
+  Read the receipt, never fire by hand: `dated-gates.py list` + `ssh n8n cat /var/tmp/dated-gates/<date>.lock/box`.
 -->
 <plist version="1.0">
 <dict>

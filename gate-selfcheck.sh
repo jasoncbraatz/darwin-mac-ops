@@ -312,6 +312,11 @@ _gate_abs() {   # <path> -> absolute path, without resolving symlinks
 _GATE_SELF="$(_gate_abs "${BASH_SOURCE[0]:-$0}")"
 
 _ROSTER_DB="${ROSTER_DB:-$HOME/.local/state/darlish/roster.sqlite3}"
+# F33 (2026-09-08): every roster read goes through ~/Scripts/sq (sqlite3 CLI, or python3 where the box has
+# none). The old `command -v sqlite3 || return 0` guards SKIPPED these checks on feynman and printed
+# nothing -- a false green in the one tool whose job is refusing false greens. A missing sq is now the
+# only skip, and it is loud once at G-H#drill (exit 2 = CANNOT VERIFY) rather than silent three times.
+_SQ="${SQ:-$HOME/Scripts/sq}"
 _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
   # FAIL SAFE, NOT OPEN (fixed 2026-08-12, floristAlix-1).
   #
@@ -343,13 +348,13 @@ _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
       ${GATE_ROSTER_WHO:+--not-me "$GATE_ROSTER_WHO"} 2>/dev/null
     return 0
   fi
-  command -v sqlite3 >/dev/null 2>&1 || return 0
+  [ -x "$_SQ" ] || return 0
   _rc_base="$(basename "$1")"
   _rc_selfclause=""
   if [ -n "${GATE_ROSTER_WHO:-}" ]; then
     _rc_selfclause="AND who <> '$(printf '%s' "$GATE_ROSTER_WHO" | sed "s/'/''/g")'"
   fi
-  sqlite3 "$_ROSTER_DB" \
+  "$_SQ" "$_ROSTER_DB" \
     "SELECT who FROM roster WHERE kind='claim' AND expires > strftime('%s','now')
        AND started > strftime('%s','now') - 4*3600
        $_rc_selfclause
@@ -374,7 +379,7 @@ if [ -x "$_RD" ]; then
   printf '%s\n' "$_RD_OUT" | tail -3
   case "$_RD_RC" in
     0) : ;;
-    2) FAILS+=("G-H#drill CANNOT VERIFY: gate-roster-drill.sh could not run (sqlite3 missing?). Exit 2 is NOT a pass") ;;
+    2) FAILS+=("G-H#drill CANNOT VERIFY: gate-roster-drill.sh could not run (~/Scripts/sq missing?). Exit 2 is NOT a pass") ;;
     *) FAILS+=("G-H#drill: the sibling-downgrade control FAILED its own drill -- G-H's DIRTY->WARN downgrade is not behaving as specified. Run: bash $_RD") ;;
   esac
 else
@@ -421,11 +426,11 @@ done
 # whole repo stays a FAIL, so this can never launder your own mess in with theirs.
 _paths_owned_by_sibling() {   # <repo-path> <porcelain> -> claimant name, or empty
   [ -f "$_ROSTER_DB" ] || return 0
-  command -v sqlite3 >/dev/null 2>&1 || return 0
+  [ -x "$_SQ" ] || return 0
   local _slugs _who _p _st _hit _found="" _line
   # session rows only: a slug is 'opus-pitchingMachine-2' and the file says 'pitchingMachine-2',
   # so strip the tier prefix. Skip our own identity and slugs too short to be evidence.
-  _slugs="$(sqlite3 "$_ROSTER_DB" \
+  _slugs="$("$_SQ" "$_ROSTER_DB" \
      "SELECT who FROM roster WHERE kind='session' AND expires > strftime('%s','now');" 2>/dev/null)"
   [ -n "$_slugs" ] || return 0
   while IFS= read -r _line; do
@@ -600,7 +605,7 @@ _dirt_author_verdict() {   # <repo-path> -> "VERDICT<TAB>author<TAB>note" or emp
 # Answer shape: "<who[,who]><TAB><note>" or empty. Bash + sqlite3 + stat only (drillable by extract).
 _dirt_mtime_sibling() {   # <repo-path> <porcelain> -> "who[,who]<TAB>note" or empty
   [ -f "$_ROSTER_DB" ] || return 0
-  command -v sqlite3 >/dev/null 2>&1 || return 0
+  [ -x "$_SQ" ] || return 0
   local _now _rows _mine_start="" _who _st _line _p _mt _cands="" _all="" _first=1 _c _keep _note _in
   _now="$(date +%s)"
   # deskTenancy-02 (#22i): a window is a LIVE sibling's by THE ONE LIVENESS RULE -- seen within
@@ -610,9 +615,9 @@ _dirt_mtime_sibling() {   # <repo-path> <porcelain> -> "who[,who]<TAB>note" or e
   local _qh _seen_col
   _qh="$(python3 "$HOME/Scripts/roster" constants 2>/dev/null | python3 -c 'import json,sys; print(int(json.load(sys.stdin)["QUIET_H"]))' 2>/dev/null)"
   [ -n "$_qh" ] || _qh=6
-  if sqlite3 "$_ROSTER_DB" "PRAGMA table_info(roster);" 2>/dev/null | grep -q '|last_seen|'; then
+  if "$_SQ" "$_ROSTER_DB" "PRAGMA table_info(roster);" 2>/dev/null | grep -q '|last_seen|'; then
     _seen_col="COALESCE(last_seen,started)"; else _seen_col="started"; fi
-  _rows="$(sqlite3 -separator '|' "$_ROSTER_DB" \
+  _rows="$("$_SQ" -separator '|' "$_ROSTER_DB" \
      "SELECT who, started FROM roster WHERE kind='session' AND expires > $_now AND $_seen_col > $_now - $_qh*3600;" 2>/dev/null)"
   [ -n "$_rows" ] || return 0
   while IFS='|' read -r _who _st; do
