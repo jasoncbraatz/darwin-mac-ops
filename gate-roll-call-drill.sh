@@ -176,8 +176,16 @@ fi
 # the marker. Both directions, because a one-way check would let a new check be invisible
 # in exactly the way G-AK was.
 if [ -r "$GATE_SRC" ] && [ -r "$REAL_MANIFEST" ]; then
-  _declared="$(awk -F'\t' '!/^#/ && NF>=2 && $2=="-" { print $1 }' "$REAL_MANIFEST" | sort -u)"
-  _marked="$(grep -oE '^gate_ran "[^"]+"' "$GATE_SRC" | sed 's/^gate_ran "//; s/"$//' | sort -u)"
+  _declared="$(LC_ALL=C awk -F'\t' '!/^#/ && NF>=2 && $2=="-" { print $1 }' "$REAL_MANIFEST" | sort -u)"
+  # LC_ALL=C grep -a, and this is not belt-and-braces fussiness: measured on feynman
+  # 2026-09-08, gate-selfcheck.sh carried ONE stray NUL byte, so GNU grep classed the whole
+  # file as binary and answered `-o` with the single line "binary file matches" instead of
+  # the matches. Check 15 then reported 22 reach units as unmarked -- a confident, specific,
+  # WRONG finding, produced on one box and not the other, by an instrument that had silently
+  # stopped reading its subject. That is the P14 disease inside P14's own drill. The NUL is
+  # fixed and portability-guard check 8 refuses the next one, but a drill that degrades
+  # silently when its subject changes shape is not a drill, so it says -a either way.
+  _marked="$(LC_ALL=C grep -a -oE '^gate_ran "[^"]+"' "$GATE_SRC" | sed 's/^gate_ran "//; s/"$//' | sort -u)"
   _miss="$(comm -23 <(printf '%s\n' "$_declared") <(printf '%s\n' "$_marked") | grep . || true)"
   _extra="$(comm -13 <(printf '%s\n' "$_declared") <(printf '%s\n' "$_marked") | grep . || true)"
   [ -z "$_miss" ]  && ok "15 every reach unit in the manifest has a gate_ran marker in the gate" \

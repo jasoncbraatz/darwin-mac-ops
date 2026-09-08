@@ -3313,7 +3313,7 @@ TRIAD
     # says nothing, which is the exact defect this session existed to hunt. A watcher has
     # THREE states that must not collapse into two: saw-a-number, could-not-look, did-not-run.
     # An unreadable ledger is UNKNOWN, never zero.
-     printf "  EPSILON: CANNOT VERIFY -- ~/Scripts/epsilon is missing or not executable, so\n" >&2
+    printf "  EPSILON: CANNOT VERIFY -- ~/Scripts/epsilon is missing or not executable, so\n" >&2
     printf "  the unasked-reversible-call count could not be produced. That is UNKNOWN, not\n" >&2
     printf "  zero. Answer triad question 4 by hand, and say so in the handoff.\n" >&2
   fi
