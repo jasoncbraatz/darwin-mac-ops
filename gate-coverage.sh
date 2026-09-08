@@ -47,14 +47,21 @@ fi
 # --- do they even describe the same subject? -----------------------------------------
 # A manifest mismatch is CANNOT VERIFY, not a finding. Two boxes measured against
 # different check lists produce a table full of confident, meaningless differences.
+# v1.1: compare the manifest's FINGERPRINT, not its basename. Basenames are identical on
+# every box by construction, so the v1.0 check could not fail -- a guard that cannot fire is
+# indistinguishable from no guard, which is the shape this whole tool exists to expose. A
+# sidecar written by an older library carries no fingerprint; say so rather than assuming.
 MFS=""
 for f in $FILES; do
-  MFS="$MFS$(basename "$(sed -n 's/^# manifest=//p' "$f" | head -1)")
+  _fp="$(sed -n 's/.*manifest_fp=\([^ ]*\).*/\1/p' "$f" | head -1)"
+  [ -n "$_fp" ] || _fp="UNFINGERPRINTED($(basename "$f"))"
+  MFS="$MFS$_fp
 "
 done
 if [ "$(printf '%s' "$MFS" | sort -u | grep -c .)" -gt 1 ]; then
-  echo "gate-coverage: CANNOT VERIFY -- the sidecars name different manifests:" >&2
+  echo "gate-coverage: CANNOT VERIFY -- the sidecars were measured against DIFFERENT manifests:" >&2
   printf '%s' "$MFS" | sort -u | sed 's/^/    /' >&2
+  echo "    (an UNFINGERPRINTED entry came from gate-rollcall.sh < 1.1 -- re-run the gate on that box)" >&2
   exit 2
 fi
 

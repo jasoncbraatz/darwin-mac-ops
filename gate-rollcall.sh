@@ -57,7 +57,30 @@
 # guarded, and a manifest that cannot be read produces a sidecar SAYING SO rather than a
 # silent empty one — three states, never collapsed into two.
 
-GATE_ROLLCALL_LIB_VERSION="1.0"
+GATE_ROLLCALL_LIB_VERSION="1.1"
+
+# --- fingerprint the manifest, portably ------------------------------------------------
+# gate-coverage.sh refuses to join sidecars measured against DIFFERENT manifests, because
+# two boxes scored on different check lists produce a table full of confident, meaningless
+# differences. v1.0 compared the manifest's BASENAME, which is not a comparison at all --
+# every box calls it gate-checks.manifest, and one of them being three commits behind looks
+# identical. Record a real fingerprint. Ladder because no single tool is on both boxes:
+# sha256sum is GNU, shasum ships with macOS perl, and cksum is POSIX on both (CRC32+size --
+# weak against an adversary, entirely adequate against "is this the same file").
+_rc_manifest_fp() {   # <path> -> "<algo>:<digest>" or "none"
+  [ -r "${1:-}" ] || { printf 'none
+'; return 0; }
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf 'sha256:%s
+' "$(sha256sum "$1" 2>/dev/null | cut -c1-16)"
+  elif command -v shasum >/dev/null 2>&1; then
+    printf 'sha256:%s
+' "$(shasum -a 256 "$1" 2>/dev/null | cut -c1-16)"
+  else
+    printf 'cksum:%s
+' "$(cksum "$1" 2>/dev/null | awk '{print $1"-"$2}')"
+  fi
+}
 
 GATE_ROLL_SEEN=" "        # space-sentinelled set of ids reached this run
 GATE_ROLL_NA=""           # "<id>\t<why>" lines, for checks with no subject on this box
@@ -143,6 +166,7 @@ gate_rollcall_emit() {
       echo "# gate roll call — every check this run REACHED, and what became of it."
       echo "# lib=$GATE_ROLLCALL_LIB_VERSION box=$_box box_resolved_by=$_boxsrc utc=$_stamp"
       echo "# manifest=$_mf"
+      echo "# manifest_fp=$(_rc_manifest_fp "$_mf") units_declared=$(awk -F'\t' '!/^#/ && NF>=2 && $2=="-"' "$_mf" 2>/dev/null | grep -c . || echo 0)"
       echo "# NOT-REACHED = declared and never reached. UNDECLARED = spoke without a manifest row."
       printf '#id\tstate\tnote\n'
     } > "$_out" 2>/dev/null || { echo "gate-rollcall: cannot write $_out" >&2; return 0; }
