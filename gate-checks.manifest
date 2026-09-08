@@ -39,6 +39,7 @@ G-V	-	AAR/RCA obligation on completed Batter's Box cards
 G-V#owner	-	the attribution helper can still tell its five causes apart
 G-V#2	-	Asana single-page collection-read ratchet
 G-V#3	-	card-lint stale-summary ratchet
+G-V#3#estate	G-V#3	stale references outside this session's scope -- a note, never this wrap's red
 G-X	-	FDA grant canary (macOS subject)
 G-X#platform	-	the platform exemption fires only where there is no subject
 G-Y	-	relay bootstrap freshness (the cloud curl serves what darwin has)

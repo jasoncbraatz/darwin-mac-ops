@@ -1812,21 +1812,43 @@ fi
 #
 # TRI-STATE, same contract as G-V and G-V#2: a missing tool, an empty corpus, or a
 # resolver that resolved nothing is CANNOT VERIFY -- never a pass.
+#
+# TWO SCOPES, TWO VERDICTS (smDrainDesk-15, 2026-09-08, SM 1218293958456879). The ratchet
+# was box-wide, so a wrapping session went red on a SIBLING's in-flight handoff -- a live
+# feynmanSync-14 closing cards in real time made HANDOFF-feynmanSync-13.md newly stale
+# under braatz911-04's wrap, and then under this one, and neither could reconcile a doc a
+# sibling was mid-edit on. --session-only (ruling #181a) already exists for exactly this
+# and the gate never passed it. Now: the session-scoped run is the RED (docs under this
+# session's own roster claims, modified since it joined); the box-wide run is a WARN --
+# a sibling's in-flight doc, or nobody's. It is a WARN and not silence because the "daily
+# card-lint launchd job" card-lint's own text defers estate-wide staleness to DOES NOT
+# EXIST on any box (measured 2026-09-08: no plist, no timer, nothing) -- so this line is
+# the only reader estate-wide staleness has. The extra run costs ~25s at wrap.
 gate_ran "G-V#3"
 CARD_LINT="$HOME/Scripts/card-lint.py"
 if [ ! -x "$CARD_LINT" ]; then
   FAILS+=("G-V#3 CANNOT VERIFY: $CARD_LINT missing or not executable -- NOT a pass")
 else
-  CL_OUT="$(/usr/bin/python3 "$CARD_LINT" --ratchet 2>&1)"; CL_RC=$?
+  CL_OUT="$(/usr/bin/python3 "$CARD_LINT" --ratchet --session-only 2>&1)"; CL_RC=$?
   case "$CL_RC" in
-    0) : ;;  # no NEW stale references, nothing to retire. Success is silent.
-    1) bold "=== G-V#3 · card-lint stale-summary ratchet ==="
+    0) : ;;  # no NEW stale references in THIS session's docs, nothing to retire. Success is silent.
+    1) bold "=== G-V#3 · card-lint stale-summary ratchet (this session's docs) ==="
        echo "$CL_OUT" | sed 's/^/  /'
-       FAILS+=("G-V#3: a NEW stale reference appeared, or a baselined one is fixed and must be retired -- reconcile the artifact, or run card-lint.py --update-baseline") ;;
-    2) bold "=== G-V#3 · card-lint stale-summary ratchet ==="
+       FAILS+=("G-V#3: a NEW stale reference appeared in a doc THIS session touched, or a baselined one is fixed and must be retired -- reconcile the artifact, or run card-lint.py --update-baseline") ;;
+    2) bold "=== G-V#3 · card-lint stale-summary ratchet (this session's docs) ==="
        echo "$CL_OUT" | sed 's/^/  /'
-       FAILS+=("G-V#3 CANNOT VERIFY: card-lint inspected an empty corpus or resolved zero gids (no Asana token?). Exit 2 is NOT a pass") ;;
+       FAILS+=("G-V#3 CANNOT VERIFY: card-lint could not scope to this session (no roster session/claim row for you?), inspected an empty corpus, or resolved zero gids (no Asana token?). Exit 2 is NOT a pass. Join the roster (~/Scripts/roster join) or run: python3 ~/Scripts/card-lint.py --ratchet --session-only") ;;
     *) FAILS+=("G-V#3: card-lint exited unexpectedly ($CL_RC) -- treat as CANNOT VERIFY") ;;
+  esac
+  # the estate-wide count: a note with a name, never this wrap's red
+  CL_WIDE="$(/usr/bin/python3 "$CARD_LINT" --ratchet --quiet 2>&1)"; CL_WRC=$?
+  case "$CL_WRC" in
+    0) : ;;
+    1) bold "=== G-V#3#estate · stale references OUTSIDE this session's scope (a sibling's, or nobody's) ==="
+       echo "$CL_WIDE" | grep -E 'NEW|STALE-|no longer an offender|RATCHET' | sed 's/^/  /'
+       WARNS+=("G-V#3#estate: card-lint box-wide has a NEW stale reference (or a retired baseline row) in a doc OUTSIDE this session's claims -- a live sibling's in-flight handoff reconciles itself at their wrap; anything else is nobody's, and nobody else is looking (the daily card-lint job does not exist). Not this wrap's red. See: python3 ~/Scripts/card-lint.py --ratchet") ;;
+    2) WARNS+=("G-V#3#estate CANNOT VERIFY: the box-wide card-lint could not look (Asana unreachable?) -- the session-scoped verdict above stands on its own") ;;
+    *) WARNS+=("G-V#3#estate: card-lint box-wide exited unexpectedly ($CL_WRC)") ;;
   esac
 fi
 
