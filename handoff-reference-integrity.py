@@ -90,6 +90,8 @@ button. An exemption with no usable reason is itself a finding.
 EXIT CODES
 ----------
     0  clean (or only n/a routing facts)
+       stdout always carries a `REF-OK: <live> live, <dead> dead` tally, which is
+       what ratification-census.sh reads to judge this marker vocabulary.
     1  findings: an unresolved gid, an unresolved sha, or a missing own-box path
     2  CANNOT VERIFY: the handoff could not be read at all
 """
@@ -389,8 +391,13 @@ def report(found, resolver, resolver_why, since=None):
                          f"REF-OK declared with a reason under {REASON_MIN} chars "
                          f"({len(reason)}) -- a record of intent, not a snooze button"))
 
+    used = set()
+
     for tok in found["paths"]:
         if tok in found["exempt"]:
+            st, _d = resolve_path(tok)
+            if st == "missing":
+                used.add(tok)                 # the exemption is doing work
             continue
         state, detail = resolve_path(tok)
         if state == "missing":
@@ -401,6 +408,9 @@ def report(found, resolver, resolver_why, since=None):
     for repo, sha in found["shas"]:
         key = f"{repo} {sha}"
         if key in found["exempt"] or sha in found["exempt"]:
+            st, _d = resolve_sha(repo, sha, since)
+            if st == "unresolved":
+                used.add(key if key in found["exempt"] else sha)
             continue
         state, detail = resolve_sha(repo, sha, since)
         if state == "unresolved":
@@ -412,6 +422,8 @@ def report(found, resolver, resolver_why, since=None):
 
     for gid in found["gids"]:
         if gid in found["exempt"]:
+            if resolver is not None and resolver(gid)[0] == "unresolved":
+                used.add(gid)
             continue
         if resolver is None:
             cv.append(("GID", gid, resolver_why))
@@ -422,7 +434,21 @@ def report(found, resolver, resolver_why, since=None):
         elif state == "cannotverify":
             cv.append(("GID", gid, detail))
 
-    return findings, nas, cv
+    # A REF-OK attached to a token that RESOLVES, or that the document no longer
+    # cites at all, excuses nothing -- and it is indistinguishable from a live one
+    # until something asks. That is the same shape as an exception record outliving
+    # its subject, which is exactly what ratification-census.sh hunts. So it reports.
+    all_tokens = (set(found["paths"]) | set(found["gids"])
+                  | {f"{r} {sh}" for r, sh in found["shas"]}
+                  | {sh for _r, sh in found["shas"]})
+    for tok in found["exempt"]:
+        if tok in used:
+            continue
+        why = ("the document no longer cites it" if tok not in all_tokens
+               else "that reference resolves on its own now")
+        findings.append(("EXEMPT-DEAD", tok,
+                         f"REF-OK excuses nothing -- {why}. Retire the marker."))
+    return findings, nas, cv, len(used), len(found["exempt"]) - len(used)
 
 
 def derive_handoff():
@@ -478,7 +504,7 @@ def main(argv):
         since = os.path.getmtime(path)
     except OSError:
         since = None
-    findings, nas, cv = report(found, resolver, why, since)
+    findings, nas, cv, ex_live, ex_dead = report(found, resolver, why, since)
 
     total = len(found["gids"]) + len(found["paths"]) + len(found["shas"])
     base = os.path.basename(path)
@@ -488,6 +514,7 @@ def main(argv):
         print(f"CANNOT-VERIFY  {kind} {tok}  -- {detail}")
     for kind, tok, detail in nas:
         print(f"n/a  {kind} {tok}  -- {detail}")
+    print(f"REF-OK: {ex_live} live, {ex_dead} dead")
     print(f"-- {base}: {total} reference(s) "
           f"({len(found['gids'])} gid, {len(found['paths'])} path, {len(found['shas'])} sha) "
           f"| {len(findings)} finding(s), {len(cv)} unverifiable, {len(nas)} n/a")
@@ -530,8 +557,8 @@ def selftest():
 
     # 1/1t -- a gid that 404s is a finding; the SAME gid resolving is not.
     txt = "the card 1218281330139051 covers it"
-    f, _, _ = report(scan(txt), _r({"1218281330139051": ("unresolved", "404")}), None)
-    f2, _, _ = report(scan(txt), _r({}), None)
+    f, _, _, _, _ = report(scan(txt), _r({"1218281330139051": ("unresolved", "404")}), None)
+    f2, _, _, _, _ = report(scan(txt), _r({}), None)
     (ok if kinds(f) == ["GID-UNRESOLVED"] else bad)(
         "1  a 404 gid is a finding", "", f"got {kinds(f)}")
     (ok if not f2 else bad)(
@@ -539,10 +566,10 @@ def selftest():
 
     # 2/2t -- 403 is CANNOT VERIFY, never a finding. The twin proves the same
     #         input CAN produce a finding, so 2 is not passing by construction.
-    f, _, cv = report(scan(txt), _r({"1218281330139051": ("cannotverify", "403")}), None)
+    f, _, cv, _, _ = report(scan(txt), _r({"1218281330139051": ("cannotverify", "403")}), None)
     (ok if (not f and len(cv) == 1) else bad)(
         "2  a 403 gid is CANNOT VERIFY, not a finding", "", f"findings={kinds(f)} cv={len(cv)}")
-    f2, _, cv2 = report(scan(txt), _r({"1218281330139051": ("unresolved", "404")}), None)
+    f2, _, cv2, _, _ = report(scan(txt), _r({"1218281330139051": ("unresolved", "404")}), None)
     (ok if (kinds(f2) == ["GID-UNRESOLVED"] and not cv2) else bad)(
         "2t POSITIVE TWIN: same gid, 404 instead, flips to a finding", "",
         f"findings={kinds(f2)} cv={len(cv2)}")
@@ -551,19 +578,19 @@ def selftest():
     #         Both spellings are fed, so neither can pass by being unreachable.
     own = "/Users/nobody/x" if box_kind() == "darwin" else "/home/nobody/x"
     other = "/home/nobody/x" if box_kind() == "darwin" else "/Users/nobody/x"
-    f, nas, _ = report(scan(f"see `{other}`"), _r({}), None)
+    f, nas, _, _, _ = report(scan(f"see `{other}`"), _r({}), None)
     (ok if (not f and len(nas) == 1) else bad)(
         "3  the other box's absolute path is n/a, never red", "", f"findings={kinds(f)}")
-    f2, _, _ = report(scan(f"see `{own}`"), _r({}), None)
+    f2, _, _, _, _ = report(scan(f"see `{own}`"), _r({}), None)
     (ok if kinds(f2) == ["PATH-MISSING"] else bad)(
         "3t POSITIVE TWIN: the same shape on THIS box is a finding", "", f"got {kinds(f2)}")
 
     # 4/4t -- an ephemeral path is skipped; a non-ephemeral sibling is not.
-    f, _, _ = report(scan("see `/tmp/gone-forever-xyz`"), _r({}), None)
+    f, _, _, _, _ = report(scan("see `/tmp/gone-forever-xyz`"), _r({}), None)
     (ok if (not f and scan("see `/tmp/gone-forever-xyz`")["paths"] == []) else bad)(
         "4  a /tmp path is not a path claim -- it is outside the allowlist, not skipped by a branch",
         "", f"got {kinds(f)}")
-    f2, _, _ = report(scan("see `~/definitely-not-here-xyz`"), _r({}), None)
+    f2, _, _, _, _ = report(scan("see `~/definitely-not-here-xyz`"), _r({}), None)
     (ok if kinds(f2) == ["PATH-MISSING"] else bad)(
         "4t POSITIVE TWIN: the same missing file outside /tmp is a finding", "", f"got {kinds(f2)}")
 
@@ -573,9 +600,9 @@ def selftest():
     good = ("see `~/definitely-not-here-xyz`\n"
             "REF-OK: ~/definitely-not-here-xyz -- deleted on purpose when the lane closed")
     thin = "see `~/definitely-not-here-xyz`\nREF-OK: ~/definitely-not-here-xyz -- meh"
-    f, _, _ = report(scan(good), _r({}), None)
+    f, _, _, _, _ = report(scan(good), _r({}), None)
     (ok if not f else bad)("5  REF-OK with a usable reason exempts the token", "", f"got {kinds(f)}")
-    f2, _, _ = report(scan(thin), _r({}), None)
+    f2, _, _, _, _ = report(scan(thin), _r({}), None)
     (ok if kinds(f2) == ["EXEMPT-NOREASON", "PATH-MISSING"] else bad)(
         "5t POSITIVE TWIN: the same token with a thin reason exempts NOTHING and is itself a finding",
         "", f"got {kinds(f2)}")
@@ -583,10 +610,10 @@ def selftest():
     # 6/6t -- a sha pair in a repo that does not exist is n/a; in a repo that
     #         DOES exist and lacks it, a finding. Uses this repo, so it is real.
     here = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
-    f, nas, _ = report(scan("`no-such-repo-xyz 0123abc`"), _r({}), None)
+    f, nas, _, _, _ = report(scan("`no-such-repo-xyz 0123abc`"), _r({}), None)
     (ok if (not f and len(nas) == 1) else bad)(
         "6  a sha in a repo this box does not have is n/a", "", f"findings={kinds(f)}")
-    f2, _, _ = report(scan(f"`{here} 0000000000000000000000000000000000000000`"), _r({}), None)
+    f2, _, _, _, _ = report(scan(f"`{here} 0000000000000000000000000000000000000000`"), _r({}), None)
     exp = ["SHA-UNRESOLVED"] if repo_dir(here) else []
     (ok if kinds(f2) == exp else bad)(
         "6t POSITIVE TWIN: an absent sha in a repo that IS here is a finding", "",
@@ -617,10 +644,10 @@ def selftest():
     # 10/10t -- a `file:LINE` citation resolves to the FILE; the same suffix on a
     #           file that is genuinely absent still reports, naming the base path.
     _self = os.path.abspath(__file__)
-    f, _, _ = report(scan(f"see `{_self}:59`"), _r({}), None)
+    f, _, _, _, _ = report(scan(f"see `{_self}:59`"), _r({}), None)
     (ok if not f else bad)(
         "10  a trailing :LINE is a line citation, not part of the filename", "", f"got {kinds(f)}")
-    f2, _, _ = report(scan("see `~/definitely-not-here-xyz.sh:59`"), _r({}), None)
+    f2, _, _, _, _ = report(scan("see `~/definitely-not-here-xyz.sh:59`"), _r({}), None)
     (ok if kinds(f2) == ["PATH-MISSING"] else bad)(
         "10t POSITIVE TWIN: the same suffix on an absent file still reports", "", f"got {kinds(f2)}")
 
@@ -702,6 +729,23 @@ def selftest():
         ok("14  (skipped: not inside a git repo)")
         ok("14t (skipped with 14)")
 
+    # 15/15t -- a REF-OK that excuses nothing. The pair uses the SAME marker text;
+    #           only whether the token is still broken differs, so nothing about the
+    #           fixture can satisfy 15 except the liveness test itself.
+    _live = ("see `~/definitely-not-here-xyz`\n"
+             "REF-OK: ~/definitely-not-here-xyz -- deleted on purpose when the lane closed")
+    _dead = ("see `~/`\n"
+             "REF-OK: ~/definitely-not-here-xyz -- deleted on purpose when the lane closed")
+    f, _, _, lv, dd = report(scan(_live), _r({}), None)
+    (ok if (not f and lv == 1 and dd == 0) else bad)(
+        "15  a REF-OK still attached to a broken reference counts as LIVE", "",
+        f"findings={kinds(f)} live={lv} dead={dd}")
+    f2, _, _, lv2, dd2 = report(scan(_dead), _r({}), None)
+    (ok if (kinds(f2) == ["EXEMPT-DEAD"] and lv2 == 0 and dd2 == 1) else bad)(
+        "15t POSITIVE TWIN: the same marker, once the document stops citing it, is DEAD "
+        "and says so -- an exemption excusing nothing is an exception record outliving its subject",
+        "", f"findings={kinds(f2)} live={lv2} dead={dd2}")
+
     # 9/9t -- the classifier itself, fed both worlds. Controls 1 and 2 above
     #         inject a resolver, so until this pair existed the 404-vs-403
     #         judgement was exercised only by never being exercised.
@@ -719,7 +763,7 @@ def selftest():
     else:
         ok("9x transport noise (timeout, DNS, empty) never reads as a broken reference")
 
-    print(f"=== selftest: {31 - len(fails)} passed, {len(fails)} failed ===")
+    print(f"=== selftest: {33 - len(fails)} passed, {len(fails)} failed ===")
     return 1 if fails else 0
 
 

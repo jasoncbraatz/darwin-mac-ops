@@ -99,7 +99,7 @@ VENDOR = re.compile(r"/(\.git|node_modules|__pycache__|venv|\.venv|site-packages
 # PHASE 1 — DISCOVERY. Sweep for the SHAPES an exception record takes. Anything
 # discovered that is not in the registry below is a FAIL, not a shrug.
 # ─────────────────────────────────────────────────────────────────────────────
-KNOWN_MARKERS = {"VANISH-OK:", "ASANA-READ-OK:", "CARD-LINT-OK:"}
+KNOWN_MARKERS = {"VANISH-OK:", "ASANA-READ-OK:", "CARD-LINT-OK:", "REF-OK:"}
 KNOWN_FILES   = {os.path.realpath(p) for p in
                  (BB_ALLOW, FOREIGN, DIVERGE, EPHEMERAL, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW,
                   PG_ALLOW)}
@@ -592,6 +592,41 @@ elif asites:
                   "exempt — the excused reads were fixed or moved; retire the markers." % len(asites))
         else:
             print("      live  n=%-4d %-46s lint agrees" % (n, "still sitting on a raw read"))
+
+
+# REF-OK: excuses ONE reference in ONE handoff from G-R. It is true only while that
+# reference is still cited AND still unresolvable; the moment the citation is fixed or
+# dropped, the marker is an exception record outliving its subject -- the exact shape
+# this census exists to hunt, so it must not be exempt from it. The authority is the
+# checker, not this grep: the token also appears in the tool's own regex, docstring and
+# fixtures, the same reason the ASANA-READ-OK count above is informational.
+HRI = H("code/darwin-mac-ops/handoff-reference-integrity.py")
+rsites = [s for s in marker_sites("REF-OK:") if re.match(r"\s*REF-OK:", s[2])]
+print("    REF-OK:         %d marker line(s) found (the checker, not this grep, is the authority)"
+      % len(rsites))
+if rsites and not os.path.exists(HRI):
+    cannot("%s is missing, so the %d REF-OK declaration(s) went unchecked" % (rel(HRI), len(rsites)))
+elif rsites:
+    live = dead = 0; unreadable = []
+    for path, _i, _ln in rsites:
+        full = os.path.expanduser(path.replace("~", H(""), 1)) if path.startswith("~") else path
+        if not os.path.basename(full).startswith("HANDOFF-"):
+            continue                       # the tool's own source, not a declaration site
+        r = subprocess.run(["/usr/bin/python3", HRI, "--handoff", full, "--offline"],
+                           capture_output=True, text=True)
+        m = re.search(r"REF-OK:\s*(\d+) live,\s*(\d+) dead", r.stdout)
+        if not m:
+            unreadable.append(path); continue
+        live += int(m.group(1)); dead += int(m.group(2))
+    if unreadable:
+        cannot("the reference checker printed no REF-OK tally for %s -- cannot tell whether "
+               "those declarations still excuse anything" % ", ".join(unreadable[:3]))
+    elif dead:
+        stale("REF-OK: %d declaration(s) excuse a reference that now resolves, or that the "
+              "handoff no longer cites. Retire them: /usr/bin/python3 %s --handoff <handoff>"
+              % (dead, rel(HRI)))
+    else:
+        print("      live  n=%-4d %-46s checker agrees" % (live, "still excusing a real broken ref"))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 3 — the SELF-POLICING records. Assert the re-examination LOGIC still exists.
