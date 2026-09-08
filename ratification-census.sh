@@ -418,8 +418,45 @@ else:
                     keys.append("%s/%s" % (os.path.basename(repo), ln.split(":")[0]))
             print("      sweep hits before suppression: %d (across %d repos)" % (len(keys), len(repos)))
             repo_names = {os.path.basename(r) for r in repos}
+            repo_by_name = {os.path.basename(r): r for r in repos}
+
+            # THE SECOND NEEDLE (braatz911-02, 2026-09-08). The pre-commit hook sweeps TWICE:
+            # SECRET_RE (replayed above) and the PAN detector (~/Scripts/pan-redact.py: card
+            # length + Luhn). G-E's PAN pass is unwired for cost (smDrainHandoff-15), so a rule
+            # that exists ONLY to excuse a PAN false positive -- a 16-digit Luhn-valid run inside
+            # a sha1 in auto-bridge/ledger-dump.sql -- replayed as "suppresses NOTHING" here while
+            # the hook had just reported "1 hit suppressed" by the same rule. Fail-closed was
+            # right; the census just could not see the second needle. It replays it now, but
+            # ONLY over the files the rule names (bounded: never the corpus), so the cost G-E
+            # refused is not paid here either.
+            def _pan_live(pat):
+                head, _, sub = pat.partition("/")
+                repo = repo_by_name.get(head)
+                if not repo or not sub:
+                    return 0
+                try:
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("pan_redact", H("Scripts/pan-redact.py"))
+                    pan = importlib.util.module_from_spec(spec); spec.loader.exec_module(pan)
+                except Exception:
+                    return 0
+                ls = subprocess.run(["git", "ls-files"], cwd=repo, capture_output=True, text=True).stdout.splitlines()
+                hits = 0
+                for f in ls:
+                    if not fnmatch.fnmatch(f, sub):
+                        continue
+                    try:
+                        txt = open(os.path.join(repo, f), errors="ignore").read()
+                    except OSError:
+                        continue
+                    if pan.redact(txt) != txt:
+                        hits += 1
+                return hits
+
             for pat, line in ge:
                 n = sum(1 for k in keys if fnmatch.fnmatch(k, pat))
+                if not n:
+                    n = _pan_live(pat)   # the hook's second needle, bounded to this rule's files
                 reason = line.split("#", 1)[-1].strip()
                 # Same discriminator as bb-writers, different namespace: these keys are
                 # "<repo basename>/<path>", so the container is the repo itself.
