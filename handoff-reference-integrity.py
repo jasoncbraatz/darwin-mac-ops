@@ -57,6 +57,11 @@ WHAT IT CHECKS -- three reference kinds, each with a deliberate narrow scope
              broken reference, because the successor builds ON it. But a clone
              that has not fetched since the handoff was written cannot hold those
              commits at all, and that is CANNOT VERIFY, never a finding.
+             And a sha the local object database HAS is still unresolved if no
+             remote branch contains it: on the workshop box a rebase leaves the
+             old commit lying there, and `cat-file -e` cannot tell it from a
+             pushed one. The question a successor cares about is "can I fetch
+             this", not "is it on your disk".
 
 WHY THE SCOPE IS THIS NARROW
 ----------------------------
@@ -217,6 +222,28 @@ def resolve_sha(repo, sha, since=None):
     except Exception as e:                       # transport, not a verdict
         return "na", f"git could not run: {type(e).__name__}"
     if r.returncode == 0:
+        # EXISTS IS NOT REACHABLE. `cat-file -e` answers from the local object
+        # database, which on the workshop box still holds everything a rebase
+        # orphaned. feynmanSync-12's own handoff cites `claude-blackbook 7bc465f2`
+        # -- a real object on darwin, on NO remote branch, superseded by daeea474
+        # when the --autostash rebase that handoff documents rewrote it. darwin
+        # called that reference fine and feynman called it broken, and feynman was
+        # right. A high-water mark a successor cannot fetch is exactly the lie this
+        # check exists to catch, so ask the question that matters: is it PUSHED?
+        try:
+            br = subprocess.run(["git", "-C", d, "branch", "-r", "--contains", sha],
+                                capture_output=True, text=True, timeout=20)
+        except Exception:
+            return "ok", d                       # cannot ask -> do not accuse
+        if br.returncode == 0 and not br.stdout.strip():
+            fetched = last_fetch(d)
+            if since is not None and fetched is not None and fetched < since:
+                return ("cannotverify",
+                        f"{repo} has the object but has not fetched since the handoff -- "
+                        f"cannot tell a rebased-away commit from an unfetched branch")
+            return ("unresolved",
+                    f"exists in {d} but NO remote branch contains it -- rebased away or "
+                    f"never pushed, so no other box and no successor can fetch it")
         return "ok", d
     fetched = last_fetch(d)
     if since is not None and fetched is not None and fetched < since:
@@ -650,6 +677,31 @@ def selftest():
             "13t POSITIVE TWIN: the same absent sha in a clone that HAS fetched since is a finding",
             "", st_fresh)
 
+    # 14/14t -- exists-but-unpushed. The twin is this repo's real HEAD, which IS
+    #           on a remote branch, so only reachability separates the two.
+    if _d is not None:
+        _rc = subprocess.run(["git", "-C", _d, "rev-parse", "HEAD"],
+                             capture_output=True, text=True)
+        _head = _rc.stdout.strip()
+        _orph = subprocess.run(["git", "-C", _d, "log", "--format=%H", "-1",
+                                "--walk-reflogs", "--all"], capture_output=True, text=True)
+        st_head, _det = resolve_sha(_here, _head, since=None)
+        (ok if st_head == "ok" else bad)(
+            "14  a pushed commit resolves", "", f"{st_head} {_det}")
+        _fake = subprocess.run(
+            ["git", "-C", _d, "commit-tree", "-p", _head, "-m", "hri drill orphan",
+             _head + "^{tree}"], capture_output=True, text=True)
+        if _fake.returncode == 0 and _fake.stdout.strip():
+            st_orph, _det2 = resolve_sha(_here, _fake.stdout.strip(), since=None)
+            (ok if st_orph == "unresolved" else bad)(
+                "14t POSITIVE TWIN: an object that EXISTS but is on no remote branch "
+                "is unresolved -- exists is not reachable", "", f"{st_orph} {_det2}")
+        else:
+            ok("14t (skipped: could not mint a throwaway object here)")
+    else:
+        ok("14  (skipped: not inside a git repo)")
+        ok("14t (skipped with 14)")
+
     # 9/9t -- the classifier itself, fed both worlds. Controls 1 and 2 above
     #         inject a resolver, so until this pair existed the 404-vs-403
     #         judgement was exercised only by never being exercised.
@@ -667,7 +719,7 @@ def selftest():
     else:
         ok("9x transport noise (timeout, DNS, empty) never reads as a broken reference")
 
-    print(f"=== selftest: {29 - len(fails)} passed, {len(fails)} failed ===")
+    print(f"=== selftest: {31 - len(fails)} passed, {len(fails)} failed ===")
     return 1 if fails else 0
 
 
