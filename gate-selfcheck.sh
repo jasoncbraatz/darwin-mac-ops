@@ -49,6 +49,7 @@ ROOTS=("$HOME/repos" "$HOME/code" "$HOME/Desktop/downloads" "$HOME/Scripts" \
 DEAD_VALUES=()
 DO_FETCH=0
 QUIET=0
+DO_ROLLCALL_ONLY=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -56,12 +57,55 @@ while [ $# -gt 0 ]; do
     --dead-value) DEAD_VALUES+=("$2"); shift 2 ;;
     --root) ROOTS+=("$2"); shift 2 ;;
     --quiet) QUIET=1; shift ;;
+    --roll-call) DO_ROLLCALL_ONLY=1; shift ;;
     -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 
+_gate_abs_early() {   # <path> -> absolute, without resolving symlinks (twin of _gate_abs,
+  case "$1" in       # which is defined further down next to the self-drills that use it)
+    /*) printf '%s\n' "$1" ;;
+     *) printf '%s/%s\n' "$(cd "$(dirname "$1")" 2>/dev/null && pwd)" "$(basename "$1")" ;;
+  esac
+}
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
+
+# -- THE ROLL CALL (P14, 2026-09-08, feynmanSync-10) -----------------------------------
+# feynmanSync-09 tried to read box coverage off this file's OUTPUT and measured an
+# artifact: G-AK appeared 2x in feynman's log and 0x in darwin's, which reads as "never
+# runs on darwin" and actually meant the census PASSED — the header is printed only in the
+# rc=1/rc=2 branches. A check that passes quietly and a check that never ran are
+# INDISTINGUISHABLE in this file's prose output, in the one direction that matters.
+#
+# So the roll call is recorded, not narrated: gate_ran fires at the TOP of each check, and
+# gate_rollcall_emit writes a machine-readable sidecar every run. `--roll-call` only PRINTS
+# what a run wrote anyway — a flag cannot be the mechanism, because then the roll call
+# would describe a different run than the one you are reading.
+#
+# It is an OBSERVER and must never change a verdict: if the library is missing, gate_ran
+# becomes a no-op and the gate behaves exactly as it did before, minus the sidecar.
+_GATE_ROLLCALL_LIB="${GATE_ROLLCALL_LIB:-$(dirname "$(_gate_abs_early "${BASH_SOURCE[0]:-$0}")")/gate-rollcall.sh}"
+if [ -r "$_GATE_ROLLCALL_LIB" ]; then
+  . "$_GATE_ROLLCALL_LIB"
+  GATE_ROLLCALL_LOADED=1
+else
+  GATE_ROLLCALL_LOADED=0
+  gate_ran() { :; }
+  gate_ran_na() { :; }
+  gate_rollcall_emit() { echo "gate-rollcall: library not found at $_GATE_ROLLCALL_LIB" >&2; }
+  gate_rollcall_print() { echo "gate-rollcall: library not found at $_GATE_ROLLCALL_LIB" >&2; return 2; }
+fi
+
+# --roll-call is a VIEW: it prints the sidecar the LAST real run wrote and exits. It
+# deliberately does NOT run the gate. A flag that produced its own roll call would be
+# describing a rehearsal — a different run than the one whose verdict you are holding —
+# which is the same substitution (derived result for measured one) that made the box
+# coverage question unanswerable in the first place.
+if [ "$DO_ROLLCALL_ONLY" -eq 1 ]; then
+  gate_rollcall_print
+  exit $?
+fi
 FAILS=(); WARNS=()
 
 # -- A CHECK THAT NEVER RAN IS NOT A CHECK THAT PASSED ----------------------------------
@@ -293,6 +337,7 @@ _roster_other_claimant() {   # <repo-path> -> claimant name, or empty
 # a green light that never goes red: an instrument nobody reads. Now the gate reads it.
 # The drill EXTRACTS the function from this file at run time, so it also catches the function
 # being renamed or moved out from under it.
+gate_ran "G-H#drill"
 _RD="$HOME/code/darwin-mac-ops/gate-roster-drill.sh"
 if [ -x "$_RD" ]; then
   bold "=== G-H#drill · roster downgrade control (offline drill) ==="
@@ -315,6 +360,7 @@ fi
 # the handoff's verify block IS that remembering, which means the proof lived in a document
 # rather than in a run. Both are hermetic (scratch ROSTER_DB, live board never opened) and take
 # well under a second, so there was never a cost argument for leaving them out.
+gate_ran "G-H#roster"
 for _rdrill in "$HOME/Scripts/roster-ghost-drill.sh" "$HOME/Scripts/roster-identity-drill.sh"; do
   _rdname="$(basename "$_rdrill")"
   if [ -x "$_rdrill" ]; then
@@ -629,6 +675,7 @@ _dirt_recent_unrostered() {   # <repo-path> -> "<note>" or empty
     "$_h" "$_an" "$_mins" "$_qh"
 }
 
+gate_ran "G-H"
 bold "=== G-H #22 · repo hygiene sweep (${#REPOS[@]} repos across ${#ROOTS[@]} roots) ==="
 for repo in "${REPOS[@]}"; do
   cd "$repo" || continue
@@ -809,6 +856,7 @@ done
 #     invisible to the sweep above. The .gitignore even CLAIMED it was "its own repo".
 #     Force function: any dir a repo's .gitignore excludes that CONTAINS code MUST
 #     actually be its own git repo with a remote, or it is an unbacked island = FAIL.) ---
+gate_ran "G-S"
 bold "=== G-S · orphan code-island sweep (gitignored code dirs must be their own backed repo) ==="
 ORPHANS=0
 for repo in "${REPOS[@]}"; do
@@ -850,6 +898,7 @@ echo
 #     correctly, and uselessly. G-S covers the same blind spot for gitignored CODE dirs;
 #     this is its sibling for gitignored DOCS. A file that is gitignored is not a file
 #     that is safe. ---
+gate_ran "G-W"
 bold "=== G-W · untracked-keeper sweep (a keeper doc that git ignores is NOT backed) ==="
 KEEPER_MISS=0
 for repo in "${REPOS[@]}"; do
@@ -891,6 +940,7 @@ echo
 #     the justification lives in the file where the next session reads it. (Ratified as
 #     "G-W" in ADR-004; ships as G-Z because G-W already names FOUR other things — see
 #     the G-W#2 rename scar above. Fifth collision declined.) ---
+gate_ran "G-Z"
 bold "=== G-Z · TODO-rider sweep (a TODO may ride at most ONE handoff — ADR-004) ==="
 RIDERS=0
 for repo in "${REPOS[@]}"; do
@@ -912,6 +962,7 @@ done
 echo
 
 # --- G-I optional dead-value sweep (report-only; human judges intent) ---
+gate_ran "G-I"
 if [ "${#DEAD_VALUES[@]}" -gt 0 ]; then
   echo
   bold "=== G-I · dead-value sweep (report-only — confirm survivors are intentional) ==="
@@ -938,6 +989,7 @@ fi
 # the estate's only secret control and it ran at WRAP -- by which point the object
 # is already in the repo, and in every clone of it. Two readers, one regex, so
 # detect-at-wrap and refuse-at-commit can never disagree about what a secret is.
+gate_ran "G-E"
 SECRET_LIB="${ESTATE_SECRET_LIB:-$HOME/code/darwin-mac-ops/hooks/secret-re.sh}"
 if [ ! -f "$SECRET_LIB" ]; then
   echo "gate-selfcheck: FATAL — secret regex SSOT missing: $SECRET_LIB" >&2
@@ -1021,6 +1073,7 @@ _probe_field() {   # _probe_field <probe-text> <line-no> <sha|num>  -> value on 
 # restored the checkout but dropped the cron would leave HEAD momentarily == gh yet silently stop all future
 # deploys — parity alone can't catch that; the scheduler-presence probe does. WARN-level + graceful skip so an
 # offline box or a phone/web session (no ssh) NEVER blocks a wrap. Override host/paths via env if topology moves.
+gate_ran "G-T#43"
 SZ_BOX_HOST="${SZ_BOX_HOST:-n8n}"
 SZ_BOX_REPO="${SZ_BOX_REPO:-~/virtual-darwin/spine/repos/strike-zone}"
 SZ_GH_LOCAL="${SZ_GH_LOCAL:-$HOME/repos/strike-zone}"
@@ -1084,6 +1137,7 @@ fi
 #     it NEVER writes — so the gate can't dirty the vault) wired here so a wrap notices divergence
 #     automatically. WARN-level + graceful skip so an offline box or a phone/web session (no ssh)
 #     NEVER blocks a wrap. Closes the loop the vault opened (drift caught by tool, not by memory).) ---
+gate_ran "G-T#44"
 SZ_CRON_SNAP="${SZ_CRON_SNAP:-$SZ_GH_LOCAL/scripts/sz-crontab-snapshot.sh}"
 if [ -x "$SZ_CRON_SNAP" ] && command -v ssh >/dev/null 2>&1; then
   if SZ_BOX_SSH="$SZ_BOX_HOST" timeout 20 bash "$SZ_CRON_SNAP" --check >/dev/null 2>&1; then
@@ -1104,6 +1158,7 @@ fi
 #     risk this repo was created to kill). READ-ONLY probe: working tree clean AND HEAD pushed to
 #     origin. sudo because /opt/n8n is root-owned (claudeApp has NOPASSWD). WARN-level + graceful skip
 #     so an offline box / phone-web session never blocks a wrap. Override host/path via env.) ---
+gate_ran "G-T#45"
 N8N_PROV_HOST="${N8N_PROV_HOST:-n8n}"
 N8N_PROV_REPO="${N8N_PROV_REPO:-/opt/n8n}"
 if command -v ssh >/dev/null 2>&1; then
@@ -1136,6 +1191,7 @@ fi
 #     probe, worktree clean AND HEAD pushed; WARN-level + graceful skip (offline box / phone-web never
 #     blocks a wrap). darwin's ~/.ssh/config has a direct `flowers` alias (public IP, key auth,
 #     claudeApp NOPASSWD sudo). Override host/path via env. ---
+gate_ran "G-T#46"
 FLOWERS_BOX_HOST="${FLOWERS_BOX_HOST:-flowers}"
 FLOWERS_BOX_REPO="${FLOWERS_BOX_REPO:-/var/www/flowers}"
 if command -v ssh >/dev/null 2>&1; then
@@ -1161,6 +1217,7 @@ if command -v ssh >/dev/null 2>&1; then
 fi
 
 # --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
+gate_ran "G-L"
 CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
 MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
 if [ -f "$CANON_GATE" ]; then
@@ -1346,6 +1403,7 @@ echo
 #     and must be justified in writing. Deterministic nudge so the harvest stops depending on Jason
 #     remembering to ask -- failure-now is cheaper than failure in a real project; learnings compound.
 #     WARN-level (never blocks a hygiene-clean wrap); phone/web-safe skip if no blackbook.) ---
+gate_ran "G-U"
 BB="$HOME/repos/claude-blackbook"
 if [ -d "$BB/.git" ]; then
   # DJ-4.1 fix: the 6h window FALSE-0s a long (>6h) session whose lessons were committed early. Make
@@ -1418,6 +1476,7 @@ echo
 # updates) while zsh resolves it to Homebrew 3.14. lessons.py now re-execs into its
 # own pinned venv; this check makes any future regression LOUD instead of quiet.
 # A silent downgrade of a thinking tool is worse than a crash — you keep trusting it.
+gate_ran "G-W#2"
 if [ -f "$HOME/repos/claude-blackbook/lessons.py" ]; then
   if ! python3 "$HOME/repos/claude-blackbook/lessons.py" --doctor >/dev/null 2>&1; then
     WARNS+=("G-W#2: lessons.py ranker is DEGRADED to pure BM25 (semantic backend down) — run: python3 ~/repos/claude-blackbook/lessons.py --doctor  (it prints the venv rebuild recipe)")
@@ -1459,6 +1518,7 @@ fi
 # "AAR: <slug>" (and it validates) or "NO-AAR: <20+ chars of reason>".
 # TRI-STATE — exit 2 is CANNOT VERIFY and is NOT a pass. A check that cannot fail out
 # loud is decoration; that is the entire lesson of the incident this gate commemorates.
+gate_ran "G-V"
 AAR_PY="$HOME/repos/claude-blackbook/aar.py"
 if [ ! -x "$AAR_PY" ]; then
   FAILS+=("G-V CANNOT VERIFY: $AAR_PY missing or not executable -- NOT a pass")
@@ -1517,6 +1577,7 @@ fi
 # string is not an attributor, and G-V's remedy line is only as good as that distinction.
 # Offline drill: no Asana, no network, no roster DB — it extracts the real function out of
 # this file and drives it with a stub, so it cannot end up grading a copy. (feynmanSync-07)
+gate_ran "G-V#owner"
 _GVD="$HOME/code/darwin-mac-ops/gv-owner-verdict-drill.sh"
 if [ -x "$_GVD" ]; then
   _GVD_OUT="$(GATE_FILE="$_GATE_SELF" bash "$_GVD" 2>&1)"; _GVD_RC=$?
@@ -1552,6 +1613,7 @@ fi
 # shrink; --update-baseline locks in each win.
 #
 # TRI-STATE, same contract as G-V above: a missing tool is CANNOT VERIFY, never a pass.
+gate_ran "G-V#2"
 ASANA_LINT="$HOME/Scripts/asana-read-lint.py"
 if [ ! -x "$ASANA_LINT" ]; then
   FAILS+=("G-V#2 CANNOT VERIFY: $ASANA_LINT missing or not executable -- NOT a pass")
@@ -1591,6 +1653,7 @@ fi
 #
 # TRI-STATE, same contract as G-V and G-V#2: a missing tool, an empty corpus, or a
 # resolver that resolved nothing is CANNOT VERIFY -- never a pass.
+gate_ran "G-V#3"
 CARD_LINT="$HOME/Scripts/card-lint.py"
 if [ ! -x "$CARD_LINT" ]; then
   FAILS+=("G-V#3 CANNOT VERIFY: $CARD_LINT missing or not executable -- NOT a pass")
@@ -1632,6 +1695,7 @@ fi
 # no LaunchAgent references it), and reading the TCC databases needs the FDA that every
 # shell this gate runs in already has. From launchd it would return CANNOT VERIFY, which
 # this case block already treats as a failure rather than a pass.
+gate_ran "G-X"
 FDA_CANARY="$HOME/Scripts/fda-canary.sh"
 if gate_platform_na "$(uname -s)" "G-X" "TCC/Full Disk Access grants are a macOS concept; this kernel has no TCC database to hold one, so there is no grant here to have drifted"; then :
 elif [ -x "$FDA_CANARY" ]; then
@@ -1655,6 +1719,7 @@ fi
 # than being trusted, for the same reason G-AE#drill does: wiring a drill in is when you find
 # out the drill was broken. (It was, on its first run: its env-var check went red on the
 # COMMENT that says the env var must not exist.)
+gate_ran "G-X#platform"
 PNA_DRILL="${PNA_DRILL:-$HOME/code/darwin-mac-ops/gate-platform-na-drill.sh}"
 if [ -x "$PNA_DRILL" ]; then
   bold "=== G-X#platform · the platform exemption fires only where there is no subject ==="
@@ -1682,6 +1747,7 @@ fi
 # the relay went on serving the OLD script -- so a fresh session would have bootstrapped
 # the very bug we had just fixed, with no way to know. Same silent-drift class as G-X:
 # the thing keeps answering, it just answers with yesterday.
+gate_ran "G-Y"
 DSH_PUBLISH="$HOME/Scripts/dsh-publish"
 if [ -x "$DSH_PUBLISH" ]; then
   bold "=== G-Y · relay bootstrap freshness (the cloud curl serves what darwin has) ==="
@@ -1709,6 +1775,7 @@ fi
 # (Single letters are exhausted — G-W names four things, the ADR-004 scar — so the
 # double-letter era begins here. G-L#35b's max-letter derivation only reads single
 # letters and is unaffected.)
+gate_ran "G-AA"
 SESSION_STATE="${CLAUDE_SESSION_STATE:-$HOME/.local/state/claude-session}"
 if [ -d "$SESSION_STATE" ]; then
   GAA_OPEN=0
@@ -1745,6 +1812,7 @@ fi
 # must be ratified WITH A REASON in claude-blackbook/scripts/bb-writers-allowlist.json.
 # Fail-closed: UNKNOWN classification counts as a writer. A new unratified writer = FAIL;
 # the fix is either a conscious ratification or rerouting the card to State Machine.
+gate_ran "G-AD"
 BB_AUDIT="${BB_AUDIT:-$HOME/repos/claude-blackbook/scripts/bb-writers-audit.py}"   # overridable so the CANNOT-VERIFY branch is drillable
 if [ -f "$BB_AUDIT" ]; then
   bold "=== G-AD · bb-writers ratchet (every BB-gid writer ratified — HITL-only doctrine) ==="
@@ -1805,6 +1873,7 @@ fi
 # So rc=3 (DIVERGED) is now its own outcome with its own remedy, and the census's own drill runs
 # here, because acmeLedger-22 learned the hard way that wiring a drill in is when you find out
 # the drill was broken. (It was: D3's fixture used $WORK/downloads and passed for free.)
+gate_ran "G-AE"
 CENSUS="${CENSUS:-$HOME/Scripts/launchd-census.sh}"   # overridable so the CANNOT-VERIFY branch is drillable
 CENSUS_DRILL="${CENSUS_DRILL:-$HOME/code/darwin-mac-ops/launchd-census-drill.sh}"
 if [ -x "$CENSUS" ]; then
@@ -1885,6 +1954,7 @@ fi
 # Git config is most-specific-wins, so (a) is not redundant: a repo pointing its own
 # core.hooksPath somewhere else ignores the global default entirely. Those are the only repos
 # that still need explicit wiring, and they are what this check now hunts for.
+gate_ran "G-AF"
 ESTATE_HOOKS="${ESTATE_HOOKS:-$HOME/code/darwin-mac-ops/hooks}"
 if [ -d "$ESTATE_HOOKS" ]; then
   bold "=== G-AF · pre-commit hook coverage (every repo refuses secrets at COMMIT, not just at wrap) ==="
@@ -1977,6 +2047,7 @@ fi
 # The manifest is EXTRACTED from install-dotfiles.sh at run time, never copied here. A check
 # carrying its own copy of the file list passes forever while the installer grows a third
 # dotfile it never hears about (S46's drill lesson, applied before it could bite).
+gate_ran "G-AG"
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/darwin-mac-ops/dotfiles}"
 if [ -r "$DOTFILES_DIR/install-dotfiles.sh" ]; then
   bold "=== G-AG · dotfiles installed and derived (a rebuild inherits them, not just this Mac) ==="
@@ -2058,6 +2129,7 @@ fi
 #      to a prong written to catch python heredocs. Widening surfaces no new hit TODAY (checked);
 #      it stops the next one from being born invisible. bridge-bug-watch.sh's own PYSTATUS
 #      terminator is the local example.
+gate_ran "G-AH"
 bold "=== G-AH · a log line is not evidence (no filer logs a success it did not confirm) ==="
 _ah_bad=0; declare -a _ah_notes=()
 _ah_list="$(mktemp "${TMPDIR:-/tmp}/gah.XXXXXX")"; _ah_n=0
@@ -2104,6 +2176,7 @@ fi
 # matched nothing because it is broken, and its silence about the estate means nothing either.
 # (The estate hits are counted with the tripwire paths subtracted, so the fixtures cannot
 # inflate the finding or the denominator.)
+gate_ran "G-AH#tripwire"
 _ah_tw_dir="$(mktemp -d "${TMPDIR:-/tmp}/gahtw.XXXXXX")"
 printf '#!/bin/bash\n# G-AH tripwire: prong 1 MUST match the next line.\nasana_write "$gid"; log "PASS -- commented + completed"\n' > "$_ah_tw_dir/tripwire-sameline.sh"
 printf '#!/bin/bash\n# G-AH tripwire: prong 2 MUST match the log line after the terminator.\npython3 - <<PYEOF\nprint(1)\nPYEOF\nlog "OK"\n' > "$_ah_tw_dir/tripwire-heredoc.sh"
@@ -2165,6 +2238,7 @@ fi
 # Structural on purpose: proving it behaviourally costs a full gate run per step (minutes);
 # parsing costs 30ms and catches the defect at authoring time. The drill carries its own
 # positive AND negative controls, so a parser that can no longer go red refuses to go green.
+gate_ran "G-AI"
 CV_DRILL="${CV_DRILL:-$HOME/code/darwin-mac-ops/gate-cannot-verify-drill.sh}"
 if [ -x "$CV_DRILL" ]; then
   bold "=== G-AI · no gate step vanishes with its instrument (every instrument-gated step has an else) ==="
@@ -2191,6 +2265,7 @@ fi
 # PASS when a step was skipped by an UPSTREAM BRANCH. Both are "absence reads as health",
 # one letter apart. The drill EXECUTES this file's own gate_verdict_is_pass rather than a
 # copy of the rule, so it cannot go stale against it.
+gate_ran "G-AI#skipped"
 SK_DRILL="${SK_DRILL:-$HOME/code/darwin-mac-ops/gate-skipped-drill.sh}"
 if [ -x "$SK_DRILL" ]; then
   _sk_out="$(bash "$SK_DRILL" 2>&1)"; _sk_rc=$?
@@ -2223,6 +2298,7 @@ fi
 # the old name freely, it just may not say it WITHOUT acknowledging the rename somewhere in the
 # same file (one "fka" or one banner clears it), which is why the period-correct history in
 # BATTERS-BOX-HYGIENE.md and CANON-GEOGRAPHY passes untouched.
+gate_ran "G-AJ"
 ND_CHECK="${ND_CHECK:-$HOME/code/darwin-mac-ops/name-drift-check.sh}"
 if [ -x "$ND_CHECK" ]; then
   bold "=== G-AJ · a renamed object stops teaching its old name (front doors vs retired-names.tsv) ==="
@@ -2251,6 +2327,7 @@ fi
 # allowlist entry suppresses nothing, so it prints nothing, so nobody learns it died --
 # and it is fail-open in the FUTURE tense, pre-authorising whatever lands at that path
 # next under a reason written for something else.
+gate_ran "G-AK"
 RAT_CENSUS="${RAT_CENSUS:-$HOME/code/darwin-mac-ops/ratification-census.sh}"
 if [ -x "$RAT_CENSUS" ]; then
   _rc_out="$(bash "$RAT_CENSUS" 2>&1)"; _rc_rc=$?
@@ -2273,6 +2350,7 @@ else
 fi
 
 # -- G-AK#drill · the census can still go red (run its controls, do not trust them) -----
+gate_ran "G-AK#drill"
 RAT_DRILL="${RAT_DRILL:-$HOME/code/darwin-mac-ops/ratification-census-drill.sh}"
 if [ -x "$RAT_DRILL" ]; then
   _rd_out="$(bash "$RAT_DRILL" 2>&1)"; _rd_rc=$?
@@ -2319,6 +2397,7 @@ fi
 # set GATE_ROSTER_WHO and never saw it, which is exactly why nobody did.
 # The fix lives in ~/Scripts/session-out (darwin-scripts). This is the control that keeps it fixed:
 # a check whose subject lives in another repo is one `git pull` away from being a note again.
+gate_ran "G-AL#tag"
 _SOD="$HOME/Scripts/session-out-tag-drill.sh"
 if [ -x "$_SOD" ]; then
   bold "=== G-AL#tag · the wrap order preserves the session tag (offline drill) ==="
@@ -2332,6 +2411,7 @@ else
   WARNS+=("G-AL#tag: $_SOD missing or not executable -- nothing proves the wrap order still leaves G-AL able to identify this session, and the failure mode is SILENCE, not a red light")
 fi
 
+gate_ran "G-AL"
 CHARTER_READ="${CHARTER_READ:-$HOME/Scripts/charter-read.sh}"
 CHARTER_REG="${PROJECT_CHARTERS:-$HOME/code/darwin-mac-ops/project-charters.tsv}"
 if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
@@ -2646,6 +2726,7 @@ fi
 # paints-and-sticks-web -- a live storefront whose own sessions had just written G-AM and
 # G-AN into this gate -- and regenerating its unwatched board found FIVE criteria flipped
 # MET -> UNMET behind a committed board still reporting CLOSED.
+gate_ran "G-AL#registry"
 CLC="${CLC:-$HOME/code/darwin-mac-ops/criteria-ledger-census.sh}"
 if [ -x "$CLC" ]; then
   _clc_out="$(bash "$CLC" 2>&1)"; _clc_rc=$?
@@ -2697,6 +2778,7 @@ fi
 # that gets removed, at which point its true-positive rate is zero too (the Diners-38 lesson
 # in a new costume). The DRILL below is a FAIL, because a control that can no longer go red
 # is decorative and that IS this session's business.
+gate_ran "G-AL#census"
 CBC="${CBC:-$HOME/code/darwin-mac-ops/charter-board-census.sh}"
 if [ -x "$CBC" ]; then
   bold "=== G-AL#census · a registered board nobody measures (1 row per wrap, rotating) ==="
@@ -2722,6 +2804,7 @@ else
 fi
 
 # -- G-AL#census#drill · the census can still go red ------------------------------------
+gate_ran "G-AL#census#drill"
 CBC_DRILL="${CBC_DRILL:-$HOME/code/darwin-mac-ops/charter-board-census-drill.sh}"
 if [ -x "$CBC_DRILL" ]; then
   _cbcd_out="$(bash "$CBC_DRILL" 2>&1)"; _cbcd_rc=$?
@@ -2738,6 +2821,7 @@ else
 fi
 
 # -- G-AL#drill · the charter check can still go red -----------------------------------
+gate_ran "G-AL#drill"
 CHARTER_DRILL="${CHARTER_DRILL:-$HOME/code/darwin-mac-ops/gate-charter-drill.sh}"
 if [ -x "$CHARTER_DRILL" ]; then
   _cd_out="$(bash "$CHARTER_DRILL" 2>&1)"; _cd_rc=$?
@@ -2759,6 +2843,7 @@ fi
 #    08-13, its card stayed open and recruited a duplicate build on 08-29. close-on-ship.py sweeps
 #    this session's commits (by tag / project slug) for card gids still OPEN on BB/SM. WARN: a
 #    partial ship is legitimate; an ACCIDENTAL open card is what this retires.
+gate_ran "G-V#ship"
 if [ -x "$HOME/Scripts/close-on-ship.py" ] && [ -n "${GATE_ROSTER_WHO:-}" ]; then
   bold "=== G-V#ship · cards named in this session's commits are closed (or knowingly open) ==="
   _cos_out="$(python3 "$HOME/Scripts/close-on-ship.py" --hours 24 --who "$GATE_ROSTER_WHO" 2>&1)"; _cos_rc=$?
@@ -2787,6 +2872,7 @@ fi
 # handoff is pasted by the next session, which is exactly how this species propagates. Where
 # the pipeline's last command really IS the assertion, mark the line with the audit's opt-out
 # comment and say why -- the marker is honoured anywhere in the comment block above the line.
+gate_ran "G-AO"
 RC_PIPE_AUDIT="${RC_PIPE_AUDIT:-$HOME/code/darwin-mac-ops/rc-through-pipe-audit.py}"
 if [ -x "$RC_PIPE_AUDIT" ]; then
   bold "=== G-AO . no exit code is read through a pipe (scripts AND docs) ==="
@@ -2825,6 +2911,7 @@ fi
 # running, that every declared code can fire. The census reads an EXECUTED fact (the drill's
 # VERDICTS-EXERCISED line), never a grep -- measured 2026-09-03, a grep over the whole estate
 # found ONE of the sender watch's three exit codes, because `exit "$rc"` is invisible to it.
+gate_ran "G-AP"
 VERDICT_CENSUS="${VERDICT_CENSUS:-$HOME/code/darwin-mac-ops/verdict-contract-census.sh}"
 if [ -x "$VERDICT_CENSUS" ]; then
   _vc_out="$(bash "$VERDICT_CENSUS" </dev/null 2>&1)"; _vc_rc=$?
@@ -2845,6 +2932,7 @@ else
 fi
 
 # -- G-AP#drill . the census can still go red (run its controls, do not trust them) -------
+gate_ran "G-AP#drill"
 VERDICT_DRILL="${VERDICT_DRILL:-$HOME/code/darwin-mac-ops/verdict-contract-census-drill.sh}"
 if [ -x "$VERDICT_DRILL" ]; then
   _vd_out="$(bash "$VERDICT_DRILL" </dev/null 2>&1)"; _vd_rc=$?
@@ -2894,6 +2982,7 @@ fi
 # Both candidates are offered and the FILE'S EXISTENCE decides between them -- the same
 # idiom the slug loop above already uses, because this estate has handoffs written both
 # padded and bare and neither spelling is wrong.
+gate_ran "G-AQ"
 _htc_predecessor() {   # <dir> <project> <n-as-written> -> path, or empty for a first handoff
   local _d="$1" _proj="$2" _n="$3" _dec _cand
   _dec=$((10#$_n)) || return 0
@@ -2969,6 +3058,7 @@ fi
 # read as a naming bug -- it reads as "your predecessor's handoff is unreadable", which is
 # an accusation pointed at the wrong file. And the octal form of the bug is fatal, not
 # merely wrong, from session 08 onward. (feynmanSync-07)
+gate_ran "G-AQ#number"
 _HND="$HOME/code/darwin-mac-ops/htc-number-drill.sh"
 if [ -x "$_HND" ]; then
   _HND_OUT="$(GATE_FILE="$_GATE_SELF" bash "$_HND" 2>&1)"; _HND_RC=$?
@@ -2988,6 +3078,7 @@ else
 fi
 
 # -- G-AQ#drill . the continuity check can still go red (run its controls, do not trust them)
+gate_ran "G-AQ#drill"
 HTC_DRILL="${HTC_DRILL:-$HOME/code/darwin-mac-ops/handoff-thread-continuity-drill.sh}"
 if [ -x "$HTC_DRILL" ]; then
   _htd_o="$(bash "$HTC_DRILL" </dev/null 2>&1)"; _htd_rc=$?
@@ -3008,6 +3099,7 @@ fi
 # Machine. A card needing his hand/eye/judgement/credit card, filed there, is invisible to the
 # only person who can act on it -- dropped, while looking discharged. Case study: seven Braatz
 # Daily editions, Aug 25 -> Sep 2. Law: claude-blackbook/docs/THE-MAILBOX-LAW.md
+gate_ran "G-AT"
 _MLC="$HOME/repos/claude-blackbook/scripts/mailbox-law-check.py"
 if [ -x "$_MLC" ]; then
   bold "=== G-AT . the Mailbox Law (nothing of Jason's left on Claude's board) ==="
@@ -3030,6 +3122,7 @@ fi
 # cleanup is `rm -f ~/tmp-<your-session-id>-*`. This leg is the leak detector: every `~/tmp-*`
 # whose prefix names no LIVE roster session and is older than a day is a WARN (theirs or nobody's:
 # either way, not yours to rm by wildcard). Portable: python does the stat, not `stat -f`.
+gate_ran "G-AU"
 bold "=== G-AU . shared-\$HOME scratch (owner-prefixed, never wildcard-rm'd) ==="
 _gau_o="$(python3 - <<'PY' 2>/dev/null
 import os, re, subprocess, time, glob
@@ -3085,6 +3178,7 @@ fi
 # intake tally so cards-per-session is a NUMBER at wrap, and (c) counts door-less session cards
 # on the board in the last 24h -- a WARN, not a FAIL, because with N siblings sharing one Asana
 # token the board cannot attribute a card to THIS session (roster-brake lesson, 2026-09-03).
+gate_ran "G-AS"
 SMFILE="${SMFILE:-$HOME/Scripts/sm-file}"
 if [ -x "$SMFILE" ]; then
   _smf_o="$("$SMFILE" --selftest </dev/null 2>&1)"; _smf_rc=$?
@@ -3138,6 +3232,12 @@ if [ "${#NA[@]}" -gt 0 ]; then
   printf '  n/a %s\n' "${NA[@]}"
   printf '\n'
 fi
+
+# -- ROLL CALL · emitted before the verdict, so BOTH exits leave one behind -------------
+# A sidecar written only on the pass path would be missing from exactly the runs anyone
+# would want to read it for.
+_GATE_ROLL_TSV="$(gate_rollcall_emit)"
+[ "$QUIET" -eq 1 ] || echo "  roll call: ${_GATE_ROLL_TSV:-not written} (read it: gate-selfcheck.sh --roll-call)"
 
 if gate_verdict_is_pass; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"

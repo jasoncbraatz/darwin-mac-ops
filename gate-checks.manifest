@@ -1,0 +1,94 @@
+# gate-checks.manifest — what gate-selfcheck.sh CLAIMS to check, one row per id.
+#
+# Born P14, 2026-09-08, because nothing in this estate could answer "how many checks does
+# the gate have?" without disagreeing with itself: 39 distinct G- ids in the source, 62 ids
+# that push a verdict, 101 section-header lines. That ambiguity IS the problem feynmanSync-09
+# hit — it tried to read box coverage off gate OUTPUT and measured an artifact of where the
+# headers happen to be printed rather than of which checks ran.
+#
+# FORMAT — three tab-separated columns:
+#   <id>  <parent>  <what it checks>
+#
+#   parent "-"  = a REACH UNIT. Exactly one `gate_ran "<id>"` call sits at the top of its
+#                 block in gate-selfcheck.sh, at column 0, BEFORE any branching, so it fires
+#                 whether the check goes green, red or silent.
+#   parent <id> = a VERDICT ALIAS: a label the gate speaks under from inside that reach
+#                 unit's branches. Declared, never inferred from the string — prefix
+#                 inference would let "G-A" answer confidently for "G-AB".
+#
+# THE CONTRACT THIS FILE BUYS: gate-roll-call-drill.sh holds it in both directions. A
+# declared unit with no `gate_ran` shows up NOT-REACHED; an id that speaks with no row here
+# shows up UNDECLARED. Add a check, add a row — that is the whole maintenance burden, and
+# the drill is what makes forgetting it visible instead of silent.
+G-H#drill	-	the sibling-downgrade control is still a control
+G-H#roster	-	the other two roster drills actually run
+G-H	-	repo hygiene sweep: every repo committed AND pushed
+G-S	-	orphan code-island sweep (gitignored code dirs are their own repo)
+G-W	-	untracked-keeper sweep (a keeper doc git ignores is NOT backed)
+G-Z	-	TODO-rider sweep (a TODO may ride at most ONE handoff)
+G-I	-	dead-value sweep (report-only)
+G-E	-	secret sweep over tracked files
+G-T#43	-	strike-zone runtime box parity: repo + ledger HEAD vs gh
+G-T#44	-	n8n-spine crontab matches the vaulted provision file
+G-T#45	-	n8n provisioning repo parity
+G-T#46	-	flowers box repo parity
+G-L	-	HANDOFF-GATE canonical doc: header, changelog, mirrors, copies
+G-U	-	learning-harvest challenge (lessons banked this session)
+G-W#2	-	toolchain canary
+G-V	-	AAR/RCA obligation on completed Batter's Box cards
+G-V#owner	-	the attribution helper can still tell its five causes apart
+G-V#2	-	Asana single-page collection-read ratchet
+G-V#3	-	card-lint stale-summary ratchet
+G-X	-	FDA grant canary (macOS subject)
+G-X#platform	-	the platform exemption fires only where there is no subject
+G-Y	-	relay bootstrap freshness (the cloud curl serves what darwin has)
+G-AA	-	session corroboration: used leaves must be resolved
+G-AD	-	bb-writers ratchet (every BB-gid writer ratified)
+G-AE	-	launchd schedule backing (macOS subject)
+G-AF	-	pre-commit hook coverage on every repo
+G-AG	-	dotfiles installed AND derived
+G-AH	-	a log line is not evidence
+G-AH#tripwire	-	does the instrument itself still fire?
+G-AI	-	no gate step vanishes with its instrument
+G-AI#skipped	-	a skipped check must not be certifiable as a pass
+G-AJ	-	a renamed object stops teaching its old name
+G-AK	-	every ratification still describes something true
+G-AK#drill	-	the ratification census can still go red
+G-AL#tag	-	the wrap order preserves the session tag
+G-AL	-	the session knew what DONE looks like
+G-AL#registry	-	a criteria ledger nobody registered is a ledger nobody reads
+G-AL#census	-	registered is not measured
+G-AL#census#drill	-	the charter-board census can still go red
+G-AL#drill	-	the charter check can still go red
+G-V#ship	-	a card whose fix shipped is closed, or consciously left open
+G-AO	-	an exit code is never read through a pipe
+G-AP	-	every declared verdict has been seen to fire
+G-AP#drill	-	the verdict-contract census can still go red
+G-AQ	-	an inherited thread survives the handoff
+G-AQ#number	-	the predecessor's filename is derived correctly
+G-AQ#drill	-	the continuity check can still go red
+G-AT	-	THE MAILBOX LAW: no Jason-work stranded on Claude's board
+G-AU	-	shared-$HOME scratch is owner-prefixed, never wildcard-rm'd
+G-AS	-	the State Machine has a DOOR, and this session used it
+
+# --- verdict aliases -------------------------------------------------------
+G-T#43u	G-T#43	sz-tick box probe answered but unparseable
+G-T#43m	G-T#43	sz-tick box has NO checkout (absent deploy, not drift)
+G-T#43b	G-T#43	box auto-pull scheduler missing from crontab
+G-T#43bu	G-T#43	scheduler probe answered but unparseable
+G-T#43c	G-T#43	ledger box diverged or wedged behind gh
+G-T#43cu	G-T#43	ledger HEAD line answered but unparseable
+G-T#45u	G-T#45	n8n provisioning probe unparseable
+G-T#45b	G-T#45	n8n provisioning repo behind
+G-T#45bu	G-T#45	n8n provisioning behind-count unparseable
+G-T#46u	G-T#46	flowers probe unparseable
+G-T#46b	G-T#46	flowers repo behind
+G-T#46bu	G-T#46	flowers behind-count unparseable
+G-L#35c	G-L	the header version must have a changelog entry
+G-L#35c#drill	G-L	control for the header/changelog check
+G-L#35d	G-L	a handoff_gate.py copy drifted from the kit
+G-AE#drill	G-AE	the launchd census's own control
+G-AL#board	G-AL	the generated DONE board is stale
+G-AL#done	G-AL	the charter's paperwork has a finding
+G-AQ#verify	G-AQ	a carried thread ships no one-line verify: line
+G-AS#door	G-AS	cards that walked past the door in the last 24h
