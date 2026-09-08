@@ -1,0 +1,6 @@
+# --- handoff docs are APPEND-ONLY (bb-close.py doc-reconcile appends one dated line per
+#     card it closes). Two lanes appending on two boxes is the normal case, not a collision;
+#     git's default 3-way merge calls it a conflict every time. Union takes both appends.
+#     Earned 2026-09-08 (opus-feynmanSync-14) by a mid-rebase hand-resolve of three docs.
+docs/handoffs/*.md merge=union
+docs/HANDOFF.md merge=union
