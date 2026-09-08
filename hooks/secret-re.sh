@@ -110,7 +110,12 @@ ge_mask() {
 # 19 digits of a 40-digit blob and hands ge_pan_token a substring of a nonce. They
 # also carry most of the shortlist's SPEED -- an untethered run matched a large
 # fraction of every minified/lockfile line in the estate.
-PAN_RE='(^|[^0-9])[2-6]([ -]?[0-9]){12,18}([^0-9]|$)'
+# ...and the flank is HEX-AWARE (smDrainDesk-14, 2026-09-08, SM 1218269707410764): a card
+# is never bounded by [a-f], but a 40-hex sha1 is 40 hex chars, and one in ~1,600 of them
+# holds a maximal digit run that starts 2-6, is 13..19 long and passes Luhn. That one
+# blocked auto-bridge/ledger-dump.sql and cost an allow rule. Same rule as pan-redact.py's
+# needle, which the census replays -- the two MUST agree or G-AK marks live rules dead.
+PAN_RE='(^|[^0-9a-fA-F])[2-6]([ -]?[0-9]){12,18}([^0-9a-fA-F]|$)'
 
 # ge_luhn <digits> -- 0 iff the mod-10 check digit is correct.
 ge_luhn() {

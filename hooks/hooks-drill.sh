@@ -300,6 +300,20 @@ printf 'sha a1b2c3d4e5f60718293a4b5c6d7e8f9012345678\nuuid 550e8400-e29b-41d4-a7
 git -C "$r" add s.txt
 chk 0 "$(commit_rc "$r" panshapes)" "#25 sha / uuid / phone / epoch commit freely"
 
+# 25b — a sha1 whose maximal HEX-BOUNDED digit run is Luhn-valid commits freely
+# (smDrainDesk-14). #25's sha happens to hold no such run; this one does (sha1 of "521":
+# run 2917059721285, 13 digits, starts with 2, Luhn-valid). It is what blocked
+# auto-bridge/ledger-dump.sql. The twin proves the control can fail: the pre-fix
+# flank (plain [^0-9]) shortlists the very same line.
+r="$(newrepo panhex)"; install_into "$r"
+printf 'ruler_fp = 91afc4c2917059721285db729422445840ce77e8\n' > "$r/h.txt"; git -C "$r" add h.txt
+chk 0 "$(commit_rc "$r" panhex)" "#25b a Luhn-valid digit run INSIDE a sha1 commits freely (hex-bounded, not a card)"
+if printf 'ruler_fp = 91afc4c2917059721285db729422445840ce77e8\n' | grep -qE '(^|[^0-9])[2-6]([ -]?[0-9]){12,18}([^0-9]|$)'; then
+  ok "#25c …and the PRE-FIX flank shortlists that line (the control can fail)"
+else
+  bad "#25c the pre-fix flank did not shortlist the sha1 -- #25b proves nothing, re-mint the corpus case"
+fi
+
 # 26 — a PAN is allowlistable by PATH through the SAME allowlist as every other hit,
 # and the suppression is reported. A fixture repo that legitimately holds a published
 # test card needs an exit that is not "widen the needle".
