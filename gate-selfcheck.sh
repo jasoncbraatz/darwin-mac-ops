@@ -1303,6 +1303,36 @@ if [ -f "$CANON_GATE" ]; then
     FAILS+=("G-L#35c: HANDOFF-GATE header says v$_hv but the Changelog has no '- v$_hv' entry — the 'header version and this entry bumped in the SAME edit' rule slipped — it has slipped six times before (v2.29, v2.31 x2, v2.43, v2.55), which is why this check exists. Write the entry NOW, while you still remember what changed; a backfilled entry is always thinner than the one you'd have written today.")
   fi
 
+  # --- G-L#35e · the header must not LAG a version this document already claims -------
+  #     (born 2026-09-08, feynmanSync-11, from the seventh instance and the first one #35c
+  #     was structurally blind to.)
+  #
+  #     #35c reads the version OUT OF THE HEADER and asserts a changelog line for it. So when
+  #     the header is the thing that failed to move, #35c compares the stale version against
+  #     its own already-present entry and passes. Silent, in the one direction where the rule
+  #     was actually broken.
+  #
+  #     MEASURED: §G-AT shipped 2026-09-06 with "(v2.71, 2026-09-06)" in its own heading. The
+  #     header sat at 2.70 and no v2.71 entry was ever written. #35c ran clean for two days
+  #     over a section this file claimed and never recorded. Same shape as brief-check.sh
+  #     comparing 2026-09-07d against 2026-09-07e and returning rc=0 -- a nag structurally
+  #     unable to fire on the one case it exists for.
+  #
+  #     The fix is the OTHER grep, and it is the move v2.34's changelog entry recommended for
+  #     #35c ("it is ONE GREP AWAY") before ejecting it as a card that sat sixteen days: read
+  #     the MAXIMUM vX.YY this document mentions ANYWHERE and compare it to the header.
+  #     Derived from the file, so it cannot rot the way a hardcoded version would.
+  #
+  #     Sorted by version NUMBER, not lexically: `sort -r` puts v2.9 above v2.70 and would
+  #     announce a phantom lag forever, which is how a check earns itself a mute.
+  _hvmax="$(LC_ALL=C grep -aoE 'v[0-9]+\.[0-9]+' "$CANON_GATE" 2>/dev/null | sed 's/^v//' \
+             | sort -t. -k1,1n -k2,2n | tail -1)"
+  if [ -n "$_hv" ] && [ -n "$_hvmax" ]; then
+    if [ "$(printf '%s\n%s\n' "$_hv" "$_hvmax" | sort -t. -k1,1n -k2,2n | tail -1)" != "$_hv" ]; then
+      FAILS+=("G-L#35e: HANDOFF-GATE's header says v$_hv but the document itself already claims v$_hvmax somewhere in its body (grep -n 'v$_hvmax' ${CANON_GATE/#$HOME/~}). A section shipped under a version the header never moved to, so G-L#35c compared the stale header against its own entry and passed. Bump the header to v$_hvmax, write the changelog entry for it, and run ~/Scripts/mirror-handoff-gate.sh -- all in the SAME edit.")
+    fi
+  fi
+
   # G-L#35c#drill · the control for the four lines above. Wired, not left to be remembered:
   # gate-roster-drill.sh had been failing since 2026-08-12 with nobody noticing precisely
   # because no gate ran it (v2.52). And this drill's FIRST cut stopped controlling ninety

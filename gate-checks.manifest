@@ -88,6 +88,7 @@ G-T#46bu	G-T#46	flowers behind-count unparseable
 G-L#35c	G-L	the header version must have a changelog entry
 G-L#35c#drill	G-L	control for the header/changelog check
 G-L#35d	G-L	a handoff_gate.py copy drifted from the kit
+G-L#35e	G-L	the header must not lag a version the document already claims
 G-AE#drill	G-AE	the launchd census's own control
 G-AL#board	G-AL	the generated DONE board is stale
 G-AL#done	G-AL	the charter's paperwork has a finding
