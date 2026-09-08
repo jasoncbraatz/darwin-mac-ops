@@ -54,7 +54,9 @@ WHAT IT CHECKS -- three reference kinds, each with a deliberate narrow scope
              SHIPPED table uses. Resolved with `git cat-file -e <sha>^{commit}`
              against the repo of that name. A cited commit that no repo holds is
              a high-water mark that lies -- the single most expensive kind of
-             broken reference, because the successor builds ON it.
+             broken reference, because the successor builds ON it. But a clone
+             that has not fetched since the handoff was written cannot hold those
+             commits at all, and that is CANNOT VERIFY, never a finding.
 
 WHY THE SCOPE IS THIS NARROW
 ----------------------------
@@ -180,8 +182,32 @@ def repo_dir(name):
     return None
 
 
-def resolve_sha(repo, sha):
-    """-> ('ok'|'unresolved'|'na', detail)"""
+def last_fetch(d):
+    """When this clone last heard from its remote. None if it never has."""
+    for name in ("FETCH_HEAD", "HEAD"):
+        f = os.path.join(d, ".git", name)
+        try:
+            return os.path.getmtime(f)
+        except OSError:
+            continue
+    return None
+
+
+def resolve_sha(repo, sha, since=None):
+    """-> ('ok'|'unresolved'|'cannotverify'|'na', detail)
+
+    THE DISTINCTION THAT COSTS THE MOST TO GET WRONG. A commit this box does not
+    have is not the same as a commit that does not exist, and on a two-box estate
+    the second box is routinely minutes behind. Caught on feynman, where the very
+    first real run reported `claude-blackbook 7bc465f2` -- a real, pushed commit --
+    as an unresolved reference, purely because feynman had not pulled yet.
+
+    The discriminator is the one card-lint.py is built on: compare two timestamps
+    nobody was comparing. If this clone last fetched BEFORE the handoff was
+    written, it cannot have the commits that handoff describes, and saying so is
+    a blind spot, not a verdict. A clone that HAS fetched since and still lacks
+    the object is naming a commit that is not on the remote either.
+    """
     d = repo_dir(repo)
     if d is None:
         return "na", f"no repo named {repo} on this box"
@@ -190,7 +216,14 @@ def resolve_sha(repo, sha):
                            capture_output=True, timeout=20)
     except Exception as e:                       # transport, not a verdict
         return "na", f"git could not run: {type(e).__name__}"
-    return ("ok", d) if r.returncode == 0 else ("unresolved", f"not a commit in {d}")
+    if r.returncode == 0:
+        return "ok", d
+    fetched = last_fetch(d)
+    if since is not None and fetched is not None and fetched < since:
+        return ("cannotverify",
+                f"{repo} on this box last fetched before the handoff was written -- "
+                f"a clone that has not pulled yet cannot hold the commits it describes")
+    return "unresolved", f"not a commit in {d}"
 
 
 def classify_asana_error(msg):
@@ -321,7 +354,7 @@ def scan(text):
             "shas": dedupe(shas), "exempt": exempt, "bad_exempt": bad_exempt}
 
 
-def report(found, resolver, resolver_why):
+def report(found, resolver, resolver_why, since=None):
     findings, nas, cv = [], [], []
 
     for tok, reason in found["bad_exempt"]:
@@ -342,9 +375,11 @@ def report(found, resolver, resolver_why):
         key = f"{repo} {sha}"
         if key in found["exempt"] or sha in found["exempt"]:
             continue
-        state, detail = resolve_sha(repo, sha)
+        state, detail = resolve_sha(repo, sha, since)
         if state == "unresolved":
             findings.append(("SHA-UNRESOLVED", key, detail))
+        elif state == "cannotverify":
+            cv.append(("SHA", key, detail))
         elif state == "na":
             nas.append(("SHA", key, detail))
 
@@ -412,7 +447,11 @@ def main(argv):
 
     found = scan(text)
     resolver, why = make_resolver(offline)
-    findings, nas, cv = report(found, resolver, why)
+    try:
+        since = os.path.getmtime(path)
+    except OSError:
+        since = None
+    findings, nas, cv = report(found, resolver, why, since)
 
     total = len(found["gids"]) + len(found["paths"]) + len(found["shas"])
     base = os.path.basename(path)
@@ -591,6 +630,26 @@ def selftest():
         "12  an ellipsis path is a prose elision, not a citation", "",
         repr(scan("`/Users/nobody/...`")["paths"]))
 
+    # 13/13t -- a sha this clone does not have. The pair differs ONLY in whether
+    #           the clone fetched before or after the handoff was written, so
+    #           nothing but the timestamp comparison can separate them.
+    _here = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+    _d = repo_dir(_here)
+    if _d is None:
+        ok("13  (skipped: this file is not inside a git repo on this box)")
+        ok("13t (skipped with 13)")
+    else:
+        _zero = "0" * 40
+        _fetched = last_fetch(_d) or 0
+        st_stale, _ = resolve_sha(_here, _zero, since=_fetched + 3600)
+        st_fresh, _ = resolve_sha(_here, _zero, since=_fetched - 3600)
+        (ok if st_stale == "cannotverify" else bad)(
+            "13  a sha missing from a clone that has not fetched since the handoff is CANNOT VERIFY",
+            "", st_stale)
+        (ok if st_fresh == "unresolved" else bad)(
+            "13t POSITIVE TWIN: the same absent sha in a clone that HAS fetched since is a finding",
+            "", st_fresh)
+
     # 9/9t -- the classifier itself, fed both worlds. Controls 1 and 2 above
     #         inject a resolver, so until this pair existed the 404-vs-403
     #         judgement was exercised only by never being exercised.
@@ -608,7 +667,7 @@ def selftest():
     else:
         ok("9x transport noise (timeout, DNS, empty) never reads as a broken reference")
 
-    print(f"=== selftest: {27 - len(fails)} passed, {len(fails)} failed ===")
+    print(f"=== selftest: {29 - len(fails)} passed, {len(fails)} failed ===")
     return 1 if fails else 0
 
 
