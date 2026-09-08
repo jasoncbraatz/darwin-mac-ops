@@ -246,4 +246,39 @@ estate_verify_all_advisory() {
 }
 estate_verify_all_advisory
 
+# --- the drill-scratch leg (card 1218232604204962 ask 3, opus-feynmanSync-14 2026-09-08) ----
+# A drill that mutates real files is not a drill; it is an outage with a test suite attached.
+# `bb-close.py --selftest` appended a fabricated closure line -- citing a commit that does not
+# exist -- to 87 REAL handoff documents on 2026-09-05, because its doc leg walked the estate for
+# real while only its Asana transport was faked. That one is sandboxed now; this refuses the next.
+#
+# NEWLY ADDED FILES ONLY, on purpose. 116 existing scripts are findings today, and a hook that
+# fails on somebody else's standing debt is a hook that gets `--no-verify`d on every commit --
+# at which point the secret scan above it is bypassed too, which is the real cost. The standing
+# floor is a RATCHET (drill-scratch-guard.py --ratchet, baselined); working it down is an at-bat,
+# and this leg only stops the floor from growing.
+#
+# PLACEMENT IS LOAD-BEARING: this file has TWO `exec _chain.sh` lines, and the FIRST one sits
+# inside an early-exit branch taken when there is nothing to scan. The leg was inserted there on
+# the first try -- so it ran only when there was nothing to check, and the end-to-end proof
+# (a real staged drill, in a real temp repo, with core.hooksPath set) is the only reason that is
+# not what shipped. A guard placed after the wrong `exec` is a decoration that reads as installed.
+#
+# Fails OPEN if the guard is missing (a box that has not synced ~/Scripts yet must still be able
+# to commit) and CLOSED on a real finding. Budgeted by construction: it reads only the staged
+# ADD list, which is empty for the overwhelming majority of commits.
+estate_drill_scratch() {
+  [ "${ESTATE_DRILL_SCRATCH:-1}" = "1" ] || return 0
+  _dsg="$HOME/Scripts/drill-scratch-guard.py"
+  [ -f "$_dsg" ] || return 0
+  # The git env git exports to a hook is KEPT here, unlike the verify-all leg above: this leg asks
+  # THIS commit's own index what it is adding, so unsetting GIT_INDEX_FILE would make it read the
+  # on-disk index and answer about a different commit -- silently, in the permissive direction.
+  python3 "$_dsg" --staged >&2 && return 0
+  printf 'estate pre-commit: REFUSED - see above. Silence this ONE commit deliberately:\n' >&2
+  printf '  ESTATE_DRILL_SCRATCH=0 git commit ...   (and say why in the message)\n' >&2
+  return 1
+}
+estate_drill_scratch || exit 1
+
 ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
