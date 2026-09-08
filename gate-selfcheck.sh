@@ -85,7 +85,36 @@ bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 #
 # It is an OBSERVER and must never change a verdict: if the library is missing, gate_ran
 # becomes a no-op and the gate behaves exactly as it did before, minus the sidecar.
-_GATE_ROLLCALL_LIB="${GATE_ROLLCALL_LIB:-$(dirname "$(_gate_abs_early "${BASH_SOURCE[0]:-$0}")")/gate-rollcall.sh}"
+# ~/Scripts/gate-selfcheck.sh is a SYMLINK into ~/code/darwin-mac-ops, and session-out
+# execs it by that name. -09 absolute-ised "${BASH_SOURCE[0]}" for the self-drills but
+# deliberately did NOT resolve symlinks (no `readlink -f`; GNU-only, and this has to work on
+# both boxes). Correct there, and WRONG HERE: the sibling library lives next to the REAL
+# file, so on the wrap path -- the single most important run there is -- dirname resolved to
+# ~/Scripts, the library was not found, and the roll call silently became a no-op. Caught by
+# this file's own wrap on the roll call's first day. Resolve the link portably, by hand.
+_gate_resolve_link() {   # <abs path> -> the file it ultimately names, symlinks followed
+  _grl_p="$1"; _grl_n=0
+  while [ -L "$_grl_p" ] && [ "$_grl_n" -lt 20 ]; do
+    _grl_t="$(readlink "$_grl_p" 2>/dev/null)" || break
+    case "$_grl_t" in
+      /*) _grl_p="$_grl_t" ;;
+       *) _grl_p="$(dirname "$_grl_p")/$_grl_t" ;;
+    esac
+    _grl_n=$((_grl_n+1))
+  done
+  printf '%s\n' "$_grl_p"
+}
+_GATE_ROLLCALL_LIB="${GATE_ROLLCALL_LIB:-$(dirname "$(_gate_resolve_link "$(_gate_abs_early "${BASH_SOURCE[0]:-$0}")")")/gate-rollcall.sh}"
+# Belt and suspenders: if the resolve still misses (a copy somewhere odd), fall back to the
+# library's home rather than degrading to a no-op. An instrument that quietly stops
+# recording is the exact defect it was built to remove.
+[ -r "$_GATE_ROLLCALL_LIB" ] || _GATE_ROLLCALL_LIB="$HOME/code/darwin-mac-ops/gate-rollcall.sh"
+# SIBLING OF THE SAME BUG, fixed in the same breath rather than the next session: the
+# MANIFEST is looked up the same way, off the same unresolved path, and had the same defect.
+# Run through the ~/Scripts symlink it resolved to a file that does not exist, so the sidecar
+# came back MANIFEST-UNREADABLE -- honest, and useless. One bug in two lookups is two bugs.
+GATE_CHECKS_MANIFEST="${GATE_CHECKS_MANIFEST:-$(dirname "$_GATE_ROLLCALL_LIB")/gate-checks.manifest}"
+export GATE_CHECKS_MANIFEST
 if [ -r "$_GATE_ROLLCALL_LIB" ]; then
   . "$_GATE_ROLLCALL_LIB"
   GATE_ROLLCALL_LOADED=1
@@ -3272,7 +3301,21 @@ fi
 # A sidecar written only on the pass path would be missing from exactly the runs anyone
 # would want to read it for.
 _GATE_ROLL_TSV="$(gate_rollcall_emit)"
-[ "$QUIET" -eq 1 ] || echo "  roll call: ${_GATE_ROLL_TSV:-not written} (read it: gate-selfcheck.sh --roll-call)"
+if [ -n "$_GATE_ROLL_TSV" ] && [ -s "$_GATE_ROLL_TSV" ]; then
+  [ "$QUIET" -eq 1 ] || echo "  roll call: $_GATE_ROLL_TSV (read it: gate-selfcheck.sh --roll-call)"
+elif [ "${GATE_ROLLCALL_LOADED:-0}" -eq 0 ]; then
+  # THE INSTRUMENT IS ABSENT, not merely unlucky. G-AV's drill passing proves the roll call
+  # WORKS; it does not prove THIS RUN RECORDED ANYTHING, and confusing those two is the
+  # substitution this whole session is about. A wrap with no roll call must say so out loud,
+  # because the sidecar is what the next box-coverage census will read as fact.
+  FAILS+=("G-AV CANNOT VERIFY: this run produced NO roll call -- gate-rollcall.sh could not be loaded from $_GATE_ROLLCALL_LIB, so gate_ran was a no-op and nothing recorded which checks ran. The drill passing does not cover this: it proves the library works, not that this run used it. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-rollcall.sh")
+else
+  # Loaded but the write did not land -- an ENVIRONMENT problem (unwritable cache dir, full
+  # disk), not a missing check. WARN, deliberately: the roll call is an observer, and an
+  # observer that fails a wrap over a full disk is a control whose only exits are vandalism
+  # or dishonesty. Drill control 14 holds this line, so do not "upgrade" it to a FAIL.
+  WARNS+=("G-AV: the roll call loaded but wrote no sidecar this run (is ${GATE_ROLLCALL_DIR:-$HOME/.cache/gate-rollcall} writable?). The checks all ran; nothing recorded WHICH, so this run cannot feed gate-coverage.sh.")
+fi
 
 if gate_verdict_is_pass; then
   bold "GATE SELF-CHECK: PASS ✅  (no uncommitted/unpushed work — now the human-judgment half)"
