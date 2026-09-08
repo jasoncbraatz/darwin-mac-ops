@@ -72,6 +72,16 @@ ARL_BASELINE = os.environ.get("RC_ARL_BASELINE", H("Scripts/asana-read-lint.base
 RD_ALLOW     = os.environ.get("RC_RD_ALLOW",     H("Scripts/repo-doctor.allow"))
 CARD_BASE    = os.environ.get("RC_CARD_BASELINE",H("Scripts/card-lint.baseline"))
 PG_ALLOW     = os.environ.get("RC_PG_ALLOW",     H("Scripts/portability-guard.allow"))   # feynmanSync-02
+# TWO DRILL BASELINES (feynmanSync-14, 2026-09-08). Both are ratchet baselines: a path listed
+# in one is a KNOWN GAP that the estate has agreed not to fail on YET, which is exactly what
+# this census means by an exception record. drill-scratch.baseline shipped today and the census
+# failed CLOSED on it within the hour -- correctly, and that refusal is the feature. Registering
+# a path is not enough on its own, so each gets a real check below: the census does not re-derive
+# either rule, it asks the owning tool, which is the only implementation of it.
+DS_BASELINE  = os.environ.get("RC_DS_BASELINE",  H("Scripts/drill-scratch.baseline"))
+DS_TOOL      = os.environ.get("RC_DS_TOOL",      H("Scripts/drill-scratch-guard.py"))
+DC_BASELINE  = os.environ.get("RC_DC_BASELINE",  H("Scripts/drill-census.baseline"))
+DC_TOOL      = os.environ.get("RC_DC_TOOL",      H("Scripts/drill-census.sh"))
 GATE_FILE    = os.environ.get("RC_GATE_FILE",    H("code/darwin-mac-ops/gate-selfcheck.sh"))
 CARD_LINT    = os.environ.get("RC_CARD_LINT",    H("Scripts/card-lint.py"))
 ARL          = os.environ.get("RC_ARL",          H("Scripts/asana-read-lint.py"))
@@ -102,7 +112,7 @@ VENDOR = re.compile(r"/(\.git|node_modules|__pycache__|venv|\.venv|site-packages
 KNOWN_MARKERS = {"VANISH-OK:", "ASANA-READ-OK:", "CARD-LINT-OK:", "REF-OK:"}
 KNOWN_FILES   = {os.path.realpath(p) for p in
                  (BB_ALLOW, FOREIGN, DIVERGE, EPHEMERAL, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW,
-                  PG_ALLOW)}
+                  PG_ALLOW, DS_BASELINE, DC_BASELINE)}
 
 # RECORDS THAT LIVE ONCE PER REPO, NOT ONCE IN THE ESTATE (feynmanSync-08, 2026-09-07).
 # portability-guard.sh does `cd <the repo being committed>; ALLOW=portability-guard.allow`,
@@ -471,6 +481,56 @@ else:
                     stale("gate-secret-sweep.allow: '%s' suppresses NOTHING in today's sweep. "
                           "G-E prints one aggregate count, so a dead rule is invisible there — "
                           "it sits ready to silence a future match nobody chose to excuse." % pat)
+
+# --- 2d-drills. the two drill ratchet baselines (consumers: their own tools) ---
+# The check is DELEGATED, not re-derived. Each tool already owns the one implementation of its
+# rule and can tell a satisfied entry from an absent one; a second copy of either rule living
+# here would be the real defect, the same argument .gate-generated makes about its fence.
+# An entry that is merely ABSENT ON THIS BOX is not stale: feynman holds a subset of the estate,
+# which is a ROUTING fact. Only "the tool now says this entry is satisfied" is a dead exemption.
+# `_hard` says whether a dead-looking entry is a FINDING or a NOTE, and the answer is not the
+# census's to invent. drill-scratch-guard --ratchet already separates SATISFIED from OFF-BOX, so
+# what it calls satisfied really is a dead exemption on any box. drill-census's STALE rows are
+# NOT that: gate step G-AW prints them and rules them "information here -- tighten from the box
+# holding the FEWEST repos, never from the one that sees the runner", because a runner visible on
+# darwin may simply not exist on feynman. Promoting them to a census FAIL would make the gate
+# stricter than the estate decided, from a file whose author never made that call.
+for _label, _base, _tool, _args, _hard in (
+        ("drill-scratch.baseline", DS_BASELINE, DS_TOOL, ["--ratchet"], True),
+        ("drill-census.baseline",  DC_BASELINE, DC_TOOL, ["--check"],   False)):
+    print("  --- %s ---" % rel(_base))
+    if not os.path.exists(_base):
+        print("      (absent on this box — nothing to go stale)")
+        continue
+    if not os.path.exists(_tool):
+        cannot("%s exists but %s does not — a baseline whose consumer is gone excuses nothing "
+               "and nothing can say whether its entries are still needed"
+               % (rel(_base), rel(_tool)))
+        continue
+    _cmd = ([sys.executable, _tool] if _tool.endswith(".py") else ["bash", _tool]) + _args
+    try:
+        _p = subprocess.run(_cmd, capture_output=True, text=True, timeout=300)
+    except Exception as _e:
+        cannot("could not run %s (%s) — the baseline cannot be judged without it"
+               % (rel(_tool), str(_e)[:80]))
+        continue
+    _out = (_p.stdout or "") + (_p.stderr or "")
+    # "retire from baseline (now satisfied)" is the owning tool's own words for a DEAD entry.
+    _dead = [l.strip() for l in _out.splitlines() if "now satisfied" in l or "STALE " in l]
+    if _dead:
+        for _l in _dead[:6]:
+            _msg = ("%s: %s — the tool reports this entry no longer needed; tighten from the box "
+                    "holding the FEWEST repos, never from the one that sees the most"
+                    % (_label, _l[:150]))
+            if _hard:
+                stale(_msg)
+            else:
+                NOTES.append(_msg + "  [NOTE, per G-AW: information on this box, not a red]")
+                print("      note: %s" % _l[:120])
+    else:
+        print("      %d entr(ies), none reported satisfied by %s" % (
+            len([1 for _l in open(_base, errors="ignore")
+                 if _l.strip() and not _l.lstrip().startswith("#")]), rel(_tool)))
 
 # --- 2e. repo-doctor.allow (consumer: repo-doctor.sh) ---
 # The one entry here writes its own retirement condition into its reason ("drop this line

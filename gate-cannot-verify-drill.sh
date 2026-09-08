@@ -101,7 +101,14 @@ def analyse(lines):
             s = lines[k].strip()
             if s.startswith('#'):
                 continue
-            opens = len(re.findall(r'(?:^|[;&|]\s*|\bthen\s+|\bdo\s+)if\b', s))
+            # `)` IS AN OPENER POSITION TOO. A `case` arm is written `0) if ...; then`, and
+            # with `)` missing from this alternation the `if` did not count as an OPEN while
+            # its `fi ;;` still counted as a CLOSE -- so the walk left the block early, never
+            # reached the real `else`, and reported a guard that plainly speaks as VANISHING.
+            # That is the SAME failure this counter was rewritten to fix in 2026-08-19, one
+            # syntax away; found 2026-09-08 (feynmanSync-14) against G-AW, whose case arm 0)
+            # opens exactly that shape. A control that cries wolf gets waved through.
+            opens = len(re.findall(r'(?:^|[;&|)]\s*|\bthen\s+|\bdo\s+)if\b', s))
             closes = len(re.findall(r'(?:^|[;&|]\s*)fi\b', s))
             if re.match(r'^else\b', s) and depth == 1:
                 has_else = True
@@ -177,6 +184,24 @@ CTL = {
                   '  bold "=== G-ZZ · a step with a one-line if inside ==="',
                   '  if [ -n "$x" ]; then y=1; fi',
                   '  echo ok',
+                  'else',
+                  '  echo "CANNOT VERIFY"',
+                  'fi'],
+                 lambda r: r['has_else'] and r['reason'] is None),
+
+    # THE SHAPE THAT BROKE IT AGAIN (2026-09-08): a `case` arm opening an if. `0) if ...; then`
+    # puts `if` after a `)`, which the opener alternation did not accept, while the arm's
+    # `fi ;;` still counted as a close. The guard below DOES have an else; without `)` in the
+    # alternation the walk exits at that `fi ;;` and calls it vanishing. Its twin is the
+    # 'oneliner' control above: both are "the depth counter lost a level", one line apart.
+    'case_arm': (['if [ -x "$TOOL" ]; then',
+                  '  bold "=== G-ZZ · a step whose case arm opens an if ==="',
+                  '  case "$rc" in',
+                  '    0) if printf x | grep -q x; then',
+                  '         echo stale',
+                  '       fi ;;',
+                  '    1) echo other ;;',
+                  '  esac',
                   'else',
                   '  echo "CANNOT VERIFY"',
                   'fi'],
