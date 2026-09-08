@@ -3225,6 +3225,41 @@ else
 fi
 
 
+# -- G-AV . the ROLL CALL can still tell reach from silence (born 2026-09-08, feynmanSync-10) --
+# Every census in this file has a #drill sibling the gate RUNS, for the reason G-AK#drill
+# states: a control nobody runs is a comment. The roll call needs one more than most,
+# because its failure mode is the quietest in the estate -- if gate_ran stopped recording,
+# every check would read NOT-REACHED and someone would go hunting a catastrophe that never
+# happened; if the NOT-REACHED branch broke the other way, every check would read `pass`
+# forever and the sidecar would certify checks that did not run. The second one prints
+# nothing and looks like good news.
+#
+# It also holds the MANIFEST, which is the part that actually rots: add a check, forget the
+# row, and that check is invisible to every box-coverage census from then on -- exactly how
+# G-AK was invisible, one layer up. Drill checks 15 and 16 close that in both directions.
+RC_DRILL="${RC_DRILL:-$HOME/code/darwin-mac-ops/gate-roll-call-drill.sh}"
+gate_ran "G-AV"
+if [ -x "$RC_DRILL" ]; then
+  _rcd_out="$(bash "$RC_DRILL" 2>&1)"; _rcd_rc=$?
+  case "$_rcd_rc" in
+    0) : ;;  # the roll call still measures reach. Success is silent -- and the sidecar says so.
+    1) bold "=== G-AV . the roll call can still tell reach from silence ==="
+       printf '%s\n' "$_rcd_out" | grep -E '^  FAIL|^        ' | sed 's/^/       /'
+       FAILS+=("G-AV: the roll call failed its own controls. Either it can no longer distinguish a silent pass from a check that never ran -- which is the defect the whole sidecar exists to remove -- or the manifest and the gate_ran markers have drifted apart (drill checks 15/16 name which). Run: bash ~/code/darwin-mac-ops/gate-roll-call-drill.sh") ;;
+    2) bold "=== G-AV . the roll call can still tell reach from silence ==="
+       printf '%s\n' "$_rcd_out" | sed 's/^/       /'
+       FAILS+=("G-AV CANNOT VERIFY: the roll-call drill could not run (gate-rollcall.sh missing?). Exit 2 is NOT a pass -- an unproven roll call is exactly as trustworthy as no roll call, and this run's sidecar should be read as unverified. Run: bash ~/code/darwin-mac-ops/gate-roll-call-drill.sh") ;;
+    *) FAILS+=("G-AV: gate-roll-call-drill.sh exited unexpectedly ($_rcd_rc) -- treat as CANNOT VERIFY") ;;
+  esac
+else
+  # G-AI requires this else. And a step about instruments that vanish silently, vanishing
+  # silently, would be the joke telling itself -- G-AK's comment, still earning its keep.
+  bold "=== G-AV . the roll call can still tell reach from silence ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable -- the roll call ran uncontrolled\n' "${RC_DRILL/#$HOME/~}"
+  FAILS+=("G-AV CANNOT VERIFY: $RC_DRILL is missing or not executable, so nothing proved this run's roll call can still tell a silent pass from a check that never ran. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-roll-call-drill.sh")
+fi
+
+
 # The N/A ledger is printed in BOTH verdicts, above them, so a reader can tell "did not apply"
 # from "did not run" without reading the whole transcript back.
 if [ "${#NA[@]}" -gt 0 ]; then

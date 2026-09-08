@@ -70,6 +70,7 @@ G-AQ#drill	-	the continuity check can still go red
 G-AT	-	THE MAILBOX LAW: no Jason-work stranded on Claude's board
 G-AU	-	shared-$HOME scratch is owner-prefixed, never wildcard-rm'd
 G-AS	-	the State Machine has a DOOR, and this session used it
+G-AV	-	the roll call can still tell reach from silence (its own drill)
 
 # --- verdict aliases -------------------------------------------------------
 G-T#43u	G-T#43	sz-tick box probe answered but unparseable
