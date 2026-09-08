@@ -11,7 +11,7 @@ printf 'import sys; open("%s/probed","w").write("yes"); print("stub probe ok")\n
 KA="$(dirname "$0")/oauth-keepalive.sh"
 pass=0; total=0
 ok(){ total=$((total+1)); if [ "$1" = 0 ]; then pass=$((pass+1)); echo "  ok   $2"; else echo "  FAIL $2"; fi; }
-run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
+run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" KEEPALIVE_LOG="$D/keepalive.log" CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
 # 1. healthy -> no claude call, rc 0
 echo '{"ok": true, "http": 200}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed"
 rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0 || echo 1) "healthy: rc=0, claude not called"

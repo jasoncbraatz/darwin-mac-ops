@@ -22,7 +22,7 @@ ST="$HOME/.local/state/pitching-machine"
 # fixture without running the real probe from a domain where the keychain is locked (F13).
 FU="${FUEL_USAGE_JSON:-$ST/fuel-usage.json}"
 PM="${PM_DIR:-$HOME/repos/pitching-machine}"
-LOG="$ST/oauth-keepalive.log"
+LOG="${KEEPALIVE_LOG:-$ST/oauth-keepalive.log}"   # overridable so the drill never writes the LIVE log (smDrainDesk-14)
 # The CLI's path differs by box (homebrew on darwin, /usr/local/bin on feynman); PATH first,
 # then darwin's homebrew as the last resort -- a keepalive that cannot find `claude` refreshes
 # nothing and logs "FAILED — token needs a human" for a token a human never had to touch.
