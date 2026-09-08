@@ -70,6 +70,8 @@ G-AQ#number	-	the predecessor's filename is derived correctly
 G-AQ#drill	-	the continuity check can still go red
 G-R	-	reference integrity -- every gid/path/sha the outbound handoff cites RESOLVES
 G-R#drill	-	the reference check can still go red
+G-AR	-	a handoff that ASSERTS an exit code must have it RE-RUN, un-piped, from a declared registry
+G-AR#drill	-	the claims leg can still go red (and still refuses a destructive command)
 G-AT	-	THE MAILBOX LAW: no Jason-work stranded on Claude's board
 G-AU	-	shared-$HOME scratch is owner-prefixed, never wildcard-rm'd
 G-AS	-	the State Machine has a DOOR, and this session used it
@@ -100,6 +102,7 @@ G-AL#board	G-AL	the generated DONE board is stale
 G-AL#done	G-AL	the charter's paperwork has a finding
 G-AQ#verify	G-AQ	a carried thread ships no one-line verify: line
 G-AQ#selfcount	G-AQ	a verify: line that searches a glob covering the handoff it is written in
+G-AR#piped	G-AR	a verify: line that runs a PIPED command and so cannot assert an exit code
 G-AS#door	G-AS	cards that walked past the door in the last 24h
 
 # --- judgment steps ---------------------------------------------------------
@@ -141,4 +144,3 @@ G-AB	judgment	a successful WRITE is not a verified write -- read the artifact ba
 G-AC	judgment	a repo dirtied by ANOTHER session is not yours to clean. A witness would be: the roster claim board already knows who holds what; G-H reports the dirt without asking whose it is
 G-AM	judgment	a customer-facing UI is not done until it has been proven ON A PHONE. Conditional -- most sessions ship no UI; an applies/does-not-apply witness comes first
 G-AN	judgment	a Definition of Done contains only what CLAUDE can do. A witness would be: G-AL already reads the charter; a criterion naming Jason's hand is mechanically findable there
-G-AR	judgment	a handoff that ASSERTS an exit code must have it RE-RUN. Already half-mechanical inside G-AQ's family; the missing half is the outbound's asserted rcs, not the inbound's

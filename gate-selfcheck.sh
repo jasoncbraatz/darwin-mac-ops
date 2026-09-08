@@ -3339,6 +3339,79 @@ else
   FAILS+=("G-R#drill CANNOT VERIFY: $_HRI is missing, so nothing proved the reference check can still go red.")
 fi
 
+# -- G-AR . a handoff that ASSERTS an exit code must have it RE-RUN (promoted 2026-09-08)
+# Was a judgment row whose third column said the missing half is "the outbound's asserted
+# rcs". This is that promotion, and BOTH halves move together (gate_ran here + the manifest
+# row) because gate-roll-call-drill check 16 goes red if only one does -- the rule G-R's own
+# promotion recorded one day earlier, and the trap feynmanSync-14 named in its handoff.
+#
+# It is a PORT of wealth-tensor's G-CLAIMS, not a copy. Two measurements taken before it was
+# written (feynmanSync-15): (1) wealth-tensor's prose regexes over a whole global handoff hit
+# 46 of 185 in the everything folder, and the recent hits are NARRATIVE ("rc 127 -> CANNOT
+# VERIFY"), so a literal port manufactures the false accusation G-AR's own spec forbids;
+# (2) 8 of feynmanSync-14's 13 command-shaped `verify:` lines are PIPED, so the estate's own
+# verification idiom cannot assert an exit code -- that is G-AR#piped, and it is an ADVISORY
+# on the G-AQ#verify precedent, because a floor that reds every session on day one is the
+# G-AP-340 wallpaper trap, not a floor.
+#
+# It EXECUTES commands read out of a document a previous session wrote, so the engine refuses
+# every chaining, substituting, redirecting and backgrounding metacharacter FIRST -- which
+# reduces a claim to one simple command -- and then checks that command's program and flags
+# against a destructive denylist. Refusal is STATIC and provable: --static runs the whole
+# refusal path and executes nothing.
+gate_ran "G-AR"
+_HCL="$HOME/code/darwin-mac-ops/handoff-claims.py"
+if [ ! -x "$_HCL" ]; then
+  bold "=== G-AR . asserted exit codes are RE-RUN ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${_HCL/#$HOME/~}"
+  FAILS+=("G-AR CANNOT VERIFY: $_HCL is missing or not executable, so no exit code this handoff asserts was re-run. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-claims.py")
+elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
+  bold "=== G-AR . asserted exit codes are RE-RUN ==="
+  gate_na "G-AR" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} whose claims could be re-run -- point it at one with HTC_OUTBOUND=/path"
+else
+  _hcl_o="$(/usr/bin/python3 "$_HCL" --handoff "$_htc_out" </dev/null 2>&1)"; _hcl_rc=$?
+  # The advisory is read out of the tool's OWN output rather than re-derived here. A second
+  # copy of the verify:-line parser is how G-AL grew two matchers that disagreed.
+  _hcl_pv="$(printf '%s\n' "$_hcl_o" | grep -c 'PIPED-VERIFY:')"
+  case "$_hcl_rc" in
+    0) if [ "$_hcl_pv" -gt 0 ]; then
+         bold "=== G-AR#piped . a verify: line that cannot verify ==="
+         printf '%s\n' "$_hcl_o" | grep -E 'ADVISORY|PIPED-VERIFY:' | sed 's/^/         /'
+         WARNS+=("G-AR#piped: $_hcl_pv \`verify:\` line(s) in $(basename "$_htc_out") run a PIPED command, so \$? is the PIPE'"'"'s and the line cannot assert the exit code it looks like it is asserting -- that is the wealthTensor-93 defect, in the estate'"'"'s own verification idiom. They are eyeball instructions; to make one actually verify, declare it un-piped in a \`\`\`claims fence. Advisory, not a blocker (G-AQ#verify precedent).")
+       fi ;;
+    1) bold "=== G-AR . asserted exit codes are RE-RUN ==="
+       printf '%s\n' "$_hcl_o" | sed 's/^/         /'
+       FAILS+=("G-AR: $(basename "$_htc_out") declares a claim its own command does not produce, or a claim this leg REFUSED as unparseable or unsafe. An assertion the next session will act on is a measurement or it is a rumour. Re-run: /usr/bin/python3 ~/code/darwin-mac-ops/handoff-claims.py --handoff $_htc_out") ;;
+    2) bold "=== G-AR . asserted exit codes are RE-RUN ==="
+       printf '%s\n' "$_hcl_o" | sed 's/^/         /'
+       FAILS+=("G-AR CANNOT VERIFY: a declared claim was FLAKY, timed out, or was skipped as slow. A flaky check is NOT a caught liar -- do not report the predecessor as wrong; name the flake. An un-run slow claim is not a verified one: /usr/bin/python3 ~/code/darwin-mac-ops/handoff-claims.py --handoff $_htc_out --claims-all") ;;
+    *) bold "=== G-AR . asserted exit codes are RE-RUN ==="
+       printf '%s\n' "$_hcl_o" | sed 's/^/         /'
+       FAILS+=("G-AR CANNOT VERIFY: the claims leg exited $_hcl_rc -- it could not read the handoff at all, which is precisely the state in which a false claim is invisible. It is not a pass.") ;;
+  esac
+fi
+
+# -- G-AR#drill . the claims leg can still go red (run its controls, do not trust them)
+# 28 probes, one per declared verdict, plus a COVERAGE assertion: the drill imports the
+# engine's CLAIM_TAGS and goes red if any declared tag has no probe, so a verdict added
+# without a control fails BY CONSTRUCTION rather than by somebody remembering. Two negative
+# controls guard the direction that would get this leg switched off: `grep -i` must NOT be
+# refused, and a prose `verify:` line must NOT be read as a command.
+gate_ran "G-AR#drill"
+_HCLD="$HOME/code/darwin-mac-ops/handoff-claims-drill.sh"
+if [ -x "$_HCLD" ]; then
+  _hcld_o="$(bash "$_HCLD" </dev/null 2>&1)"; _hcld_rc=$?
+  if [ "$_hcld_rc" -ne 0 ]; then
+    bold "=== G-AR#drill . the claims leg can still go red ==="
+    printf '%s\n' "$_hcld_o" | sed 's/^/         /'
+    FAILS+=("G-AR#drill: the claims leg failed its own controls ($_hcld_rc). A leg that can no longer refuse a destructive command, or can no longer tell a FLAKY check from a caught liar, is worse than none -- it executes strings out of a document while reading as caution. Run: bash ~/code/darwin-mac-ops/handoff-claims-drill.sh")
+  fi
+else
+  bold "=== G-AR#drill . the claims leg can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${_HCLD/#$HOME/~}"
+  FAILS+=("G-AR#drill CANNOT VERIFY: $_HCLD is missing or not executable, so nothing proved the claims leg can still refuse a destructive command. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-claims-drill.sh")
+fi
+
 
 # -- G-AT . THE MAILBOX LAW: no Jason-work stranded on Claude's board (2026-09-06)
 # Batter's Box is JASON'S board; the State Machine is CLAUDE'S; he does NOT read the State
