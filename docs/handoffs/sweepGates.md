@@ -90,3 +90,5 @@ It is a head start, not an order: if the card or the repo disagree with the brie
 
 ## Definition of done
 Every one of the 2 card(s) in the frozen manifest lane-sweepGates.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh sweepGates` exits 0.
+
+_Reconcile (local-feynman-563451-a 2026-09-10T09:30:45Z): cites 1218281434871161 "[defect] G-AW drill-census step: guard@3556 would VANISH SILENTLY (G-AI red) and" — now CLOSED: NO-AAR: ALREADY FIXED — cheap kill on MEASURED evidence (sweepGates inning 1, darwin-mac-ops 366a80b, authored 2026-09-08 18:43Z, eight minutes AFTER this card was filed at 18:34Z; the filer could not_
