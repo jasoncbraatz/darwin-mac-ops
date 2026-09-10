@@ -3293,6 +3293,67 @@ else
   FAILS+=("G-AQ#number CANNOT VERIFY: $_HND is missing or not executable. Restore it: git -C ~/code/darwin-mac-ops checkout -- htc-number-drill.sh")
 fi
 
+# -- G-AQ#dod . every handoff DECLARES a definition of done, and ERRAND is a CLAIM
+# (born 2026-09-10, opus-floristDeputy-01. ADR: claude-blackbook/docs/
+#  ADR-handoff-dod-is-required-and-errand-is-a-claim.md)
+#
+# "No DoD" and "forgot the DoD" are indistinguishable from outside, so ABSENCE cannot be how
+# an errand says it is an errand. Jason, on why this is not paranoia: the estate intermixes
+# model tiers, and "it's pretty absolute on an errand, but a lighter model may drift."
+#
+# SCOPE IS FORWARD BY CONSTRUCTION, and that is deliberate rather than lucky. This grades
+# ONLY $_htc_out -- the handoff THIS session just wrote. Measured the day it shipped: 196 of
+# the 197 handoffs in the everything folder carry no DoD line in the head window, though 80
+# of them discuss one further down. Grading those would open with 196 red lines, and a wall
+# of permanent reds trains readers to scroll -- the same G-AP-340 wallpaper trap this file
+# has recorded twice. The estate-wide sweep, if anyone builds one, passes --since.
+gate_ran "G-AQ#dod"
+HDC_CHECK="${HDC_CHECK:-$HOME/code/darwin-mac-ops/handoff-dod-check.sh}"
+if [ ! -x "$HDC_CHECK" ]; then
+  bold "=== G-AQ#dod . every handoff declares a definition of done ==="
+  FAILS+=("G-AQ#dod CANNOT VERIFY: $HDC_CHECK is missing or not executable, so no handoff was checked for a DoD. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-dod-check.sh")
+elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
+  bold "=== G-AQ#dod . every handoff declares a definition of done ==="
+  gate_na "G-AQ#dod" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} to grade -- point it at one with HTC_OUTBOUND=/path"
+else
+  # The errand signal is READ from the predicate that already exists, never typed. The bug
+  # fixed at 09:36 on the day this shipped was two spellings of this same assertion failing
+  # to match; a third vocabulary would have rebuilt it one layer over.
+  if { [ -n "${GATE_UNCHARTERED:-}" ] || [ "${ROSTER_FOUNDING_CHECK:-1}" = "0" ]; }; then
+    _hdc_decl=1
+  else
+    _hdc_decl=0
+  fi
+  _hdc_o="$(bash "$HDC_CHECK" --handoff "$_htc_out" --errand-declared "$_hdc_decl" </dev/null 2>&1)"
+  _hdc_rc=$?
+  case "$_hdc_rc" in
+    0) : ;;
+    1) bold "=== G-AQ#dod . every handoff declares a definition of done ==="
+       printf '%s\n' "$_hdc_o" | sed 's/^/         /'
+       FAILS+=("$_hdc_o") ;;
+    *) bold "=== G-AQ#dod . every handoff declares a definition of done ==="
+       FAILS+=("G-AQ#dod CANNOT VERIFY: handoff-dod-check.sh exited $_hdc_rc -- treat as CANNOT VERIFY, never a pass. Re-run: bash $HDC_CHECK --handoff $_htc_out") ;;
+  esac
+fi
+
+# -- G-AQ#dod-drill . the DoD check can still go red (its controls, not its presence)
+# Asserted by BEHAVIOUR rather than by grep, on this file's own precedent: a guard that was
+# present and inert shipped twice this month (a BSD-sed no-op, and a mask that lived at one
+# print site while a second printer undid it). A presence-grep passes both.
+gate_ran "G-AQ#dod-drill"
+HDC_DRILL="${HDC_DRILL:-$HOME/code/darwin-mac-ops/handoff-dod-drill.sh}"
+if [ -x "$HDC_DRILL" ]; then
+  _hdd_o="$(bash "$HDC_DRILL" </dev/null 2>&1)"; _hdd_rc=$?
+  if [ "$_hdd_rc" -ne 0 ]; then
+    bold "=== G-AQ#dod-drill . the DoD check can still go red ==="
+    printf '%s\n' "$_hdd_o" | sed 's/^/         /'
+    FAILS+=("G-AQ#dod-drill: the DoD check failed its own controls ($_hdd_rc). Seven of those controls are NEGATIVE -- including the one proving a placeholder cannot buy an errand a pass. Run: bash ~/code/darwin-mac-ops/handoff-dod-drill.sh")
+  fi
+else
+  bold "=== G-AQ#dod-drill . the DoD check can still go red ==="
+  FAILS+=("G-AQ#dod-drill CANNOT VERIFY: $HDC_DRILL is missing or not executable, so nothing proved the DoD check can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-dod-drill.sh")
+fi
+
 # -- G-AQ#drill . the continuity check can still go red (run its controls, do not trust them)
 gate_ran "G-AQ#drill"
 HTC_DRILL="${HTC_DRILL:-$HOME/code/darwin-mac-ops/handoff-thread-continuity-drill.sh}"

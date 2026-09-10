@@ -68,6 +68,8 @@ G-AP#drill	-	the verdict-contract census can still go red
 G-AQ	-	an inherited thread survives the handoff
 G-AQ#number	-	the predecessor's filename is derived correctly
 G-AQ#drill	-	the continuity check can still go red
+G-AQ#dod	-	every handoff declares a definition of done, and ERRAND is a falsifiable claim
+G-AQ#dod-drill	-	the DoD check can still go red (7 negative controls)
 G-R	-	reference integrity -- every gid/path/sha the outbound handoff cites RESOLVES
 G-R#drill	-	the reference check can still go red
 G-AR	-	a handoff that ASSERTS an exit code must have it RE-RUN, un-piped, from a declared registry
