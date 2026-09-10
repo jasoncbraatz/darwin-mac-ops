@@ -216,17 +216,45 @@ if [ -r "$GATE_SC" ]; then
     else
       printf '  ok    %-52s\n' "a resolved charter row overrides the opt-out"; PASS=$((PASS+1))
     fi
+    # POSITIVE, the SECOND spelling (SM 1218323812563047): the roster join banner has told
+    # errand sessions to set ROSTER_FOUNDING_CHECK=0 since before this gate had an opt-out at
+    # all, and that variable used to reach roster's founding check and nothing else -- so an
+    # errand session that did exactly what it was told still ended on a G-AL#board SKIPPED it
+    # could not legally clear. A documented escape hatch that does not reach the check it
+    # names is worse than none: it looks like an answer.
+    if ( unset GATE_UNCHARTERED; ROSTER_FOUNDING_CHECK=0 gate_charter_is_na "" ); then
+      printf '  ok    %-52s\n' "the roster's documented errand hatch reaches the gate"; PASS=$((PASS+1))
+    else
+      printf '  FAIL  %-52s\n' "ROSTER_FOUNDING_CHECK=0 does not reach G-AL#board"; FAIL=$((FAIL+1))
+    fi
+    # NEGATIVE for the second spelling, and it is the one that matters: the measured half is
+    # the whole guarantee. A CHARTERED project cannot buy out of its finish line under EITHER
+    # name -- an opt-out with two doors needs the lock tested on both.
+    if ( unset GATE_UNCHARTERED; ROSTER_FOUNDING_CHECK=0 gate_charter_is_na "acmeLedger" ); then
+      printf '  FAIL  %-52s\n' "ROSTER_FOUNDING_CHECK=0 buys out a chartered project"; FAIL=$((FAIL+1))
+    else
+      printf '  ok    %-52s\n' "a resolved charter row overrides BOTH spellings"; PASS=$((PASS+1))
+    fi
+    # NEGATIVE: the roster's DEFAULT (=1, the founding check ON) must buy nothing. Only the
+    # explicit "0" is a declaration; "unset" and "1" are ordinary sessions.
+    if ( unset GATE_UNCHARTERED; ROSTER_FOUNDING_CHECK=1 gate_charter_is_na "" ); then
+      printf '  FAIL  %-52s\n' "ROSTER_FOUNDING_CHECK=1 grants the N/A"; FAIL=$((FAIL+1))
+    else
+      printf '  ok    %-52s\n' "only an explicit 0 declares an errand"; PASS=$((PASS+1))
+    fi
     # NEGATIVE: silence is not consent. Every session that never heard of this variable must
-    # keep being graded exactly as before.
+    # keep being graded exactly as before. BOTH names are unset here for the same reason the
+    # subshell exists: a control that inherits a declaration from the drill runner's own shell
+    # is measuring that shell, not the predicate.
     # a SUBSHELL, not `env -u`: env execs a program and cannot see a shell function, so that
     # form "passes" by failing to run the thing under test -- a control that proves nothing.
-    if ( unset GATE_UNCHARTERED; gate_charter_is_na "" ); then
+    if ( unset GATE_UNCHARTERED ROSTER_FOUNDING_CHECK; gate_charter_is_na "" ); then
       printf '  FAIL  %-52s\n' "N/A is granted without the session ever asking for it"; FAIL=$((FAIL+1))
     else
       printf '  ok    %-52s\n' "no declaration means no N/A (the default is unchanged)"; PASS=$((PASS+1))
     fi
     # NEGATIVE: an EMPTY declaration is not a reason, and the gate prints the reason to a human.
-    if GATE_UNCHARTERED="" gate_charter_is_na ""; then
+    if ( unset ROSTER_FOUNDING_CHECK; GATE_UNCHARTERED="" gate_charter_is_na "" ); then
       printf '  FAIL  %-52s\n' "an empty reason still buys the N/A"; FAIL=$((FAIL+1))
     else
       printf '  ok    %-52s\n' "an empty reason buys nothing"; PASS=$((PASS+1))

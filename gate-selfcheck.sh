@@ -180,8 +180,31 @@ gate_na() {   # gate_na <step> <why it does not apply here>
 # to a registered project. A chartered project therefore cannot buy its way out of its own
 # finish line by exporting a variable -- the branch this predicate guards is unreachable once
 # the key resolves, which is a stronger guarantee than a check that could be reordered away.
+#
+# TWO WORDS FOR ONE INTENT (SM 1218323812563047, sweepGates-1 2026-09-10). `GATE_UNCHARTERED`
+# is this gate's own errand signal. `ROSTER_FOUNDING_CHECK=0` is the one the roster's join
+# banner has told errand sessions to set since before this gate had any: "if <slug> is not a
+# project (an errand, a one-off, a session name that is not a project key) that is a fine
+# answer -- say so in the handoff and set ROSTER_FOUNDING_CHECK=0" (~/Scripts/roster:402).
+# It reached roster's own founding check (roster:361) and stopped there. So an errand session
+# that did EXACTLY what it was told still landed at the no-charter-row branch below, got
+# G-AL#board SKIPPED, and ended on `FAIL (0 issue(s), 1 check(s) NEVER RAN)` -- a red no work
+# could ever clear, which is the G-AI failure one level up and trains readers to scroll past
+# reds. The documented escape hatch must REACH the check it appears to promise, or the
+# document is the defect.
+# Both spellings are the SAME assertion and neither is sufficient alone: the measured half is
+# unchanged and is the whole guarantee -- the key must resolve to NO charter row. A chartered
+# project that exports either one is still graded and can still FAIL.
 gate_charter_is_na() {   # gate_charter_is_na <resolved-charter-row (empty if none)>
-  [ -n "${GATE_UNCHARTERED:-}" ] && [ -z "${1:-}" ]
+  { [ -n "${GATE_UNCHARTERED:-}" ] || [ "${ROSTER_FOUNDING_CHECK:-1}" = "0" ]; } && [ -z "${1:-}" ]
+}
+
+# The human-readable reason, for the n/a line gate_charter_is_na guards. Deliberately NOT part
+# of the predicate: gate-charter-drill.sh extracts that function by name and executes it alone,
+# so anything the predicate calls would be an unbound name inside the drill.
+gate_charter_na_why() {
+  if [ -n "${GATE_UNCHARTERED:-}" ]; then printf '%s' "$GATE_UNCHARTERED"
+  else printf 'ROSTER_FOUNDING_CHECK=0 -- declared an errand at roster join'; fi
 }
 
 # -- N/A BY PLATFORM · a subject that cannot exist on this KERNEL (feynmanSync-06, 2026-09-07)
@@ -2643,7 +2666,7 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
     # check with an EXPLICIT else -- not via gate_skipped, because "never ran" is what SKIPPED
     # means and this check has no subject to run against.
     bold "=== G-AL · the session knew what DONE looks like ==="
-    gate_na "G-AL" "unchartered by design (${GATE_UNCHARTERED}) -- this session is not a chartered project, so there is no definition of done to have read"
+    gate_na "G-AL" "unchartered by design ($(gate_charter_na_why)) -- this session is not a chartered project, so there is no definition of done to have read"
     gate_na "G-AL#board" "no charter, so no generated DONE board exists to be stale"
   elif [ -z "$_ch_tag" ]; then
     bold "=== G-AL · the session knew what DONE looks like ==="
@@ -2674,7 +2697,7 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       # resolve, so a chartered project that exports GATE_UNCHARTERED is still graded and can
       # still FAIL -- drilled in gate-charter-drill.sh.
       bold "=== G-AL · the session knew what DONE looks like ==="
-      gate_na "G-AL" "unchartered by design (${GATE_UNCHARTERED}) -- '$_ch_key' is not a registered charter key and is not meant to be"
+      gate_na "G-AL" "unchartered by design ($(gate_charter_na_why)) -- '$_ch_key' is not a registered charter key and is not meant to be"
       gate_na "G-AL#board" "no charter, so no generated DONE board exists to be stale"
     elif [ -z "$_ch_row" ]; then
       # NOT silence. A multi-session project with no written definition of done is the very
