@@ -1,19 +1,19 @@
 ---
 project: "sweepGates"
-session_n: 0
+session_n: 1
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "76ca2455d2f8ed6625defe8d83545ab2466e1154"
+gh_sha: "1834277"
 updated: "2026-09-10"
 definition_of_done: "Every one of the 2 card(s) in the frozen manifest lane-sweepGates.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh sweepGates` exits 0."
 verify_cmd: "bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh sweepGates"
 ruler_files: ["/Users/jasoncbraatz/repos/claude-blackbook/state/smdrain/lane-sweepGates.json", "/Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh"]
 engine_sha: "8775c04ece0cf9f367a4a017bf26a03d51e708fc"
-lessons_consulted: ["2026-09-08-ratification-census-sh-fails-closed-ratification", "2026-09-06-put-shared-drill-script-surface-drill", "2026-09-07-start-scripts-session-slug-hand-rolled"]
-live_theme: "session 0: lane armed by the CEO desk from the 2026-09-10 freeze; no work yet."
-phase: "0/2 closed. RULER RED (expected before any work)."
+lessons_consulted: ["2026-09-09-known-broken-darwin-mac-ops-state", "2026-09-08-build-census-ask-declines-count-answer", "2026-08-19-readme-names-escape-hatch-evidence-escape"]
+live_theme: "session 1: both cards CLOSED with receipts, RULER GREEN 2/2. The lane is DONE."
+phase: "2/2 closed. RULER GREEN. DoD MET — `complete` run this inning."
 gate_passed: false
-next_at_bat: "Run the verify_cmd; take the first OPEN gid in the table below; read the card on Asana (the body carries prior sessions' measurements), fix it reversibly, verify it yourself, bb-close.py with a receipt. One card per inning is fine; two is better; a card you cannot close is a finding (park needs a ruling \u2014 open a decision)."
+next_at_bat: "NOTHING — the phase is DONE. Do not continue this lane. If a heartbeat still hands you sweepGates, that is a rail bug worth reporting, not an at-bat. The two findings in 'Teed up, NOT absorbed' below belong to OTHER lanes and must not be dragged in here."
 blockers: []
 drift_flags: []
 parking_lot: []
@@ -21,76 +21,84 @@ parking_lot: []
 
 # sweepGates — LIVING HANDOFF
 
-## Read first
-Run the `verify_cmd` in the frontmatter above FIRST. Its OPEN lines are the at-bat and its
-closed lines are the guard rails. Then `docs/NORTH-STAR.md` if this repo has one.
+## THE PHASE IS DONE. Ask no further at-bats of this lane.
 
-## What this lane is
+`bash scripts/verify-smdrain.sh sweepGates` → **`RULER GREEN — 2/2 done (2 closed, 0 handed)`, exit 0**,
+run 2026-09-10 after both closes. Both cards carry a bb-close.py receipt naming the sha and the undo.
+Nothing is parked; nothing was handed; the manifest was never touched.
 
-Jason asked the CEO desk to attack the State Machine backlog (target: 95% of the frozen workable
-board). The board was FROZEN at **2026-09-10T09:11:46+00:00** (rule 1 of the `backlog.work` bat: never
-count against a live board — an honest session FILES cards, so a live denominator makes good work
-look like failure). 29 cards were workable at the freeze (NOW+NEXT; SOMEDAY is memory, not debt).
+## What session 1 did
 
-This lane is ONE CLUSTER of that freeze — **darwin-mac-ops: an ERRAND session can green G-AL#board through its documented escape hatch, and G-AW's drill-census reds when guard@3556 vanishes and knows its two baselines — both proven by a drill in darwin-mac-ops, both cards closed with the sha** — because a cluster is
-one system, which is one repo, which is one claim. The cards were scoped by the repo they are
-CLOSED IN, not the topic they share.
+**Card `1218281434871161` (G-AW / G-AI + G-AK) — CHEAP KILL, already fixed.**
+darwin-mac-ops **366a80b** (2026-09-08 18:43Z) fixed both halves *eight minutes after the card
+was filed* at 18:34Z — the filer (`fable-braatz911-06`) could not claim the repos and so could
+not see it land. Re-verified on 2026-09-10 against main @53a204e:
+- `bash gate-cannot-verify-drill.sh` → `49 instrument guard(s): 47 speak, 2 ratified-quiet, **0 would VANISH**`, exit 0.
+  The card's premise was itself wrong in an interesting way: guard@3556 always spoke. The *drill's*
+  case-arm depth walk miscounted it (a missing `)` in the opener alternation), so the fix was to the
+  COUNTER, not to the guard. A false VANISH, not a real one.
+- `bash ratification-census.sh` → zero `UNKNOWN EXCEPTION RECORD`; both baselines are registered AND
+  checked by delegation to their owning tools.
 
-## The ruler is DECLARED, not shimmed
+**Card `1218323812563047` (G-AL#board errand hatch) — FIXED, darwin-mac-ops `1834277`.**
+The card asked for a new "errand signal". It did not need one. The gate already HAS an explicit
+errand signal — `gate_charter_is_na` + `GATE_UNCHARTERED`, routing G-AL and G-AL#board to `gate_na`.
+The entire defect was that **the hatch the roster join banner documents is spelled differently**:
+`ROSTER_FOUNDING_CHECK=0` reached `roster:361`'s founding check and stopped, and nothing anywhere
+said the gate wanted a different word. So `gate_charter_is_na` now accepts either spelling of the
+same assertion. **The measured half is untouched and is the whole guarantee** — the key must still
+resolve to NO charter row, so a chartered project that merely forgot to register still goes red
+under both names.
 
-`verify_cmd` is the blackbook verifier and `ruler_files:` in the frontmatter names the manifest
-and the verifier. rail.py (ff86a5b, `ruler_files:` DECLARED never inferred) digests both at
-rail-on, so narrowing the manifest is a LOUD `RULER MOVED` (exit 2), not a silent pass — the
-smDrainWisdom false complete (48327fb1) cannot recur here. The ENGINE (`smdrain-lane.py`) is
-PINNED, not frozen: `engine_sha:` is its blob sha at arming (smDrainDesk-05 — a frozen engine
-made every grader bugfix a RULER MOVED on every live lane).
+Witnessed with the card's own repro, not just at the predicate:
+```
+GATE_ROSTER_WHO=opus-boxUnlock-01 ROSTER_FOUNDING_CHECK=0 bash gate-selfcheck.sh
+  n/a    G-AL#board does not apply here -- no charter, so no generated DONE board exists to be stale
+  GATE SELF-CHECK: FAIL ❌  (3 issue(s) — fix before writing the handoff)
+```
+Zero checks NEVER RAN. Before: `FAIL (0 issue(s), 1 check(s) NEVER RAN)` — the unclearable red.
+Force function: `gate-charter-drill.sh` 40 → **43 controls (18 negative)**, both directions of the
+new spelling plus "`ROSTER_FOUNDING_CHECK=1` buys nothing"; the two pre-existing negative controls
+now `unset` BOTH names inside their subshell, because a control that inherits a declaration from
+the runner's shell measures that shell and not the predicate.
 
-**You may not edit the manifest.** A card you cannot close is a FINDING, not a failure:
-open a decision (`python3 ~/repos/auto-bridge/abridge.py decision open --proj sweepGates --needs-ceo -q "..."`),
-say so on the card, move on. After the CEO rules, the park is
-`python3 /Users/jasoncbraatz/repos/claude-blackbook/scripts/smdrain-lane.py park --lane sweepGates --gid G --why "<cite the ruling>"`
-— it appends to a sibling file and never touches the ruler. Commit `state/smdrain/parked-sweepGates.json`
-in claude-blackbook by pathspec (that repo is NOT this lane's claim — commit only that file, say so in the message).
+## The one thing that cost this inning 12 minutes — READ THIS
 
-## The cards (FROZEN — do not add, do not remove)
+**The rail lane runs on `feynman` (Linux), and `rail.py` FORWARDS every verb to the darwin board
+host over ssh.** So `rail.py ruler show --project sweepGates` answered — truthfully — `status:
+frozen, file_inputs: 2` about *darwin's* bytes, while on the box I was standing on
+`state/smdrain/lane-sweepGates.json` did not exist at all and the verify_cmd died with a
+`FileNotFoundError` traceback. That looks exactly like a ruler defect and is not one: the local
+checkouts were simply behind. `git -C ~/code/darwin-mac-ops pull --ff-only` and
+`git -C ~/repos/claude-blackbook pull --ff-only` produced the handoff and the manifest.
+**Pull BOTH repos before you conclude anything about the ruler.** Banked as a lesson.
 
-BRIEF is the CEO desk's measured fix surface from the campfire (read on 2026-09-05 with the repo open).
-It is a head start, not an order: if the card or the repo disagree with the brief, the repo wins — say so.
+## Teed up, NOT absorbed (these belong to OTHER lanes — do not drag them in here)
 
-| gid | bin | card | BRIEF (fix surface · Q1 done? · who) |
-|---|---|---|---|
-| `1218323812563047` | NOW | [defect] G-AL#board: an ERRAND session can never green the gate — the documented escape ha | — |
-| `1218281434871161` | NEXT | [defect] G-AW drill-census step: guard@3556 would VANISH SILENTLY (G-AI red) and its two b | — |
+Noticed in passing while witnessing card 2. Both are outside this lane's repo, so the Rule of One
+sends them elsewhere rather than into this claim:
 
-## How to close one
+1. **`ratification-census.sh` now reds on a stale `bb-writers-allowlist.json` entry** — the pattern
+   `~/repos/claude-blackbook/state/sm-intake/intake.jsonl` matches no file since that path was
+   deleted in claude-blackbook (visible in this morning's pull). The census's own remedy is
+   "Delete it." One line, in **claude-blackbook**, not darwin-mac-ops.
+2. **3 dead `REF-OK:` declarations** excuse a reference that now resolves, or that the handoff no
+   longer cites. Retire with
+   `/usr/bin/python3 ~/code/darwin-mac-ops/handoff-reference-integrity.py --handoff <handoff>`.
+   This one IS in darwin-mac-ops but is not in either card's fix surface and would have widened a
+   green lane's diff on its last inning.
 
-1. **Read the card first** — several carry a prior session's measurements in the body. That is
-   free context you would otherwise pay to rediscover.
-2. **The undo comes FIRST.** `.bak`, a commit, or a tag, before the edit.
-3. Fix it, then **verify it yourself** — run the thing, read the log, hit the route. A green
-   claim you did not witness is what MANAGEMENT BY WALKING AROUND exists for.
-4. `python3 ~/Scripts/bb-close.py --gid G --reason "<what you did, what proves it, how to undo>"`
-   — the reason is the receipt a stranger reads in a fortnight; ≥20 chars, name the commit sha.
-5. **Cheap kills are legitimate work** (divide ADR Q1/Q2): a card that is already done, or no
-   longer necessary, closes on MEASURED evidence — cite the sha / the grep / the date in the reason.
-6. **THE DOOR (Rule of One):** a finding that is one repo + ≤3 files + no missing secret + a commit
-   undoes it is FIXED THIS INNING, not carded. File a card ONLY via `~/Scripts/sm-file file --repo R --kind K --reason CODE`.
-7. **A card you cannot close is a finding.** Open a decision (`--needs-ceo` if it needs the desk),
-   say so on the card, move on. Do NOT grind. The desk rules promptly.
-8. **If a card is MISFILED — the fix surface is not this repo — say so and open a decision.**
-   If a lane says a card is misfiled it is probably right; the desk will rule it promptly.
-9. **The card you route away from must say where the work went** (smDrainDesk-02, 2026-09-05):
-   "routed" and "abandoned" look identical from the source gid. Comment on THIS gid before you leave it.
-10. **Commit + push by pathspec every inning** (`git add <exact paths>`; never `-A`). If a fix lands
-    in a SIBLING repo, claim it on the roster first (`~/Scripts/roster claim --who <you> --repo R --task "..."`; there is no --why).
+Also standing and pre-existing, surfaced by the errand repro: **`G-R#drill` fails its own selftest
+(1 control)** — `handoff-reference-integrity.py --selftest`. A check that can no longer tell a 404
+from a 403 is worth someone's inning; it is not worth this one's.
 
-## Lane-specific notes from the desk
+## The ruler (unchanged, never touched)
 
-(none)
+`verify_cmd` is the blackbook verifier; `ruler_files:` names the manifest and the verifier and
+rail.py digests both at rail-on. The manifest was not edited, amended, or narrowed. No park was
+needed — `park` requires a CEO ruling and neither card needed one.
 
 ## Definition of done
 Every one of the 2 card(s) in the frozen manifest lane-sweepGates.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh sweepGates` exits 0.
 
-_Reconcile (local-feynman-563451-a 2026-09-10T09:30:45Z): cites 1218281434871161 "[defect] G-AW drill-census step: guard@3556 would VANISH SILENTLY (G-AI red) and" — now CLOSED: NO-AAR: ALREADY FIXED — cheap kill on MEASURED evidence (sweepGates inning 1, darwin-mac-ops 366a80b, authored 2026-09-08 18:43Z, eight minutes AFTER this card was filed at 18:34Z; the filer could not_
-
-_Reconcile (local-feynman-563451-a 2026-09-10T09:36:14Z): cites 1218323812563047 "[defect] G-AL#board: an ERRAND session can never green the gate — the documented" — now CLOSED: NO-AAR: FIXED in darwin-mac-ops 1834277 (sweepGates inning 1, 2026-09-10), pushed to main. The card's own diagnosis was right and its suggested fix was one step too clever: the gate ALREADY has an exp_
+**MET.** 2/2 closed with receipts; ruler exits 0.
