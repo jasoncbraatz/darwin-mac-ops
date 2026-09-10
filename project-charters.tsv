@@ -50,3 +50,4 @@ wisdomVector	~/repos/wisdom-vector	$HOME/repos/wisdom-vector/docs/done-criteria-
 # G-AL#board then judges one project's board against the other's criteria, STALE forever.
 # (Caught by G-AL#registry within the hour of the first registration, 2026-09-10.)
 freshCanary	~/repos/shopify-theme-corpus	$HOME/repos/shopify-theme-corpus/docs/done-criteria-6bncanary.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/shopify-theme-corpus/docs/done-criteria-6bncanary.tsv --project 6bnCanary --out $HOME/repos/shopify-theme-corpus/docs/CHECKLIST-6bnCanary.md --brief
+flowerdrift	~/Scripts	$HOME/Scripts/docs/done-criteria-flowerdrift.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-flowerdrift.tsv --project flowerdrift --out $HOME/Scripts/docs/CHECKLIST-flowerdrift.md >/dev/null; python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-flowerdrift.tsv --project flowerdrift --brief
