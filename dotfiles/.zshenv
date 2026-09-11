@@ -20,3 +20,10 @@ export PATH="/Library/TeX/texbin:$HOME/bin:$PATH"
 # .zshenv but not .zprofile, so every cloud session got 'command not found: architect-audit' until it
 # remembered the full path. One line here retires that tax for every future session.
 case ":$PATH:" in *":$HOME/Scripts:"*) ;; *) export PATH="$PATH:$HOME/Scripts" ;; esac
+
+# wisdomDogfood (2026-09-11, ruling #280): the SHELL injects WISDOM_URL so `lessons.py search`
+# eats from the vector store. lessons.py is NOT changed — it only reads the environment, so
+# `env -u WISDOM_URL` is still byte-identical to the pre-dogfood world (verify-wisdomvector line 4).
+# Every zsh reads .zshenv (interactive, -c, ssh, dx, rail-runner children), which is the whole point:
+# before this line, store-mode in production was 0%. Undo: rm ~/.config/lessons/wisdom.env.
+if [ -r "$HOME/.config/lessons/wisdom.env" ]; then . "$HOME/.config/lessons/wisdom.env"; fi
