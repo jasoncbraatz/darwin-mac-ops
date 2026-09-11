@@ -102,3 +102,5 @@ needed — `park` requires a CEO ruling and neither card needed one.
 Every one of the 2 card(s) in the frozen manifest lane-sweepGates.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash /Users/jasoncbraatz/repos/claude-blackbook/scripts/verify-smdrain.sh sweepGates` exits 0.
 
 **MET.** 2/2 closed with receipts; ruler exits 0.
+
+_Reconcile (unknown 2026-09-11T04:36:05Z): cites 1218323812563047 "[defect] G-AL#board: an ERRAND session can never green the gate — the documented" — now CLOSED: closed earlier (reconcile-only)_
