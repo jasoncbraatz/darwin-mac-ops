@@ -124,6 +124,17 @@ KNOWN_FILES   = {os.path.realpath(p) for p in
 # below) is the fix; adding a second hardcoded path would just move the wall one repo along.
 KNOWN_PER_REPO = {"portability-guard.allow"}
 
+# NOT RATIFICATIONS (wisdomVector desk-out, 2026-09-11). Files that WEAR the word "allowlist"
+# but are DATA a program consumes, not an exception record a checker honours. The census asked
+# "teach it, or prove it is not a ratification" and had nowhere to write the proof; this is the
+# proof, by basename, with the reason on the line. A new entry needs a sentence, like the others.
+NOT_RATIFICATIONS = {
+    # flowerdrift: customers with >1 distinct billing address; read by customer-drift-sweep.py /
+    # drift-receipt.py to route ambiguous rows to a human, not to suppress a checker. Card
+    # 1218371173789902 is in the file header.
+    "drift-ambiguous-allowlist.txt",
+}
+
 # no leading '#' in this pattern, deliberately: see the header.
 MARKER_RX = re.compile(r"\b[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)*-OK:")
 FILE_RX   = re.compile(r"(allowlist|allow|baseline|exempt|waiver|ratified)", re.I)
@@ -171,6 +182,8 @@ for m in sorted(MARKERS):
               "check whether it still describes something true. Teach it, or delete the marker."
               % (m, ", ".join(MARKERS[m][:3])))
 for rp, p in sorted(FILES.items()):
+    if os.path.basename(p) in NOT_RATIFICATIONS:
+        continue                       # data, not a ratification — see NOT_RATIFICATIONS
     if rp not in KNOWN_FILES and os.path.basename(p) not in KNOWN_PER_REPO:
         stale("UNKNOWN EXCEPTION RECORD %s — a file shaped like an allowlist/baseline that no "
               "checker in this census reads. Teach it, or prove it is not a ratification."
