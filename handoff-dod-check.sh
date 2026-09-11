@@ -6,9 +6,10 @@
 #   handoff-dod-check.sh --static            # prove the verdicts with no files on disk
 #
 # @verdict-contract
-#   0  OK            a DoD line is present, substantive, and consistent with the session
-#   1  FAIL          missing, vacuous, falsified, or contradicting the session's own declaration
-#   2  CANNOT VERIFY the handoff could not be read (never a pass, never a FAIL)
+# @verdict 0  OK: a DoD line is present, substantive, and consistent with the session
+# @verdict 1  FAIL: missing, vacuous, falsified, or contradicting the session's own declaration
+# @verdict 2  CANNOT VERIFY: the handoff could not be read (never a pass, never a FAIL)
+# @drill ~/code/darwin-mac-ops/handoff-dod-check-drill.sh
 #
 # WHY THIS EXISTS (ADR-handoff-dod-is-required-and-errand-is-a-claim.md)
 #   "No DoD" and "forgot the DoD" are indistinguishable from outside, so ABSENCE cannot be
