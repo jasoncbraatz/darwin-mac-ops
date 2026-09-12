@@ -88,6 +88,9 @@ WARN_WINDOW = 8
 
 
 MD_TABLE_RE = re.compile(r"^\s*\|.*\|\s*$")
+# a case arm: optional `(`, then a pattern list with at least one `|`, then the closing `)`. Patterns
+# never contain an unquoted `)` before the arm's own, so the first `)` outside quotes ends the list.
+CASE_ARM_RE = re.compile(r'^\s*\(?\s*(?:"[^"]*"|\'[^\']*\'|[^()|\s]+)(?:\s*\|\s*(?:"[^"]*"|\'[^\']*\'|[^()|\s]+))+\s*\)')
 
 
 def bare_pipe_indices(line, doc_mode=False):
@@ -101,6 +104,14 @@ def bare_pipe_indices(line, doc_mode=False):
         if MD_TABLE_RE.match(line) and line.count("|") >= 2:
             return []
         return _doc_pipe_indices(line)
+    # A `case` pattern list: `""|--live)  walk; exit $?;;` -- the `|` before the first unquoted
+    # `)` is pattern ALTERNATION, not a pipe (measured 2026-09-12: G-AO flagged ledgerOnboarding's
+    # drill dispatch on exactly this shape). Everything up to and including that `)` is skipped;
+    # the body after it is scanned normally, so `a|b) cmd | tail; exit $?` still trips.
+    m = CASE_ARM_RE.match(line)
+    if m:
+        head = m.end()
+        return [i + head for i in bare_pipe_indices(line[head:], doc_mode)]
     out = []
     i = 0
     n = len(line)
@@ -366,6 +377,7 @@ def audit(roots):
 # ------------------------------------------------------------------ selftest
 BAD = [
     (["cmd | tail -1; echo $?"], "VIOLATION"),
+    (["  a|b) cmd | tail -1; exit $?;;"], "VIOLATION"),   # the arm body is still scanned
     (["~/Scripts/w.sh | tail -25 && echo $?"], "VIOLATION"),
     (["python3 tool.py --audit | head -40 ; rc=$?"], "VIOLATION"),
     (["make test | tee out.log", "echo $?"], "VIOLATION"),
@@ -375,6 +387,8 @@ BAD = [
 ]
 GOOD = [
     ["cmd >/dev/null 2>&1; echo $?"],
+    ['  ""|--live)  walk; exit $?;;'],            # a case-arm pattern list is alternation, not a pipe (2026-09-12)
+    ["  (x|y|z) run; rc=$?;;"],
     ["cmd | tail -1; echo ${PIPESTATUS[0]}"],
     ["cmd | tail -1; echo $?   # rc-audit: ok - tail IS the assertion"],
     ["| Command | Meaning |"],
