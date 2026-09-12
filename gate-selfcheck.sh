@@ -2837,7 +2837,26 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
         # file's own recommended workflow has long builds backgrounded, and a false red in
         # committed state is how a guard gets switched off. Scoped to the subshell so a
         # caller's explicit value still wins.
-        _ch_out="$(export BOARD_CHECK_TIMEOUT="${BOARD_CHECK_TIMEOUT:-300}"; eval "$_ch_bcheck" 2>&1)"; _ch_rc=$?
+        # TWIN RULE (fable-freshCanary-10, 2026-09-12): the `cmd:` rows of a board measure STATE — evidence trees,
+        # launchd jobs, receipts — and that state lives on the board host, not on a twin. Measured on feynman the
+        # committed 6bnCanary board read STALE (25/35) while the same --check ON darwin read "matches measured
+        # reality" (31/35); a regenerate-and-commit from the twin would have shipped a lie. So on a twin the
+        # check runs ON the board host over ssh (its own $HOME, its own checkout, pulled first); an unreachable
+        # host is CANNOT VERIFY, never a pass and never a red for the wrong box. GATE_BOARD_LOCAL=1 keeps it local.
+        _ch_bh="$(cat "$HOME/.config/pitching-machine/board-host" 2>/dev/null | tr -d '[:space:]')"
+        if [ -n "$_ch_bh" ] && [ "$_ch_bh" != "$(hostname -s)" ] && [ "${GATE_BOARD_LOCAL:-0}" != "1" ]; then
+          _ch_remote="$(printf '%s' "$_ch_bcheck" | sed "s#$HOME#\$HOME#g")"
+          _ch_out="$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$_ch_bh" "export PATH=/opt/homebrew/bin:/usr/local/bin:\$PATH BOARD_CHECK_TIMEOUT=${BOARD_CHECK_TIMEOUT:-300}; _r=\$(printf '%s' \"$_ch_remote\" | sed -n 's/.*--criteria *\\([^ ]*\\)\\/docs\\/.*/\\1/p'); [ -n \"\$_r\" ] && git -C \"\$_r\" pull -q --ff-only >/dev/null 2>&1; $_ch_remote" 2>&1)"; _ch_rc=$?
+          case "$_ch_rc" in
+            255) bold "=== G-AL#board · the generated board (measured on the board host) ==="
+                 printf '  ?      board host %s unreachable over ssh -- CANNOT VERIFY the board from this twin\n' "$_ch_bh"
+                 WARNS+=("G-AL#board CANNOT VERIFY: board host '$_ch_bh' unreachable; the board's cmd: rows live there. Re-run when it answers, or GATE_BOARD_LOCAL=1 to measure this box (usually wrong).")
+                 _ch_rc=0 ;;
+            0)   printf '  ok     G-AL#board: board measured ON the board host %s (this box is a twin)\n' "$_ch_bh" ;;
+          esac
+        else
+          _ch_out="$(export BOARD_CHECK_TIMEOUT="${BOARD_CHECK_TIMEOUT:-300}"; eval "$_ch_bcheck" 2>&1)"; _ch_rc=$?
+        fi
         case "$_ch_rc" in
           0) : ;;
           1) bold "=== G-AL#board · the generated board is stale ==="
