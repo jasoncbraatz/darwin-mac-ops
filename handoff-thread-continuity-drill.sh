@@ -296,6 +296,26 @@ else
   bad "a real card beside the board gids was not demanded (rc=$RC): $OUT"
 fi
 
+# ---- 15. ADJACENT GIDS ON ONE LINE ARE ALL HARVESTED (firstdesk0909, 2026-09-12) ----------
+# The harvester used to match the SEPARATOR as part of each gid, so "A B C" yielded A and C
+# and accused the handoff of dropping B -- 8 false DROPPED verdicts on a wrap that carried
+# every thread. A thread ledger is a LIST; a parser that reads every other item is a liar.
+cat > "$T/adj-in.md" <<ADJ
+# inbound
+CARRIED 1218197067943446 1216968341514923 1218254636541825 1217034598173934 -- four on one line
+ADJ
+cat > "$T/adj-out.md" <<ADJ
+# outbound
+CARRIED 1218197067943446 1216968341514923 1218254636541825 1217034598173934 -- all four, same shape
+  verify: true
+ADJ
+run "$T/adj-in.md" "$T/adj-out.md"
+if [ "$RC" -ne 1 ] && ! printf '%s' "$OUT" | grep -q DROPPED; then
+  ok "four space-separated gids on ONE line are all harvested -- none of them is accused of being dropped"
+else
+  bad "adjacent gids on one line were not all harvested (rc=$RC): $OUT"
+fi
+
 printf 'VERDICTS-EXERCISED: %s\n' "$codes_seen"
 if [ "$fail" -eq 0 ]; then
   printf '=== drill: PASS — %d controls (%d skipped), 9 of them negative or anti-gaming ===\n' "$pass" "$skip"

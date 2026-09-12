@@ -133,11 +133,16 @@ prose() {
 #      prefix. They are projects, not cards; they resolve 404 on /tasks/; and every honest
 #      thread ledger on this estate names them. Declared, so a future board is one line here
 #      and not a silent re-run of this bug.
+#   3. ADJACENT GIDS (firstdesk0909, 2026-09-12): the old `grep -oE '(^|[^0-9])[0-9]{16}([^0-9]|$)'`
+#      CONSUMED the separator after each match, so in "A B C" (space-separated gids) B had no
+#      leading non-digit left and was never harvested -- every SECOND gid in a list read as
+#      DROPPED (8 false accusations against a handoff that carried all of them). Harvest every
+#      digit run, keep the runs that are EXACTLY 16 long: windows in longer numbers still die.
 HTC_BOARD_GIDS="${HTC_BOARD_GIDS:-1213050213165325 1215913700958709}"
 gids_of() {
   prose "$1" \
-    | grep -oE '(^|[^0-9])[0-9]{16}([^0-9]|$)' \
-    | grep -oE '[0-9]{16}' \
+    | grep -oE '[0-9]+' \
+    | grep -xE '[0-9]{16}' \
     | sort -u \
     | while read -r _g; do
         case " $HTC_BOARD_GIDS " in
@@ -157,7 +162,7 @@ if [ "$nin" -eq 0 ]; then
   echo "  CANNOT VERIFY: the inbound handoff '$INBOUND' yielded ZERO State Machine gids in prose."
   echo "  Either it cites no cards (nothing to inherit, so nothing this check can grade) or the"
   echo "  parse is broken. Both are unknowns, and an unknown is not a pass. Check by hand:"
-  echo "    command grep -oE '(^|[^0-9])[0-9]{16}([^0-9]|\$)' '$INBOUND' | grep -oE '[0-9]{16}' | sort -u
+  echo "    command grep -oE '[0-9]+' '$INBOUND' | grep -xE '[0-9]{16}' | sort -u
   (and ignore the two BOARD gids, which are projects rather than cards: $HTC_BOARD_GIDS)"
   exit 2
 fi
