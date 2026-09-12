@@ -80,6 +80,17 @@ PG_ALLOW     = os.environ.get("RC_PG_ALLOW",     H("Scripts/portability-guard.al
 # either rule, it asks the owning tool, which is the only implementation of it.
 DS_BASELINE  = os.environ.get("RC_DS_BASELINE",  H("Scripts/drill-scratch.baseline"))
 DS_TOOL      = os.environ.get("RC_DS_TOOL",      H("Scripts/drill-scratch-guard.py"))
+# drill-scratch.allow is the guard's OTHER exception record, and the census had never seen
+# it because it sat EMPTY from the day it shipped -- an allowlist with no rows excuses
+# nothing, so nothing noticed it was unaudited. The hour it got its first row (2026-09-12)
+# the census failed CLOSED with UNKNOWN EXCEPTION RECORD, which is the refusal working:
+# a waiver file nobody re-examines is where waivers go to live forever. Its audit lives in
+# the OWNING TOOL (--allow-audit), per this census's standing rule that it asks the tool
+# and reads the tool's words rather than re-deriving anyone else's rule here.
+# _hard=True: unlike drill-census's STALE rows, a dead allow row is dead on ANY box --
+# the subject file is gone, or it now sandboxes/declares itself, neither of which is a
+# routing fact about which repos this box happens to hold.
+DSA_ALLOW    = os.environ.get("RC_DSA_ALLOW",    H("Scripts/drill-scratch.allow"))
 DC_BASELINE  = os.environ.get("RC_DC_BASELINE",  H("Scripts/drill-census.baseline"))
 DC_TOOL      = os.environ.get("RC_DC_TOOL",      H("Scripts/drill-census.sh"))
 GATE_FILE    = os.environ.get("RC_GATE_FILE",    H("code/darwin-mac-ops/gate-selfcheck.sh"))
@@ -112,7 +123,7 @@ VENDOR = re.compile(r"/(\.git|node_modules|__pycache__|venv|\.venv|site-packages
 KNOWN_MARKERS = {"VANISH-OK:", "ASANA-READ-OK:", "CARD-LINT-OK:", "REF-OK:"}
 KNOWN_FILES   = {os.path.realpath(p) for p in
                  (BB_ALLOW, FOREIGN, DIVERGE, EPHEMERAL, GE_ALLOW, ARL_BASELINE, CARD_BASE, RD_ALLOW,
-                  PG_ALLOW, DS_BASELINE, DC_BASELINE)}
+                  PG_ALLOW, DS_BASELINE, DC_BASELINE, DSA_ALLOW)}
 
 # RECORDS THAT LIVE ONCE PER REPO, NOT ONCE IN THE ESTATE (feynmanSync-08, 2026-09-07).
 # portability-guard.sh does `cd <the repo being committed>; ALLOW=portability-guard.allow`,
@@ -510,7 +521,8 @@ else:
 # stricter than the estate decided, from a file whose author never made that call.
 for _label, _base, _tool, _args, _hard in (
         ("drill-scratch.baseline", DS_BASELINE, DS_TOOL, ["--ratchet"], True),
-        ("drill-census.baseline",  DC_BASELINE, DC_TOOL, ["--check"],   False)):
+        ("drill-census.baseline",  DC_BASELINE, DC_TOOL, ["--check"],   False),
+        ("drill-scratch.allow",    DSA_ALLOW,   DS_TOOL, ["--allow-audit"], True)):
     print("  --- %s ---" % rel(_base))
     if not os.path.exists(_base):
         print("      (absent on this box — nothing to go stale)")
