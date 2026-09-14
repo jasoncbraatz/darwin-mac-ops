@@ -28,3 +28,12 @@ com.google.*                    # GoogleUpdater / Keystone, vendor-installed
 com.openssh.*                   # system ssh-agent
 com.wireguard.macos.*           # WireGuard app's own login-item helper. NOTE: com.braatz.wg-keepalive
                                 # IS ours and is deliberately NOT covered by this glob.
+pro.betterdisplay.*             # BetterDisplay's own Sparkle auto-updater (…-sparkle-progress,
+                                # …-sparkle-updater). Vendor-installed, and it registers its
+                                # labels with launchd while LEAVING NO PLIST in ~/Library/
+                                # LaunchAgents — so the census read them as estate jobs whose
+                                # definition had vanished and G-AE went red for EVERY session
+                                # on this box. They are neither ours nor missing: they are
+                                # foreign, which is exactly what this file is for.
+                                # REVIEWED: 2026-09-14 (big-bbRouting-03; app installed and
+                                # running, labels confirmed under the vendor's bundle id)
