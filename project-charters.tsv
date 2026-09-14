@@ -12,6 +12,15 @@
 # and non-alphanumerics are dropped. So acmeLedger-26, acme-ledger-25 and acmeledger all
 # resolve to the same row. (The estate learned this the hard way -- braatzio-plan was once
 # acme-ledger-plan, the session IDs never changed, and a path symlink papers over the rest.)
+#
+# ⚠ COLUMN 4 MUST BE ONE SIMPLE COMMAND — no redirect, no ';', no '&&'.
+# gate-selfcheck reads it as `_ch_brief="$(eval echo "<col4>")"`. An `>/dev/null` anywhere in
+# the column redirects THE ECHO ITSELF, so _ch_brief comes back EMPTY and G-AL#board reports
+# "CANNOT VERIFY: neither gen-done.py nor a board.py brief command in the charter registry" --
+# which reads as "this project has no board" when the board is fine and the CELL is broken.
+# Found 2026-09-14 (curieOnboard-01); it had been silently disarming flowerdrift's board check
+# too. board.py takes --out and --brief in the SAME invocation, so one command does both.
+#
 
 acmeLedger	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/v3/done-criteria.tsv	python3 $HOME/repos/braatzio-plan/v3/tools/gen-done.py --brief
 wealthTensor	~/repos/wealth-tensor	$HOME/repos/wealth-tensor/docs/done-criteria.tsv	BOARD_CHECK_TIMEOUT=300 python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/wealth-tensor/docs/done-criteria.tsv --project wealth-tensor --preamble $HOME/repos/wealth-tensor/docs/checklist-preamble.md --brief
@@ -50,5 +59,5 @@ wisdomVector	~/repos/wisdom-vector	$HOME/repos/wisdom-vector/docs/done-criteria-
 # G-AL#board then judges one project's board against the other's criteria, STALE forever.
 # (Caught by G-AL#registry within the hour of the first registration, 2026-09-10.)
 freshCanary	~/repos/shopify-theme-corpus	$HOME/repos/shopify-theme-corpus/docs/done-criteria-6bncanary.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/shopify-theme-corpus/docs/done-criteria-6bncanary.tsv --project 6bnCanary --out $HOME/repos/shopify-theme-corpus/docs/CHECKLIST-6bnCanary.md --brief
-flowerdrift	~/Scripts	$HOME/Scripts/docs/done-criteria-flowerdrift.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-flowerdrift.tsv --project flowerdrift --out $HOME/Scripts/docs/CHECKLIST-flowerdrift.md >/dev/null; python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-flowerdrift.tsv --project flowerdrift --brief
-curieOnboard	~/Scripts	$HOME/Scripts/docs/done-criteria-curieonboard.tsv	python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-curieonboard.tsv --project curieOnboard --out $HOME/Scripts/docs/CHECKLIST-curieOnboard.md >/dev/null; python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-curieonboard.tsv --project curieOnboard --brief
+flowerdrift	~/Scripts	$HOME/Scripts/docs/done-criteria-flowerdrift.tsv	BOARD_CHECK_TIMEOUT=300 python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-flowerdrift.tsv --project flowerdrift --out $HOME/Scripts/docs/CHECKLIST-flowerdrift.md --brief
+curieOnboard	~/Scripts	$HOME/Scripts/docs/done-criteria-curieonboard.tsv	BOARD_CHECK_TIMEOUT=300 python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/Scripts/docs/done-criteria-curieonboard.tsv --project curieOnboard --out $HOME/Scripts/docs/CHECKLIST-curieOnboard.md --brief
