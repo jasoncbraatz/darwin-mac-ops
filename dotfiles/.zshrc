@@ -154,3 +154,5 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
   _nvmrc_load
 fi
 # <<< nvm + per-repo node (acmeLedger-19, 2026-08-15) <<<
+
+. "$HOME/.local/bin/env"
