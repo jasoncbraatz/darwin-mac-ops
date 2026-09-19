@@ -35,6 +35,7 @@
 # act; the self-test is what proves --live's comparator still works.
 # =============================================================================
 set -uo pipefail
+export LC_ALL=C   # comm compares bytes, sort obeys LC_COLLATE: under en_US.UTF-8 the issue-set diff below could drop members (portability-guard check 12, SM 1218647049761124)
 HERE="$(cd "$(dirname "$0")" && pwd -P)"
 GATE="${GATE_SELFCHECK:-$HERE/gate-selfcheck.sh}"
 
