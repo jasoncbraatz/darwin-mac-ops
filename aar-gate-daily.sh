@@ -18,7 +18,13 @@ BLACKBOOK="$HOME/repos/claude-blackbook"
 AAR_PY="$BLACKBOOK/aar.py"
 LOG="$HOME/Library/Logs/aar-gate.log"
 HEARTBEAT="$HOME/Library/Logs/aar-gate.heartbeat"
-BATTERS_BOX="1213050213165325"
+# STATE MACHINE, not the Batter's Box (smBacklog-10, 2026-09-19 -- THE MAILBOX LAW). An outstanding
+# AAR obligation is CLAUDE-work: a Claude with the repos writes the AAR or the NO-AAR reason; no human
+# hand, eye or credit card is the missing part. Filing it into Jason's Box was the costliest error the
+# Law names, and it also produced a duplicate-bbkey finding (one twin per board, 1218645053968330 vs
+# 1218468093966735) because the SM copy had been rerouted there on 2026-09-14 while this filer kept
+# minting Box copies. Undo: put 1213050213165325 back here -- but read docs/THE-MAILBOX-LAW.md first.
+BATTERS_BOX="1215913700958709"
 # HTML-comment form is REQUIRED: bb-close-on-clear.py matches <!--BBKEY:([^>]*)-->,
 # and the plain-line form this used to carry was invisible to it (BBKEY backlog,
 # card 1217015004006698). The card body and the dedupe --needle below are THE SAME
@@ -102,7 +108,7 @@ To clear each violation: comment 'AAR: <slug>' on the card (after aar.py validat
 or 'NO-AAR: <20+ chars of real reason>'. Gate doc: HANDOFF-GATE.md §G-V."
 
 if [ -n "$DRYRUN" ]; then
-  printf '\n--- DRYRUN: would file/comment this Batter\x27s Box card ---\n%s\n%s\n--- end ---\n' "$TITLE" "$BODY"
+  printf '\n--- DRYRUN: would file/comment this State Machine card ---\n%s\n%s\n--- end ---\n' "$TITLE" "$BODY"
   log "DRYRUN rc=$RC — printed, filed nothing"
   exit "$RC"
 fi
