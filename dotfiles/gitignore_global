@@ -30,3 +30,12 @@ Thumbs.db
 # where it bit. `*.bak*` is the rule ~/Scripts had already proven in production; it is now global.
 *.bak*
 *.orig
+
+# --- Python bytecode caches (callbackBridge-02, 2026-09-19) ---
+# A __pycache__/ in buy-path-playbook tripped the wrap gate as an "orphan" of a lapsed session
+# TWICE in one day: session 01 deleted it, a later python run grew it back, session 02 met it
+# again wearing another session's name and filed a transfer card for a directory of bytecode.
+# Cache is never work. Same floor as *.bak* above: the control belongs upstream of every repo.
+__pycache__/
+*.pyc
+*.pyo
