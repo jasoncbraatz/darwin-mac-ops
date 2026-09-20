@@ -19,7 +19,12 @@
 # "CANNOT VERIFY: neither gen-done.py nor a board.py brief command in the charter registry" --
 # which reads as "this project has no board" when the board is fine and the CELL is broken.
 # Found 2026-09-14 (curieOnboard-01); it had been silently disarming flowerdrift's board check
-# too. board.py takes --out and --brief in the SAME invocation, so one command does both.
+# too. NOTE (smBacklog-15, 2026-09-20, from lineup-01's FF-2 finding 1789900291-cf92): --brief
+# NEVER WRITES, even with --out (braatzMail-120 ruling in board.py: a display command must
+# not edit a tracked file behind the reader; --brief + --out prints the board and, if the
+# file is stale, a WARNING with the exact regenerate command). So column 4 with --brief is
+# the DISPLAY command only; G-AL#board's remediation is the same command MINUS --brief.
+# One registered command, two jobs, and the second one is the printed remediation.
 #
 
 acmeLedger	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/v3/done-criteria.tsv	python3 $HOME/repos/braatzio-plan/v3/tools/gen-done.py --brief
