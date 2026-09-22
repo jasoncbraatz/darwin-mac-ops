@@ -22,6 +22,12 @@ com.anthropic.claudefordesktop.*  # TRANSIENT: Claude desktop app updater (Squir
                                 # and running. Vendor-installed, not ours.
                                 # REVIEWED: 2026-08-24 (the day this was verified; recorded as
                                 # prose until 2026-09-07, so phase 4 could not count it)
+com.electron.asana.ShipIt         # TRANSIENT: Asana desktop app updater (Electron/Squirrel ShipIt) — the
+                                # SAME shape as com.anthropic.claudefordesktop.* above: a label the
+                                # app registers only while an update installs and drops afterwards
+                                # (census read it LOADED with no plist: "definition already gone").
+                                # Seen 2026-09-22 by the ledgerSecurity desk's session-out.
+                                # RETIRE-WHEN: the Asana desktop app is uninstalled.
 com.autodesk.*                  # Fusion 360 vendor agent
 com.docker.*                    # Docker Desktop vendor helper
 com.google.*                    # GoogleUpdater / Keystone, vendor-installed
