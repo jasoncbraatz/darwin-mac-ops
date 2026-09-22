@@ -27,7 +27,7 @@ com.electron.asana.ShipIt         # TRANSIENT: Asana desktop app updater (Electr
                                 # app registers only while an update installs and drops afterwards
                                 # (census read it LOADED with no plist: "definition already gone").
                                 # Seen 2026-09-22 by the ledgerSecurity desk's session-out.
-                                # RETIRE-WHEN: the Asana desktop app is uninstalled.
+                                # RETIRE-WHEN: path-gone:/Applications/Asana.app — drop it when the app goes
 com.autodesk.*                  # Fusion 360 vendor agent
 com.docker.*                    # Docker Desktop vendor helper
 com.google.*                    # GoogleUpdater / Keystone, vendor-installed
