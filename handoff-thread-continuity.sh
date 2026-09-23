@@ -138,9 +138,16 @@ prose() {
 #      leading non-digit left and was never harvested -- every SECOND gid in a list read as
 #      DROPPED (8 false accusations against a handoff that carried all of them). Harvest every
 #      digit run, keep the runs that are EXACTLY 16 long: windows in longer numbers still die.
+#   4. DECIMALS (smBacklog-17, 2026-09-23): the fractional part of a decimal is a NUMBER, not a
+#      gid. HANDOFF-smBacklog-16's LUT quoted a Luhn-valid decimal example (1.5577...) and this
+#      harvester carded it as a dropped thread -- which the next handoff could not even name,
+#      because the secret sentry refuses that 16-digit literal at commit (the hook and the
+#      harvester disagreed about one number, and the human was the pipe between them). Blank
+#      every <digits>.<digits> run before harvesting; a real gid never carries a decimal point.
 HTC_BOARD_GIDS="${HTC_BOARD_GIDS:-1213050213165325 1215913700958709}"
 gids_of() {
   prose "$1" \
+    | sed -E 's/[0-9]+\.[0-9]+/ /g' \
     | grep -oE '[0-9]+' \
     | grep -xE '[0-9]{16}' \
     | sort -u \
