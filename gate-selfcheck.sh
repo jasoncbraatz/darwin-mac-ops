@@ -2749,6 +2749,19 @@ if [ -x "$CHARTER_READ" ] && [ -f "$CHARTER_REG" ]; then
       case "$_ch_tag" in
         *-*) _ch_cands+=("$SESSION_STATE/${_ch_tag#*-}.log") ;;
       esac
+      # ...AND THE MINTED TAG IS A THIRD NAME (smBacklog-27, 2026-09-25). The roster identity's
+      # `-27` is the SESSION number; the ledger's `-9` is the corroboration mint (session-in
+      # mints `<slug>-<n>` past a RESOLVED line). They agreed only by coincidence until a
+      # project outlived its own numbering: big_worker-smBacklog-27 normalises to smbacklog27,
+      # the ledger is smbacklog-9, both targeted lookups above missed, and the warm scan graded
+      # the session against smbacklog-7 -- a BORROWED verdict for a session whose own stamp was
+      # sitting in its own ledger. `session-out --record` itself prints "current still names
+      # <tag>, so G-AL can identify you", so honour that: a WARM current is a name this session
+      # answers to. Cold (>12h) is the stranger the staleness guard above already refuses.
+      _ch_curtag="$(cat "$SESSION_STATE/current" 2>/dev/null || true)"
+      if [ -n "$_ch_curtag" ] && [ -n "$(find "$SESSION_STATE/$_ch_curtag.log" -mmin -720 2>/dev/null)" ]; then
+        _ch_cands+=("$SESSION_STATE/$_ch_curtag.log")
+      fi
       # ...AND THE TWO NAMES DIFFER BY MORE THAN THE TIER PREFIX (acmeLedger-38, 2026-08-24).
       # The ledger is keyed by the SLUG passed to session-in -- `acme-ledger-38`, kebab-case --
       # and this gate is handed the ROSTER identity `opus-acmeLedger-38`, camelCase. Stripping
