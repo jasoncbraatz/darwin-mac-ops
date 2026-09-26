@@ -6,12 +6,12 @@ D=$(mktemp -d "${TMPDIR:-/tmp}/ka-drill.XXXXXX") || exit 2
 trap 'rm -rf "$D"' EXIT
 mkdir -p "$D/pm/scripts" "$D/st"
 printf '#!/bin/bash\necho "$@" > "%s/claude.args"; exit 0\n' "$D" > "$D/claude"; chmod +x "$D/claude"
-printf '#!/bin/bash\necho fail > "%s/claude.args"; exit 1\n' "$D" > "$D/claude-bad"; chmod +x "$D/claude-bad"
+printf '#!/bin/bash\necho fail > "%s/claude.args"; echo "API Error: 429 rate_limit_error"; exit 1\n' "$D" > "$D/claude-bad"; chmod +x "$D/claude-bad"
 printf 'import sys; open("%s/probed","w").write("yes"); print("stub probe ok")\n' "$D" > "$D/pm/scripts/fuel_gauge.py"
 KA="$(dirname "$0")/oauth-keepalive.sh"
 pass=0; total=0
 ok(){ total=$((total+1)); if [ "$1" = 0 ]; then pass=$((pass+1)); echo "  ok   $2"; else echo "  FAIL $2"; fi; }
-run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" KEEPALIVE_LOG="$D/keepalive.log" CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
+run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" KEEPALIVE_LOG="$D/keepalive.log" CLAUDE_CREDS="$D/creds.json" CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
 # 1. healthy -> no claude call, rc 0
 echo '{"ok": true, "http": 200}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed"
 rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0 || echo 1) "healthy: rc=0, claude not called"
@@ -27,5 +27,16 @@ rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0
 # 5. unreadable file -> rc 0, claude not called
 rm -f "$D/fu.json" "$D/claude.args"
 rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0 || echo 1) "missing gauge file: rc=0, claude not called"
+# 6. 429 but the token file says EXPIRED -> refresh anyway (curie 2026-09-26: 429 masked a dead access token)
+echo '{"ok": false, "http": 429}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed"
+echo '{"claudeAiOauth": {"expiresAt": 1000}}' > "$D/creds.json"
+rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ -e "$D/claude.args" ] && [ -e "$D/probed" ] && echo 0 || echo 1) "429 + expired token file: refreshed anyway, probe re-run"
+# 7. 429 with a LIVE token -> not a token fault, claude not called
+echo '{"claudeAiOauth": {"expiresAt": 99999999999999}}' > "$D/creds.json"; rm -f "$D/claude.args" "$D/probed"
+rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0 || echo 1) "429 + live token: left to the probe, claude not called"
+# 8. a failed refresh leaves its REASON in the log (v1 threw claude's stdout away)
+echo '{"ok": false, "http": 401}' > "$D/fu.json"; rm -f "$D/creds.json" "$D/keepalive.log"
+rc=$(run "$D/claude-bad"); ok $([ "$rc" = 1 ] && grep -q "429 rate_limit_error" "$D/keepalive.log" && echo 0 || echo 1) "failed refresh logs claude's own error text"
+rm -f "$D/creds.json"
 echo "oauth-keepalive-drill: $pass/$total"
 [ "$pass" = "$total" ]

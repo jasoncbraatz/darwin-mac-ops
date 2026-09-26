@@ -27,6 +27,8 @@ LOG="${KEEPALIVE_LOG:-$ST/oauth-keepalive.log}"   # overridable so the drill nev
 # then darwin's homebrew as the last resort -- a keepalive that cannot find `claude` refreshes
 # nothing and logs "FAILED — token needs a human" for a token a human never had to touch.
 CLAUDE="${CLAUDE_BIN:-$(command -v claude 2>/dev/null || echo /opt/homebrew/bin/claude)}"
+# Linux keeps the token in a plain file; darwin keeps it in the keychain (no file -> "unknown").
+CREDS="${CLAUDE_CREDS:-$HOME/.claude/.credentials.json}"
 mkdir -p "$ST"
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 http=$(/usr/bin/python3 - "$FU" <<'PY' 2>/dev/null
@@ -38,20 +40,39 @@ except Exception:
     print("unreadable")
 PY
 )
+# The probe's verdict is not the only witness. curie, 2026-09-26 (fuelbar-01): the access token
+# expired 19:36Z, one refresh attempt failed, and the NEXT probe read 429 (rate_limit_error) instead of
+# 401 -- which this script filed under "not a token fault" and left alone, so the gauge stayed dark
+# with a perfectly good refresh token (17 days left) sitting in the file. So also ask the token itself.
+tok=$(/usr/bin/python3 - "$CREDS" <<'PY' 2>/dev/null
+import json, sys, time
+try:
+    c = json.load(open(sys.argv[1]))["claudeAiOauth"]
+    print("expired" if c["expiresAt"] / 1000 < time.time() else "live")
+except Exception:
+    print("unknown")
+PY
+)
+[ "$http" != ok ] && [ "$tok" = expired ] && case "$http" in 401|403) ;; *) http="$http+expired" ;; esac
 case "$http" in
   ok)  echo "$(now) ok — token live, nothing to do" >> "$LOG"; exit 0 ;;
-  401|403)
+  401|403|*+expired)
     echo "$(now) http=$http — refreshing in the GUI domain" >> "$LOG"
     # fast_worker per ~/Scripts/models.json; a keepalive that bills orchestrator tokens is a leak.
     model=$(/usr/bin/python3 -c 'import json;print(json.load(open("'"$HOME"'/Scripts/models.json"))["tiers"]["fast_worker"]["alias"])' 2>/dev/null || echo haiku)
-    if "$CLAUDE" -p ok --max-turns 1 --model "$model" >/dev/null 2>>"$LOG"; then
+    # claude -p prints its errors on STDOUT; v1 sent stdout to /dev/null, so the 2026-09-26 curie
+    # failure left no reason behind. Keep the output; log its tail when it fails.
+    if out=$("$CLAUDE" -p ok --max-turns 1 --model "$model" </dev/null 2>&1); then
       echo "$(now) claude -p ok returned 0 — re-probing" >> "$LOG"
       /usr/bin/python3 "$PM/scripts/fuel_gauge.py" probe >> "$LOG" 2>&1
       rc=$?
       echo "$(now) probe rc=$rc" >> "$LOG"
       exit $rc
     else
-      echo "$(now) claude -p FAILED — token needs a human (claude login in a GUI terminal)" >> "$LOG"
+      echo "$(now) claude -p FAILED: $(printf '%s' "$out" | tail -3 | tr '\n' ' ' | cut -c1-300)" >> "$LOG"
+      # Not necessarily a human's job: a transient 429/5xx on the refresh heals on the next tick
+      # (the expired-token check above keeps retrying). Only a dead REFRESH token needs `claude /login`.
+      echo "$(now) will retry next tick; if every tick fails, run claude /login on this box" >> "$LOG"
       exit 1
     fi ;;
   *)
