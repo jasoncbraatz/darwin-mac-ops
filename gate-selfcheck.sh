@@ -3877,6 +3877,76 @@ else
   FAILS+=("G-AY#drill CANNOT VERIFY: $MAIL_DRILL is missing -- G-AY ran uncontrolled this session. Restore: git -C ~/Scripts checkout -- roster-mail-drill.py")
 fi
 
+# -- G-AZ . a SHARED path that gained a REFUSAL names its live CALLERS (A3; born 2026-09-27, ------
+#    nightCrew-23/24; SM 1218472391453887) --------------------------------------------------------
+# Three near-misses in three days had one shape (bbRouting-01/02/03): a change gave a shared path a
+# NEW way to say no, and its callers did not all mean the same thing by calling it. bbRouting-03 was
+# caught only by a ~20-minute HAND census, which is the encouraging part and the problem: the
+# practice works and nothing made a session do it once the AAR faded. This step is that thing.
+# THE TRIGGER IS DIFF SHAPE, NOT VOCABULARY: the instrument reads THIS session's own commits and
+# asks only when an ADDED, GUARDED refusal (early return / raise / non-zero exit, inside a
+# conditional in the same hunk) lands in a code file whose basename >=3 other tracked files name.
+# The card weighed and REJECTED prose keywords (a session that does not use the words is never
+# asked -- this family's exact failure mode) and a shared-paths registry (nobody maintains it).
+# Both rejections were MEASURED before shipping, over 6h/24h/7d/30d windows: the vocabulary rule's
+# only three non-code asks in a week were a drill label, a scorecard doc line and `dx --help`; and
+# dropping the guard requirement took 6h from 2 asks to 5, including `roster` at 210 callers for an
+# ordinary `return None`. The ask it does raise is one LINE, not a ceremony:
+#     CALLERS: <N> live callers of <path> enumerated; <what each one means by calling it>
+# WARN, NEVER FAIL -- the card was explicit: "a gate that blocks a wrap on day one is a gate
+# somebody disables by Friday." A count of 0 callers means "none found in these roots", never "none
+# exists" (n8n's live callers are DB rows, not repo JSONs; reflection and other boxes are invisible)
+# and the instrument's own refusal text says so.
+SPC="${SPC:-$HOME/Scripts/shared-path-callers.py}"
+gate_ran "G-AZ"
+if [ ! -r "$SPC" ]; then
+  bold "=== G-AZ . a shared path that gained a refusal names its callers ==="
+  printf '  WARN   CANNOT VERIFY: %s missing -- nothing asked whether a new refusal has callers\n' "$(printf '%s' "$SPC" | sed "s|^$HOME|~|")"
+  WARNS+=("G-AZ CANNOT VERIFY: $SPC is missing, so no shared path was censused this session. A broken census is not a clean one. Restore: git -C ~/Scripts checkout -- shared-path-callers.py")
+elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
+  # The ask is answered BY A LINE IN THE HANDOFF, so with no handoff on disk there is no document
+  # that could carry the answer and nothing to know. N/A, not a silent pass (G-AI).
+  gate_na "G-AZ" "no outbound handoff on disk, so there is no document whose CALLERS: line could answer the ask"
+elif [ -z "${GATE_START_REPO:-}" ]; then
+  gate_na "G-AZ" "the wrap did not start inside a git repo, so this session has no commits to read for added refusals"
+else
+  # _htc_out is G-AQ's derivation and GATE_START_REPO is line 45's, both reused rather than
+  # repeated. Default window is the instrument's own 6 hours ago -- the same window its 30-day
+  # measurement was calibrated on.
+  _spc_out="$(python3 "$SPC" --repo "$GATE_START_REPO" --handoff "$_htc_out" </dev/null 2>&1)"; _spc_rc=$?
+  case "$_spc_rc" in
+    0) : ;;  # no shared path gained a refusal, or every one that did is declared. Silent.
+    1) bold "=== G-AZ . a shared path that gained a refusal names its callers ==="
+       printf '%s\n' "$_spc_out" | grep -E '^ASK|^ *first added line:' | sed 's/^/       /'
+       WARNS+=("G-AZ: this session ADDED a guarded refusal to a SHARED path (named by >=3 other files) and $(basename "$_htc_out") carries no CALLERS: line for it -- so nobody checked that every live caller means the same thing by the new no. That is bbRouting-01/02/03's exact shape, twice caught and once only by hand. Add one line: 'CALLERS: <N> live callers of <path> enumerated; <what each means by calling it>'. Re-run: python3 ~/Scripts/shared-path-callers.py --repo $GATE_START_REPO --handoff $_htc_out") ;;
+    2) bold "=== G-AZ . a shared path that gained a refusal names its callers ==="
+       printf '%s\n' "$_spc_out" | sed 's/^/       /'
+       WARNS+=("G-AZ CANNOT VERIFY: shared-path-callers could not census (git unrunnable, no caller root readable, or an unparseable window) -- $(printf '%s' "$_spc_out" | head -c 160). A broken census is not a clean one; it is also not a blocker, because the ask it raises never was one. Re-run: python3 ~/Scripts/shared-path-callers.py --repo $GATE_START_REPO --handoff $_htc_out") ;;
+    *) bold "=== G-AZ . a shared path that gained a refusal names its callers ==="
+       WARNS+=("G-AZ: shared-path-callers exited unexpectedly ($_spc_rc) -- treat as CANNOT VERIFY, never a pass. Run: python3 ~/Scripts/shared-path-callers.py --repo $GATE_START_REPO --handoff $_htc_out") ;;
+  esac
+fi
+
+# -- G-AZ#drill . the caller census can still go red (its own fixture-only selftest) --------------
+# WARN like its parent, deliberately and against the G-AW#drill/G-AY#drill precedent: a drill that
+# FAILS the wrap is a stricter verdict than the advice it guards, and G-AZ's advice is advisory by
+# the card's own instruction. Failing a wrap because an advisory instrument broke is the fastest
+# route to somebody deleting both. No new drill FILE exists (the selftest lives inside the
+# instrument, G-AW#drill's shape), so drill-census.sh needs no baseline row for it.
+gate_ran "G-AZ#drill"
+if [ -r "$SPC" ]; then
+  _spcd_out="$(python3 "$SPC" --selftest </dev/null 2>&1)"; _spcd_rc=$?
+  case "$_spcd_rc" in
+    0) : ;;
+    *) bold "=== G-AZ#drill . the caller census can still go red ==="
+       printf '%s\n' "$_spcd_out" | grep -E 'FAIL|failure' | sed 's/^/       /'
+       WARNS+=("G-AZ#drill: shared-path-callers --selftest failed (rc $_spcd_rc) -- G-AZ above ran on a census that can no longer be shown to tell a guarded refusal from an unguarded one, or a sys.exit(0) from a refusal. Run: python3 ~/Scripts/shared-path-callers.py --selftest") ;;
+  esac
+else
+  bold "=== G-AZ#drill . the caller census can still go red ==="
+  WARNS+=("G-AZ#drill CANNOT VERIFY: $SPC is missing -- G-AZ above could not run either. Restore: git -C ~/Scripts checkout -- shared-path-callers.py")
+fi
+
 # -- G-AW#drill . the census can still go red (its own fixture-only selftest) --------------
 gate_ran "G-AW#drill"
 if [ -x "$DC" ]; then
