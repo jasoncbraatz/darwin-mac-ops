@@ -43,3 +43,4 @@ pro.betterdisplay.*             # BetterDisplay's own Sparkle auto-updater (…-
                                 # foreign, which is exactly what this file is for.
                                 # REVIEWED: 2026-09-14 (big-bbRouting-03; app installed and
                                 # running, labels confirmed under the vendor's bundle id)
+*.ShipIt                          # TRANSIENT: ANY Electron app's Squirrel.Mac updater (label suffix .ShipIt is Squirrel's, never ours). Third sighting 2026-09-27: com.jgraph.drawio.desktop.ShipIt (after Claude desktop + Asana) -- one glob instead of one row per app (fable-sweeper-07).
