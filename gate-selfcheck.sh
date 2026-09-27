@@ -3268,6 +3268,57 @@ _htc_predecessor() {   # <dir> <project> <n-as-written> -> path, or empty for a 
   printf '%s' "$_d/HANDOFF-$_proj-$(printf "%0${#_n}d" "$((_dec-1))").md"
 }
 
+# A SESSION'S HANDOFF IS NOT ALWAYS NAMED FOR THE SESSION'S SLUG (SM 1218798969221226, filed
+# by fable-freshCanary-13 on its own wrap, mailed to a holder who died unread, and bounced
+# back by the dead-letter office 147h later). ceo-desk sessions call themselves
+# `freshcanary-13` and write HANDOFF-ceoFreshCanary-13.md, so the exact-name derivation below
+# missed on EVERY handoff that project has ever written -- and the miss is a quiet `n/a`,
+# which reads as "there was nothing to check". By 2026-09-27 that was FIVE suppressed steps,
+# not the four the card reported: G-AQ, G-AQ#dod, G-R, G-AR and G-AZ, because every step
+# downstream REUSES $_htc_out rather than deriving the path again. Five fallbacks would have
+# been five places to drift; the resolution is one place, so the fix is here.
+#
+# The rule is deliberately narrow. Same NUMBER, decoded with 10# so `04` and `4` are one
+# number (the octal lesson above, reused); and the slug's project is a case-insensitive
+# SUFFIX of the file's project AT A WORD BOUNDARY -- `ceofreshcanary` ends with
+# `freshcanary`, and the boundary test (an upper-case letter at the seam, or a dash just
+# before it) is what stops a slug `anary-13` from claiming the same file.
+#
+# AMBIGUITY IS NEVER RESOLVED BY GUESSING. Two matches mean rc 2 and the basenames on
+# stdout, so the N/A can name them and a human can point HTC_OUTBOUND at the right one:
+# a gate that grades the WRONG session's handoff is worse than one that grades nothing,
+# because its verdict is confident.
+_htc_resolve_out() {  # <dir> <project> <n> -> unique path (rc 0) | nothing (rc 1) | basenames (rc 2)
+  local _d="$1" _proj="$2" _n="$3" _f _b _fp _fn _plow _low _start _hits=0 _hit= _all=
+  [ -d "$_d" ] || return 1
+  case "$_n" in ''|*[!0-9]*) return 1 ;; esac
+  _plow="$(printf '%s' "$_proj" | tr '[:upper:]' '[:lower:]')"
+  [ -n "$_plow" ] || return 1
+  for _f in "$_d"/HANDOFF-*.md; do
+    [ -f "$_f" ] || continue
+    _b="${_f##*/}"; _b="${_b%.md}"; _b="${_b#HANDOFF-}"
+    case "$_b" in *-*) : ;; *) continue ;; esac      # HANDOFF-GATE.md and friends: no number
+    _fn="${_b##*-}"; _fp="${_b%-*}"
+    case "$_fn" in ''|*[!0-9]*) continue ;; esac
+    [ "$((10#$_fn))" -eq "$((10#$_n))" ] || continue
+    _low="$(printf '%s' "$_fp" | tr '[:upper:]' '[:lower:]')"
+    case "$_low" in "$_plow"|*"$_plow") : ;; *) continue ;; esac
+    _start=$(( ${#_low} - ${#_plow} ))
+    if [ "$_start" -gt 0 ]; then
+      case "${_fp:$_start:1}" in
+        [A-Z]) : ;;
+            *) [ "${_fp:$((_start-1)):1}" = "-" ] || continue ;;
+      esac
+    fi
+    _hits=$((_hits+1)); _hit="$_f"; _all="${_all:+$_all }${_f##*/}"
+  done
+  case "$_hits" in
+    0) return 1 ;;
+    1) printf '%s' "$_hit"; return 0 ;;
+    *) printf '%s' "$_all"; return 2 ;;
+  esac
+}
+
 HTC_CHECK="${HTC_CHECK:-$HOME/code/darwin-mac-ops/handoff-thread-continuity.sh}"
 HTC_DIR="${HTC_DIR:-$HOME/Desktop/downloads}"
 _htc_in="${HTC_INBOUND:-}"; _htc_out="${HTC_OUTBOUND:-}"
@@ -3284,9 +3335,40 @@ if [ -z "$_htc_out" ] && [ -n "${_ch_tag:-}" ]; then
       ''|*[!0-9]*) continue ;;
       *) _htc_out="$HTC_DIR/HANDOFF-$_htc_proj-$_htc_n.md"
          _htc_in="$(_htc_predecessor "$HTC_DIR" "$_htc_proj" "$_htc_n")"
-         [ -f "$_htc_out" ] && break ;;
+         [ -f "$_htc_out" ] && break
+         # The exact name is not on disk -- so ASK THE DIRECTORY before reporting n/a
+         # (SM 1218798969221226). The predecessor is re-derived from the name that actually
+         # matched, not from the slug: HANDOFF-ceoFreshCanary-12.md is what -13's inbound is
+         # called, and handing _htc_predecessor the slug's spelling would find nothing and
+         # then report the PREDECESSOR as unreadable -- the accuse-the-innocent shape the
+         # octal comment above already paid for once.
+         _htc_alt="$(_htc_resolve_out "$HTC_DIR" "$_htc_proj" "$_htc_n")"; _htc_alt_rc=$?
+         case "$_htc_alt_rc" in
+           0) _htc_out="$_htc_alt"
+              _htc_b="${_htc_alt##*/}"; _htc_b="${_htc_b%.md}"; _htc_b="${_htc_b#HANDOFF-}"
+              _htc_in="$(_htc_predecessor "$HTC_DIR" "${_htc_b%-*}" "${_htc_b##*-}")"
+              break ;;
+           2) _htc_ambig="$_htc_alt" ;;   # named in the N/A below; never chosen between
+         esac ;;
     esac
   done
+fi
+# WHY there is nothing to grade -- resolved ONCE and appended by all five steps that reuse
+# $_htc_out. Each of them used to say only "this session has no numbered handoff", which is
+# indistinguishable from "there was nothing to check" and was FLATLY WRONG in the case that
+# filed the card: the handoff existed, under a name the resolver never tried. A silence that
+# cannot be told from a pass is the defect; naming the slug and the path it wanted is the fix.
+_htc_na_want="${_htc_out:-}"; _htc_na_want="${_htc_na_want/#$HOME/~}"
+if [ -n "${HTC_OUTBOUND:-}" ]; then
+  # a hand-pointed path that is not there is its OWN sentence: reporting it as an unresolved
+  # slug would blame the resolver for a typo in the override.
+  _htc_na_why=" -- HTC_OUTBOUND names ${HTC_OUTBOUND/#$HOME/~}, which is not a file this gate can read"
+elif [ -n "${_htc_ambig:-}" ]; then
+  _htc_na_why=" -- slug '${_ch_tag:-?}' matches MORE THAN ONE handoff in ${HTC_DIR/#$HOME/~} ($_htc_ambig), and the gate refuses to guess between two sessions' documents: name the right one with HTC_OUTBOUND=<path>"
+elif [ -n "${_ch_tag:-}" ]; then
+  _htc_na_why=" -- slug '${_ch_tag}' wanted ${_htc_na_want:-(no session number in the tag)}, which is not on disk, and no HANDOFF-*.md there carries the same number with a project name ending in '${_htc_proj:-?}'. If you DID write one, re-run with HTC_OUTBOUND=<path>"
+else
+  _htc_na_why=" -- this session has no slug at all (no CHARTER_SLUG, no GATE_ROSTER_WHO, no session-in), so there is no name to look a handoff up by"
 fi
 if [ ! -x "$HTC_CHECK" ]; then
   bold "=== G-AQ . an inherited thread survives the handoff ==="
@@ -3294,7 +3376,7 @@ if [ ! -x "$HTC_CHECK" ]; then
   FAILS+=("G-AQ CANNOT VERIFY: $HTC_CHECK is missing or not executable, so no handoff continuity was checked. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-thread-continuity.sh")
 elif [ -z "$_htc_out" ] || [ ! -f "$_htc_out" ]; then
   bold "=== G-AQ . an inherited thread survives the handoff ==="
-  gate_na "G-AQ" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} to grade (rail lanes and scheduled runs write elsewhere) -- point it at one with HTC_INBOUND=/path HTC_OUTBOUND=/path"
+  gate_na "G-AQ" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} to grade (rail lanes and scheduled runs write elsewhere)${_htc_na_why:-}"
 elif [ -z "$_htc_in" ]; then
   bold "=== G-AQ . an inherited thread survives the handoff ==="
   gate_na "G-AQ" "$(basename "$_htc_out") is a FIRST handoff -- there is no predecessor whose threads could have been dropped"
@@ -3378,7 +3460,7 @@ if [ ! -x "$HDC_CHECK" ]; then
   FAILS+=("G-AQ#dod CANNOT VERIFY: $HDC_CHECK is missing or not executable, so no handoff was checked for a DoD. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-dod-check.sh")
 elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
   bold "=== G-AQ#dod . every handoff declares a definition of done ==="
-  gate_na "G-AQ#dod" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} to grade -- point it at one with HTC_OUTBOUND=/path"
+  gate_na "G-AQ#dod" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} to grade${_htc_na_why:-}"
 else
   # The errand signal is READ from the predicate that already exists, never typed. The bug
   # fixed at 09:36 on the day this shipped was two spellings of this same assertion failing
@@ -3449,7 +3531,7 @@ if [ ! -x "$_HRI" ]; then
   FAILS+=("G-R CANNOT VERIFY: $_HRI is missing or not executable, so no gid, path or sha in the outbound handoff was resolved. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-reference-integrity.py")
 elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
   bold "=== G-R . reference integrity ==="
-  gate_na "G-R" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} whose references could be resolved -- point it at one with HTC_OUTBOUND=/path"
+  gate_na "G-R" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} whose references could be resolved${_htc_na_why:-}"
 else
   _hri_o="$(/usr/bin/python3 "$_HRI" --handoff "$_htc_out" </dev/null 2>&1)"; _hri_rc=$?
   case "$_hri_rc" in
@@ -3515,7 +3597,7 @@ if [ ! -x "$_HCL" ]; then
   FAILS+=("G-AR CANNOT VERIFY: $_HCL is missing or not executable, so no exit code this handoff asserts was re-run. Restore it: git -C ~/code/darwin-mac-ops checkout -- handoff-claims.py")
 elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
   bold "=== G-AR . asserted exit codes are RE-RUN ==="
-  gate_na "G-AR" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} whose claims could be re-run -- point it at one with HTC_OUTBOUND=/path"
+  gate_na "G-AR" "this session has no numbered handoff in ${HTC_DIR/#$HOME/~} whose claims could be re-run${_htc_na_why:-}"
 else
   _hcl_o="$(/usr/bin/python3 "$_HCL" --handoff "$_htc_out" </dev/null 2>&1)"; _hcl_rc=$?
   # The advisory is read out of the tool's OWN output rather than re-derived here. A second
@@ -3906,7 +3988,7 @@ if [ ! -r "$SPC" ]; then
 elif [ -z "${_htc_out:-}" ] || [ ! -f "${_htc_out:-}" ]; then
   # The ask is answered BY A LINE IN THE HANDOFF, so with no handoff on disk there is no document
   # that could carry the answer and nothing to know. N/A, not a silent pass (G-AI).
-  gate_na "G-AZ" "no outbound handoff on disk, so there is no document whose CALLERS: line could answer the ask"
+  gate_na "G-AZ" "no outbound handoff on disk, so there is no document whose CALLERS: line could answer the ask${_htc_na_why:-}"
 elif [ -z "${GATE_START_REPO:-}" ]; then
   gate_na "G-AZ" "the wrap did not start inside a git repo, so this session has no commits to read for added refusals"
 else

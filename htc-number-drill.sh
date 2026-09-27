@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# htc-number-drill.sh — controls for gate-selfcheck's _htc_predecessor.
+# htc-number-drill.sh — controls for gate-selfcheck's handoff-NAME resolution:
+# _htc_predecessor (which number) and _htc_resolve_out (which spelling).
 #
 # G-AQ can only grade an inbound handoff it can NAME, and the naming was two bugs deep:
 #
@@ -39,10 +40,13 @@ check(){ # check <name> <expected> <got>
 _fn="$(awk '/^_htc_predecessor\(\)/,/^}$/' "$GATE")"
 [ -n "$_fn" ] || { echo "drill: CANNOT VERIFY — could not extract _htc_predecessor from $GATE"; exit 2; }
 eval "$_fn" || { echo "drill: CANNOT VERIFY — extracted function did not parse"; exit 2; }
+_fn2="$(awk '/^_htc_resolve_out\(\)/,/^}$/' "$GATE")"
+[ -n "$_fn2" ] || { echo "drill: CANNOT VERIFY — could not extract _htc_resolve_out from $GATE"; exit 2; }
+eval "$_fn2" || { echo "drill: CANNOT VERIFY — extracted _htc_resolve_out did not parse"; exit 2; }
 
 T="$(mktemp -d "${TMPDIR:-/tmp}/htc-num-drill.XXXXXX")" || exit 2
 trap 'rm -rf "$T"' EXIT
-bold "=== _htc_predecessor drill ==="
+bold "=== _htc_predecessor drill (which NUMBER) ==="
 
 # 1. THE CASE THAT SHIPPED: a zero-padded 07 whose predecessor is on disk as 06.
 : > "$T/HANDOFF-proj-06.md"
@@ -75,10 +79,67 @@ check "session 01 has no predecessor" "" "$(_htc_predecessor "$T" proj 01)"
 E="$T/empty"; mkdir -p "$E"
 check "a missing predecessor is still NAMED, not silent" "$E/HANDOFF-proj-06.md" "$(_htc_predecessor "$E" proj 07)"
 
+
+# ---------------------------------------------------------------------------
+# _htc_resolve_out — WHICH SPELLING. The second naming bug, and the more expensive one:
+# a session slug is not always the prefix of its own handoff's filename. ceo-desk sessions
+# call themselves `freshcanary-13` and write HANDOFF-ceoFreshCanary-13.md, so the exact-name
+# derivation missed and FIVE wrap steps (G-AQ, G-AQ#dod, G-R, G-AR, G-AZ) reported a quiet
+# n/a on every handoff that project ever wrote — an n/a a reader cannot tell from "nothing
+# to check". SM 1218798969221226, filed by the session it happened to, dead-lettered 147h.
+#
+# rc contract, drilled below: 0 = one path printed · 1 = nothing matched, nothing printed ·
+# 2 = ambiguous, the BASENAMES printed and NOTHING chosen.
+bold "=== _htc_resolve_out drill ==="
+_rc(){ printf '%s' "$(_htc_resolve_out "$@")"; }        # value only
+_rcode(){ _htc_resolve_out "$@" >/dev/null 2>&1; printf '%s' "$?"; }
+
+# 1. THE CASE THAT FILED THE CARD: the slug is a case-insensitive suffix of the filename's
+#    project, at a camelCase seam.
+C="$T/c1"; mkdir -p "$C"; : > "$C/HANDOFF-ceoFreshCanary-13.md"
+check "a ceo-desk prefix resolves from the bare slug" "$C/HANDOFF-ceoFreshCanary-13.md" "$(_rc "$C" freshcanary 13)"
+
+# 2. the NUMBER is decoded, not string-matched — 4 and 04 are one session (the octal half of
+#    this file, reused: a fix that only understood '04' would move the bug, not close it).
+C="$T/c2"; mkdir -p "$C"; : > "$C/HANDOFF-ceoFoo-04.md"
+check "slug -4 matches the file's -04" "$C/HANDOFF-ceoFoo-04.md" "$(_rc "$C" foo 4)"
+
+# 3. NEGATIVE CONTROL, the reason the rule is narrow: a suffix that lands MID-WORD is a
+#    coincidence, not a name. Without the boundary test, slug `anary-13` claims the file in
+#    control 1 and the gate grades a stranger's handoff with a straight face.
+C="$T/c3"; mkdir -p "$C"; : > "$C/HANDOFF-ceoFreshCanary-13.md"
+check "a mid-word suffix does NOT match" "" "$(_rc "$C" anary 13)"
+check "  ...and says so with rc 1" "1" "$(_rcode "$C" anary 13)"
+
+# 4. a DIFFERENT number never matches, however well the name fits.
+C="$T/c4"; mkdir -p "$C"; : > "$C/HANDOFF-ceoFreshCanary-12.md"
+check "the right name at the wrong number misses" "" "$(_rc "$C" freshcanary 13)"
+
+# 5. AMBIGUITY IS NOT RESOLVED BY GUESSING: two matches print both basenames and rc 2, so
+#    G-AQ's n/a can name them. Grading the WRONG session's handoff is worse than grading
+#    none, because the verdict is confident.
+C="$T/c5"; mkdir -p "$C"; : > "$C/HANDOFF-ceoFreshCanary-13.md"; : > "$C/HANDOFF-fableFreshCanary-13.md"
+check "two matches are reported, not chosen" "HANDOFF-ceoFreshCanary-13.md HANDOFF-fableFreshCanary-13.md" "$(_rc "$C" freshcanary 13)"
+check "  ...with rc 2" "2" "$(_rcode "$C" freshcanary 13)"
+
+# 6. HANDOFF-GATE.md lives in the same directory and has no session number. It must never be
+#    a candidate — the gate reading the GATE DOC as its own handoff is a closed loop.
+C="$T/c6"; mkdir -p "$C"; : > "$C/HANDOFF-GATE.md"
+check "HANDOFF-GATE.md is never a candidate" "" "$(_rc "$C" gate 13)"
+
+# 7. the whole-field case still resolves (a slug that IS the project, differing only in case)
+C="$T/c7"; mkdir -p "$C"; : > "$C/HANDOFF-Proj-13.md"
+check "a case-only difference resolves" "$C/HANDOFF-Proj-13.md" "$(_rc "$C" proj 13)"
+
+# 8. an empty directory is rc 1 and silent — the caller then keeps the exact name it wanted,
+#    so the n/a can still say which file it was looking for.
+C="$T/c8"; mkdir -p "$C"
+check "an empty directory is silent, rc 1" "1" "$(_rcode "$C" freshcanary 13)"
+
 echo
 if [ "$FAIL" -gt 0 ]; then
-  bold "=== _htc_predecessor drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="
+  bold "=== handoff-name drill: FAIL — $FAIL of $((PASS+FAIL)) controls did not hold ==="
   exit 1
 fi
-bold "=== _htc_predecessor drill: PASS — $PASS controls ==="
+bold "=== handoff-name drill: PASS — $PASS controls ==="
 exit 0
