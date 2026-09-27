@@ -83,6 +83,8 @@ G-AW#drill	-	the drill census can still go red
 G-AX	-	the fuel gauge can heal a 401 (oauth-keepalive drill)
 G-AY	-	the MAILBOX is read at wrap: every not-my-lane finding delivered to this session is FIXED, CARDED or DECLINED (FF-2)
 G-AY#drill	-	the mailbox can still refuse (roster-mail-drill: a shrug is refused, a dark store is not empty)
+G-AZ	-	a SHARED path that gained a guarded REFUSAL names its live CALLERS in the handoff (shared-path-callers; advisory, never a blocker)
+G-AZ#drill	-	the shared-path census can still answer (its own 36-assertion --selftest)
 
 # --- verdict aliases -------------------------------------------------------
 G-T#43u	G-T#43	sz-tick box probe answered but unparseable
