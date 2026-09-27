@@ -419,11 +419,14 @@ fi
 # rather than in a run. Both are hermetic (scratch ROSTER_DB, live board never opened) and take
 # well under a second, so there was never a cost argument for leaving them out.
 gate_ran "G-H#roster"
-for _rdrill in "$HOME/Scripts/roster-ghost-drill.sh" "$HOME/Scripts/roster-identity-drill.sh"; do
+# sweeper-07 2026-09-27: + roster-fleet-liveness-drill.py (SM 1218512514779186, 30654bd) -- hermetic
+# (ROSTER_FLEET_DIR seam, no network, ~2 s) and born an ORPHAN, so G-AW went red at every wrap.
+for _rdrill in "$HOME/Scripts/roster-ghost-drill.sh" "$HOME/Scripts/roster-identity-drill.sh" "$HOME/Scripts/roster-fleet-liveness-drill.py"; do
   _rdname="$(basename "$_rdrill")"
   if [ -x "$_rdrill" ]; then
     bold "=== G-H#roster · $_rdname (offline, scratch db) ==="
-    _RG_OUT="$(bash "$_rdrill" 2>&1)"; _RG_RC=$?
+    _rrun=bash; case "$_rdrill" in *.py) _rrun=python3 ;; esac
+    _RG_OUT="$($_rrun "$_rdrill" 2>&1)"; _RG_RC=$?
     printf '%s\n' "$_RG_OUT" | tail -1 | sed 's/^/  /'
     # ONE producer of the name and the remedy -- see gate_roster_line. The bug this replaces
     # was not that the loop lost track of $_rdname (it did not); it was that nothing anywhere
