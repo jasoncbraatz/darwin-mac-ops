@@ -3025,12 +3025,44 @@ if [ -x "$CBC" ]; then
   # 90 s here (the census enforces +30 s of slack around it). A row too slow to measure inside
   # a wrap then reports CANNOT VERIFY, which is the honest answer and still a WARN: "this
   # board cannot be measured in the time a wrap has" is real information about the board.
-  _cbc_out="$(CBC_TIMEOUT="${CBC_TIMEOUT:-90}" bash "$CBC" --rotate 1 2>&1)"; _cbc_rc=$?
-  printf '%s\n' "$_cbc_out" | sed 's/^/         /'
+  # ...AND THE RUNG HAS ITS OWN WALL CLOCK (SM 1218904200290331). The paragraph above caps
+  # the census's PER-ROW budget. Nothing capped the RUNG, so the rung inherited whatever the
+  # census did with that budget -- and on 2026-09-26 that was: nothing. Three session-out
+  # runs on darwin printed this header as their LAST line and never returned (>500 s, outer
+  # rc=124), so the wrap could not end. Two separate defects, both closed here:
+  #
+  #   1. NO RUNG BOUND AT ALL. An instrument that cannot answer must SAY so, not hang
+  #      (the G-AI rule). CBC_TIMEOUT bounds one board run *inside* the census; it says
+  #      nothing about how many runs happen or whether the census returns.
+  #   2. `$( )` WAITS FOR EOF, NOT FOR EXIT -- so simply wrapping the old line in `timeout`
+  #      would NOT have fixed it. Measured 2026-09-26: a command substitution around a
+  #      process whose descendant outlives it blocks forever on the inherited pipe even
+  #      after the process itself is killed on time. Capturing to a FILE removes the EOF
+  #      dependency entirely: an orphan may hold that fd as long as it likes and this rung
+  #      still returns. (The census no longer leaks such orphans either -- it kills the
+  #      board engine's whole process group -- but the rung must not DEPEND on that.)
+  #
+  # `timeout` runs the child in its own process group and signals the group, so the census
+  # and its board engine go down together; -k adds the SIGKILL backstop. </dev/null so a
+  # board engine that reads stdin fails fast instead of blocking on an inherited terminal.
+  _cbc_budget="${CBC_RUNG_BUDGET:-150}"   # CBC_TIMEOUT 90 + the census's own +30 slack + 30 to report
+  _cbc_tmp="$(mktemp "${TMPDIR:-/tmp}/gate-cbc.XXXXXX")"
+  timeout -k 5 "$_cbc_budget" \
+    env CBC_TIMEOUT="${CBC_TIMEOUT:-90}" bash "$CBC" --rotate 1 >"$_cbc_tmp" 2>&1 </dev/null
+  _cbc_rc=$?
+  _cbc_out="$(cat "$_cbc_tmp" 2>/dev/null)"; rm -f "$_cbc_tmp"
+  [ -n "$_cbc_out" ] && printf '%s\n' "$_cbc_out" | sed 's/^/         /'
   case "$_cbc_rc" in
     0) : ;;
     1) WARNS+=("G-AL#census: a REGISTERED project's board is stale or unreadable and no session was ever going to notice -- G-AL#board only grades the current session's row. It is not yours to fix; it is yours to have seen. Detail: bash ~/code/darwin-mac-ops/charter-board-census.sh --rotate 1") ;;
     2) FAILS+=("G-AL#census CANNOT VERIFY: the charter-board census could not enumerate project-charters.tsv (missing, or ZERO rows -- a broken reader, not an empty estate). Exit 2 is NOT a pass. Run: bash ~/code/darwin-mac-ops/charter-board-census.sh --list") ;;
+    # 124 = the rung budget expired (timeout), 137 = the -k SIGKILL backstop landed. The
+    # census was killed with its process group, so nothing was measured this run. WARN, not
+    # FAIL, for the SAME reason a stale board is a WARN (see the header block): the row being
+    # measured belongs to somebody else's project, and a wrap that goes red for a slow
+    # stranger is a light that gets removed. "This board cannot be measured in the time a
+    # wrap has" is real information, and it is now SAID instead of hung on.
+    124|137) WARNS+=("G-AL#census CANNOT VERIFY: the board census did not finish inside the rung's ${_cbc_budget}s wrap budget and was killed with its process group, so no registered board was measured this run. Exit 124 is NOT a pass. Find the slow row (each prints its own last-measured time): bash ~/code/darwin-mac-ops/charter-board-census.sh --list -- then run that one row by hand. Raise the budget for one run with CBC_RUNG_BUDGET=<seconds>.") ;;
     *) FAILS+=("G-AL#census: charter-board-census.sh exited unexpectedly ($_cbc_rc) -- treat as CANNOT VERIFY") ;;
   esac
 else

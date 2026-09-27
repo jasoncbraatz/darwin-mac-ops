@@ -141,5 +141,45 @@ if [ "$RC" = 1 ] && printf '%s' "$OUT" | command grep -q "fresh *a" && printf '%
   ok "14 NEG a stale row beside a fresh one leaves the fresh one reported fresh"
 else no "14 NEG a stale row beside a fresh one leaves the fresh one reported fresh" "rc=$RC :: $OUT"; fi
 
+# 15 · THE HANG THIS CARD CLOSES (SM 1218904200290331). A board engine that never returns
+#      must be killed at the census's own budget and reported as a finding -- the census
+#      must RETURN. Before the fix the census could sit on it indefinitely, and the gate
+#      rung that wrapped it in $( ) sat there too, which is how three session-out runs on
+#      darwin printed the G-AL#census header as their last line and never came back.
+cat > "$T/hang.sh" <<'HANG'
+#!/bin/bash
+# a grandchild that OUTLIVES the engine: the exact shape that gets reparented to init and
+# keeps holding the captured pipe after subprocess kills only its direct child.
+( sleep 120 ) &
+echo "$!" > "$HANG_KID"
+echo "board: about to hang"
+sleep 120
+HANG
+chmod +x "$T/hang.sh"
+export HANG_KID="$T/kid.pid"
+: > "$T/crit-h.tsv"
+printf '# f\nh\t~/x\t%s\t%s --brief\n' "$T/crit-h.tsv" "$T/hang.sh" > "$T/r15"
+rm -f "$HANG_KID"
+_t0=$SECONDS
+OUT=$(CBC_REG="$T/r15" CBC_STATE="$T/s15" CBC_TIMEOUT=1 CBC_SLACK=2 "$CENSUS" 2>&1); RC=$?
+_el=$((SECONDS-_t0))
+if [ "$RC" = 1 ] && [ "$_el" -lt 30 ] && printf '%s' "$OUT" | command grep -q "CANNOT VERIFY"; then
+  ok "15 a board engine that hangs is killed at the budget and reported CANNOT VERIFY (returned in ${_el}s)"
+else no "15 a board engine that hangs is killed at the budget and reported CANNOT VERIFY" "rc=$RC elapsed=${_el}s :: $OUT"; fi
+
+# 16 · ...AND IT TAKES THE WHOLE TREE WITH IT. Killing only the direct child leaves the
+#      grandchild running, still holding the inherited fd -- an orphan that outlives every
+#      wrap. start_new_session + killpg is what makes this control pass; subprocess.run's
+#      own timeout does not (banked lesson 2026-08-27).
+_kid="$(cat "$HANG_KID" 2>/dev/null || echo)"
+if [ -z "$_kid" ]; then
+  no "16 the hung engine's descendant is killed too, not orphaned" "control 15's engine never recorded a descendant pid -- the control proved nothing"
+elif kill -0 "$_kid" 2>/dev/null; then
+  kill -9 "$_kid" 2>/dev/null
+  no "16 the hung engine's descendant is killed too, not orphaned" "pid $_kid survived the census: the timeout killed the shell but not its process group"
+else
+  ok "16 the hung engine's descendant is killed too, not orphaned (process group)"
+fi
+
 echo "charter-board-census-drill: $PASS passed, $FAIL failed ($((PASS+FAIL)) controls, 4 of them negative)"
 [ "$FAIL" = 0 ] || exit 1

@@ -44,13 +44,17 @@
 #   CBC_STATE    rotation ledger          (default: $HOME/.local/state/charter-board-census.tsv)
 #   CBC_TIMEOUT  per-row seconds          (default: 300 — the same BOARD_CHECK_TIMEOUT the
 #                gate uses; a smaller one manufactures CANNOT VERIFY under load, wealthTensor-97)
+#   CBC_SLACK    grace above CBC_TIMEOUT   (default: 30 — the board engine is given its own
+#                budget PLUS this before the census kills its process group. Exists so the
+#                drill can exercise the timeout path in seconds instead of half a minute;
+#                production sets it no more than the other two.)
 # USAGE
 #   charter-board-census.sh                 full pass, every registered row
 #   charter-board-census.sh --rotate 1      the single least-recently-measured row
 #   charter-board-census.sh --list          enumerate rows and last-measured, run nothing (rc 0/2)
 set -uo pipefail
 exec /usr/bin/python3 - "$@" <<'PYEOF'
-import os, re, sys, time, subprocess
+import os, re, signal, sys, time, subprocess
 
 HOME = os.path.expanduser("~")
 REG  = os.path.expanduser(os.environ.get("CBC_REG",
@@ -58,6 +62,7 @@ REG  = os.path.expanduser(os.environ.get("CBC_REG",
 STATE= os.path.expanduser(os.environ.get("CBC_STATE",
         os.path.join(HOME, ".local/state/charter-board-census.tsv")))
 TMO  = int(os.environ.get("CBC_TIMEOUT", "300"))
+SLACK= int(os.environ.get("CBC_SLACK", "30"))
 
 argv = sys.argv[1:]
 rotate = 0
@@ -136,12 +141,28 @@ for r in todo:
         print("  NOCHECK  %-22s %s" % (key, brief)); last[key] = now; continue
     chk = brief.replace("--brief", "--check")
     env = dict(os.environ); env.setdefault("BOARD_CHECK_TIMEOUT", str(TMO))
+    # THE TIMEOUT MUST TAKE THE WHOLE TREE (SM 1218904200290331; banked lesson
+    # 2026-08-27). subprocess.run(timeout=) kills ONLY the `/bin/bash -c` it forked --
+    # every descendant is reparented to init, keeps running, and keeps holding the
+    # captured pipes. Two costs, both real: on a Python whose run() drains those pipes
+    # after the kill this never returns at all, and even where it does return, the
+    # orphans outlive the wrap still holding an inherited fd. So: start_new_session puts
+    # the board engine in its OWN process group, and on timeout we kill the GROUP. The
+    # post-kill drain is itself bounded, because a stuck fd must not hang the census.
+    p = subprocess.Popen(["/bin/bash", "-c", chk], stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                         text=True, env=env, start_new_session=True)
     try:
-        p = subprocess.run(["/bin/bash", "-c", chk], capture_output=True, text=True,
-                           timeout=TMO + 30, env=env)
-        rc, out = p.returncode, (p.stdout + p.stderr).strip()
+        out = p.communicate(timeout=TMO + SLACK)[0]
+        rc = p.returncode
     except subprocess.TimeoutExpired:
-        rc, out = 124, "board engine exceeded %ds" % (TMO + 30)
+        try: os.killpg(p.pid, signal.SIGKILL)   # pgid == pid: start_new_session made it leader
+        except OSError: pass
+        try: out = p.communicate(timeout=10)[0]
+        except subprocess.TimeoutExpired: out = ""
+        rc = 124
+        out = "board engine exceeded %ds (process group killed)\n%s" % (TMO + SLACK, out or "")
+    out = (out or "").strip()
     if rc == 0:
         print("  fresh    %-22s" % key)
     elif rc == 1:
