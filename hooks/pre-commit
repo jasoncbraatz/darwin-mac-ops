@@ -252,6 +252,20 @@ estate_verify_all_advisory() {
 }
 estate_verify_all_advisory
 
+# PIPEFAIL RATCHET (SM 1218156102990892, fable-smRanger-00 2026-09-27) -- a NUDGE, never a refusal.
+# A tree sweep of ~/Scripts + repos reads ~677 SIGPIPE trapdoors, mostly harmless, and nobody drains
+# that; so read only the lines THIS commit ADDS to *.sh files that set pipefail. No new trapdoor lands
+# silently; old ones retire as their lines are touched. Fails OPEN if the linter is not on this box.
+# Silence: ESTATE_PIPEFAIL_NUDGE=0.
+estate_pipefail_nudge() {
+  [ "${ESTATE_PIPEFAIL_NUDGE:-1}" = "1" ] || return 0
+  _pfl="$HOME/Scripts/pipefail-lint.sh"
+  [ -f "$_pfl" ] || return 0
+  bash "$_pfl" --staged >&2 || printf 'estate pre-commit: ^ pipefail nudge (advisory; this commit PROCEEDS)\n' >&2
+  return 0
+}
+estate_pipefail_nudge
+
 # --- the drill-scratch leg (card 1218232604204962 ask 3, opus-feynmanSync-14 2026-09-08) ----
 # A drill that mutates real files is not a drill; it is an outage with a test suite attached.
 # `bb-close.py --selftest` appended a fabricated closure line -- citing a commit that does not
