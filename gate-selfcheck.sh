@@ -3415,6 +3415,132 @@ else
   esac
 fi
 
+# -- G-BA . the wrap Jason can SEE (born 2026-09-27, nightCrew-31) -----------------------
+# Card 1218649246436186. G-AQ above resolves the session's outbound handoff in the folder
+# Jason reads and, when it is not there, says n/a -- correctly, because most sessions (every
+# rail lane, every scheduled run) hand off inside their project repo and never write a
+# HANDOFF-<slug>.md at all. But that one n/a was answering TWO different questions with the
+# same word, and only one of them is "nothing to check":
+#
+#   (a) this session wrote no HANDOFF-<slug>.md anywhere      -> genuinely nothing to grade
+#   (b) this session wrote one, committed it to a repo, and    -> A WRAP JASON CANNOT SEE
+#       never put a copy in the folder he actually opens
+#
+# (b) is not hypothetical and it is not cheap. 2026-09-19: fable-freshCanary-hardening wrapped
+# CORRECTLY by every mechanical measure -- handoff committed to
+# shopify-theme-corpus/docs/handoffs/HANDOFF-ceoFreshCanary-hardening-2026-09-19.md, five
+# clean gate walks, roster left -- and no copy landed in ~/Desktop/downloads. Jason reads
+# Finder. He saw only the KICKOFF file, concluded the job had not been done, and re-pasted the
+# same kickoff into a fresh Fable, which re-seated, re-read everything and re-verified before
+# noticing the work was already finished. Cost: ~40 min of a Fable and a duplicate roster
+# identity. The brief has called ~/Desktop/downloads/HANDOFF-<slug>.md "the deliverable Jason
+# lives for" the whole time; nothing checked it, here or in handoff-lint.
+#
+# WHY THIS IS A SEPARATE ROW AND NOT A TIGHTENING OF G-AQ. G-AQ grades the CONTENT of a
+# handoff against its predecessor; it cannot fire at all without a document to read. This
+# asks whether the document reached its READER, which is exactly the question that has no
+# answer when the document is absent. Tightening G-AQ's n/a into a FAIL would also red every
+# rail lane on the estate -- case (a) -- which is the G-AI failure (a check that can never
+# pass) and trains readers to wave reds through.
+#
+# THE DISCRIMINATOR IS A DOCUMENT IN GIT, NOT A CLOCK. An mtime window would have to guess
+# how long a wrap takes, and the failing specimen's handoff carries a DATE in its name and no
+# session number at all (`-hardening-2026-09-19`), so G-AQ's number-matching resolver cannot
+# see it either -- which is why this row asks the repos directly rather than reusing $_htc_out.
+# No mtime, no ssh: the downloads folder is itself a git repo that G-H already proves committed
+# and pushed, so presence HERE plus G-H is the whole guarantee on every box that clones it.
+#
+# THE BOUNDARY TEST IS G-AQ's, REUSED ON PURPOSE (see _htc_resolve_out above). A ceo-desk
+# session calls itself `freshcanary-hardening` and writes HANDOFF-ceoFreshCanary-hardening-*,
+# so the slug is a case-insensitive INFIX of the filename, not a prefix of it -- and an infix
+# test alone would let a slug `anary` claim the same file. The seam must be a word boundary:
+# position 0, a dash just before it, or an upper-case letter at the seam in the name AS
+# WRITTEN. Both spellings of the tag are searched (one leading `<word>-` stripped, and the raw
+# tag) for the same reason G-AQ searches both -- the tier prefix is not reliably present, and
+# hard-coding a tier list is how G-AL grew two matchers.
+gate_ran "G-BA"
+_dlc_hit() {   # <basename stem AS WRITTEN> <lower-cased key> -> 0 when the key sits at a word boundary
+  local _s="$1" _k="$2" _l _pre _i
+  _l="$(printf '%s' "$_s" | tr '[:upper:]' '[:lower:]')"
+  case "$_l" in *"$_k"*) : ;; *) return 1 ;; esac
+  _pre="${_l%%"$_k"*}"; _i=${#_pre}
+  [ "$_i" -eq 0 ] && return 0
+  case "${_s:$_i:1}" in [A-Z]) return 0 ;; esac
+  [ "${_s:$((_i-1)):1}" = "-" ] && return 0
+  return 1
+}
+_dlc_keys=""
+if [ -n "${_ch_tag:-}" ]; then
+  _dlc_keys="$(printf '%s\n%s\n' "${_ch_tag#*-}" "$_ch_tag" | tr '[:upper:]' '[:lower:]' | sort -u)"
+fi
+_dlc_down=""; _dlc_gitfile=""
+# the downloads repo is excluded from the git sweep below: a copy that IS there is a pass, and
+# counting it as "only in git" would make the row accuse the state it is asking for.
+_dlc_dl_top="$(cd "$HTC_DIR" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$_dlc_keys" ]; then
+  for _dlc_f in "$HTC_DIR"/HANDOFF-*.md; do
+    [ -f "$_dlc_f" ] || continue
+    _dlc_b="${_dlc_f##*/}"; _dlc_b="${_dlc_b%.md}"; _dlc_b="${_dlc_b#HANDOFF-}"
+    while IFS= read -r _dlc_k; do
+      [ -n "$_dlc_k" ] || continue
+      if _dlc_hit "$_dlc_b" "$_dlc_k"; then _dlc_down="$_dlc_f"; break; fi
+    done <<<"$_dlc_keys"
+    [ -n "$_dlc_down" ] && break
+  done
+  if [ -z "$_dlc_down" ]; then
+    for repo in "${REPOS[@]}"; do
+      [ "$repo" = "$_dlc_dl_top" ] && continue
+      while IFS= read -r _dlc_rel; do
+        [ -n "$_dlc_rel" ] || continue
+        _dlc_b="${_dlc_rel##*/}"; _dlc_b="${_dlc_b%.md}"; _dlc_b="${_dlc_b#HANDOFF-}"
+        while IFS= read -r _dlc_k; do
+          [ -n "$_dlc_k" ] || continue
+          if _dlc_hit "$_dlc_b" "$_dlc_k"; then _dlc_gitfile="$repo/$_dlc_rel"; break; fi
+        done <<<"$_dlc_keys"
+        [ -n "$_dlc_gitfile" ] && break
+      done < <(git -C "$repo" ls-files -- '*HANDOFF-*.md' 2>/dev/null)
+      [ -n "$_dlc_gitfile" ] && break
+    done
+  fi
+fi
+if [ -z "${_ch_tag:-}" ]; then
+  bold "=== G-BA . the wrap Jason can SEE ==="
+  gate_na "G-BA" "this session has no slug at all (no CHARTER_SLUG, no GATE_ROSTER_WHO, no session-in), so there is no name to look a handoff up by -- the same reason G-AQ cannot grade one"
+elif [ -n "$_dlc_down" ]; then
+  :   # the deliverable is in the folder Jason opens. Success is silent.
+elif [ -n "$_dlc_gitfile" ]; then
+  bold "=== G-BA . the wrap Jason can SEE ==="
+  printf '  FAIL   handoff is in git only: %s\n' "${_dlc_gitfile/#$HOME/~}"
+  FAILS+=("G-BA: this session's handoff exists ONLY in git -- ${_dlc_gitfile/#$HOME/~} is committed, and no HANDOFF-*.md in ${HTC_DIR/#$HOME/~} carries the slug '${_ch_tag}'. Jason reads that folder in Finder, so a wrap that only lives in a repo reads as a job never done, and the next session gets re-seated onto work that is already finished (SM 1218649246436186, cost ~40 min of a Fable). Copy it where it will be seen, then vault it: cp $_dlc_gitfile $HTC_DIR/ && git -C $HTC_DIR add \"\$(basename $_dlc_gitfile)\" && git -C $HTC_DIR commit -m \"vault: handoff for ${_ch_tag}\" -- \"\$(basename $_dlc_gitfile)\" && git -C $HTC_DIR push")
+else
+  bold "=== G-BA . the wrap Jason can SEE ==="
+  gate_na "G-BA" "this session wrote no HANDOFF-*.md carrying the slug '${_ch_tag}' anywhere the gate can read -- not in ${HTC_DIR/#$HOME/~} and not tracked in any of the ${#REPOS[@]} repos under the roots. Rail lanes and scheduled runs hand off inside their project repo (docs/HANDOFF.md, docs/handoffs/<project>.md) and legitimately land here; there is no copy to grade because there is no document"
+fi
+# G-BA-END . gate-downloads-copy-drill.sh EXTRACTS the text between the gate_ran marker
+#             above and this line, and eval's it against fixtures -- a drill that grades a
+#             copy proves the copy (htc-number-drill.sh:16, the same reason stated there).
+
+# -- G-BA#drill . the downloads-copy row can still tell a blocker from a rail lane ----------
+# G-BA's FAILING state and its N/A state are the same sentence from outside ("no handoff in
+# downloads"), and only one of them is a blocker: the other is every rail lane on the estate.
+# So the control that matters is not "does it go red" but "does it still go red for exactly
+# one of the two" — a drift in either direction is silent. MUTANT A in the drill is what
+# proves the red is driven by the matcher rather than by the fixture.
+gate_ran "G-BA#drill"
+DLC_DRILL="${DLC_DRILL:-$HOME/code/darwin-mac-ops/gate-downloads-copy-drill.sh}"
+if [ -x "$DLC_DRILL" ]; then
+  _dlcd_o="$(bash "$DLC_DRILL" </dev/null 2>&1)"; _dlcd_rc=$?
+  if [ "$_dlcd_rc" -ne 0 ]; then
+    bold "=== G-BA#drill . the downloads-copy row can still go red ==="
+    printf '%s\n' "$_dlcd_o" | sed 's/^/         /'
+    FAILS+=("G-BA#drill: the downloads-copy row failed its own controls ($_dlcd_rc). A row that can no longer tell a wrap-Jason-cannot-see from a rail lane is either decorative or a permanent red, and both are indistinguishable from passing. Run: bash ~/code/darwin-mac-ops/gate-downloads-copy-drill.sh")
+  fi
+else
+  bold "=== G-BA#drill . the downloads-copy row can still go red ==="
+  printf '  FAIL   CANNOT VERIFY: %s missing or not executable\n' "${DLC_DRILL/#$HOME/~}"
+  FAILS+=("G-BA#drill CANNOT VERIFY: $DLC_DRILL is missing or not executable, so nothing proved G-BA can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-downloads-copy-drill.sh")
+fi
+
 # -- G-AQ#number . the predecessor's filename is derived correctly (offline drill) -------
 # The check above can only grade an inbound it can NAME. Getting that name wrong does not
 # read as a naming bug -- it reads as "your predecessor's handoff is unreadable", which is
