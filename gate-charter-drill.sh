@@ -46,7 +46,9 @@ grep -q '^CHARTER demo ' "$T/state/demo-3.log" \
 # 2 NEGATIVE — an UNREGISTERED project is a finding, not a shrug. A project nobody has
 #   written a definition of done for is the state this whole mechanism exists to surface.
 mkfix; echo other-1 > "$T/state/current"; run_cr
-chk "unregistered project is rc=2, not a pass" 2 "$RC" "nobody has written down what DONE" "$OUT"
+# sweeper-07 2026-09-27: UNCHARTERED exits 3 since Scripts f3043dd (Jason 2026-09-10: it BLOCKS at
+# student-in, like NO-RECEIPT); this drill still expected the old WARN-shaped 2 and went red on correct code.
+chk "unregistered project is rc=3 (UNCHARTERED blocks), not a pass" 3 "$RC" "nobody has written down what DONE" "$OUT"
 
 # 3 NEGATIVE — a MISSING registry fails closed. Silence here would mean every project on the
 #   machine silently has no charter requirement.
