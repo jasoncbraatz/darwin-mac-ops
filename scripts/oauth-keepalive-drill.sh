@@ -11,7 +11,7 @@ printf 'import sys; open("%s/probed","w").write("yes"); print("stub probe ok")\n
 KA="$(dirname "$0")/oauth-keepalive.sh"
 pass=0; total=0
 ok(){ total=$((total+1)); if [ "$1" = 0 ]; then pass=$((pass+1)); echo "  ok   $2"; else echo "  FAIL $2"; fi; }
-run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" KEEPALIVE_LOG="$D/keepalive.log" CLAUDE_CREDS="$D/creds.json" CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
+run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" KEEPALIVE_LOG="$D/keepalive.log" KEEPALIVE_STAMP="$D/stamp" KEEPALIVE_COOLDOWN_S="${COOL:-0}" CLAUDE_CREDS="$D/creds.json" CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
 # 1. healthy -> no claude call, rc 0
 echo '{"ok": true, "http": 200}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed"
 rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0 || echo 1) "healthy: rc=0, claude not called"
@@ -38,5 +38,14 @@ rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0
 echo '{"ok": false, "http": 401}' > "$D/fu.json"; rm -f "$D/creds.json" "$D/keepalive.log"
 rc=$(run "$D/claude-bad"); ok $([ "$rc" = 1 ] && grep -q "429 rate_limit_error" "$D/keepalive.log" && echo 0 || echo 1) "failed refresh logs claude's own error text"
 rm -f "$D/creds.json"
+# 9. COOLDOWN (fuelKeepalive-01): the plist WATCHES fuel-usage.json, so our own re-probe re-fires us.
+#    A second 401 inside the window must NOT spend another claude -p; one outside it must.
+echo '{"ok": false, "http": 401}' > "$D/fu.json"; date +%s > "$D/stamp"; rm -f "$D/claude.args" "$D/probed"
+rc=$(COOL=600 run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0 || echo 1) "401 inside cooldown: silent, claude not called (no watch loop)"
+echo $(( $(date +%s) - 601 )) > "$D/stamp"
+rc=$(COOL=600 run "$D/claude"); ok $([ "$rc" = 0 ] && [ -e "$D/claude.args" ] && echo 0 || echo 1) "401 after cooldown: refreshed again"
+# 10. the installed plist is event-driven AND keeps its clock parachute
+PL="$(dirname "$0")/../launchagents/com.braatz.oauth-keepalive.plist"
+ok $(grep -q '<key>WatchPaths</key>' "$PL" && grep -q 'fuel-usage.json' "$PL" && grep -q '<key>StartInterval</key>' "$PL" && echo 0 || echo 1) "plist watches fuel-usage.json and keeps StartInterval"
 echo "oauth-keepalive-drill: $pass/$total"
 [ "$pass" = "$total" ]

@@ -13,6 +13,11 @@
   </array>
   <key>EnvironmentVariables</key>
   <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <!-- EVENT, not clock (fuelKeepalive-01, 2026-09-30): fire the moment the probe rewrites its
+       verdict, so a 401 heals in seconds, not up to 30 min. StartInterval stays as the parachute;
+       the script's cooldown stops its own re-probe from re-triggering it in a loop. -->
+  <key>WatchPaths</key>
+  <array><string>/Users/jasoncbraatz/.local/state/pitching-machine/fuel-usage.json</string></array>
   <key>RunAtLoad</key><true/>
   <key>StartInterval</key><integer>1800</integer>
   <key>StandardOutPath</key><string>/Users/jasoncbraatz/.local/state/pitching-machine/oauth-keepalive.out</string>

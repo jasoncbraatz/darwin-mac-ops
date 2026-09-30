@@ -57,6 +57,17 @@ PY
 case "$http" in
   ok)  echo "$(now) ok — token live, nothing to do" >> "$LOG"; exit 0 ;;
   401|403|*+expired)
+    # COOLDOWN (fuelKeepalive-01, 2026-09-30): the plist now WATCHES fuel-usage.json, so this job
+    # fires the instant the probe writes a 401 (v2 waited up to 30 min on a clock: the token died
+    # 06:39Z, three minutes after a 06:36Z "ok", and darwin's gauge sat dark). Our own re-probe
+    # rewrites that same file -- if it still reads 401, the watch would re-fire us every launchd
+    # throttle (10 s), each one a billed `claude -p`. One attempt per cooldown window, silently.
+    STAMP="${KEEPALIVE_STAMP:-$ST/oauth-keepalive.last-attempt}"
+    COOL="${KEEPALIVE_COOLDOWN_S:-600}"
+    last=$(cat "$STAMP" 2>/dev/null || echo 0)
+    case "$last" in ''|*[!0-9]*) last=0 ;; esac
+    [ $(( $(date +%s) - last )) -lt "$COOL" ] && exit 0
+    date +%s > "$STAMP"
     echo "$(now) http=$http — refreshing in the GUI domain" >> "$LOG"
     # fast_worker per ~/Scripts/models.json; a keepalive that bills orchestrator tokens is a leak.
     model=$(/usr/bin/python3 -c 'import json;print(json.load(open("'"$HOME"'/Scripts/models.json"))["tiers"]["fast_worker"]["alias"])' 2>/dev/null || echo haiku)
