@@ -234,8 +234,17 @@ estate_verify_all_advisory() {
   # inherits them and writes f.txt into THE COMMIT'S OWN TEMP INDEX -> "invalid object ... for 'f.txt'
   # / Error building trees" on every pathspec commit in pitching-machine (measured twice, 2026-09-05).
   # Sanitize the env for the replay; the hook itself keeps its own copies above.
+  # AN ADVISORY REPLAY NEVER TOUCHES PRODUCTION (ruling #675, 2026-09-30): ledgerPolish's frozen
+  # ruler (verify-ledgerpolish.sh) does a LIVE signed-in playwright capture of app.braatzledger.com
+  # and writes v5/brand/PRIMITIVE/braatzledger/* into braatzio-plan's worktree. Replayed on EVERY
+  # pitching-machine commit, it held deploy invariant 3's 10-min LIVE window open forever and
+  # starved every flowers:braatzledger-surface deploy (captures 16:29/17:01/17:09Z matched commits
+  # 16:28/16:59/17:08Z to the minute). XP_LIVE=0 = the ruler grades the captures already on disk,
+  # no network. ESTATE_REPLAY=1 tells any other ruler it is an advisory replay: honor it the
+  # same way (no live network writes, no worktree writes) -- a replay is a reading, not a run.
   env -u GIT_INDEX_FILE -u GIT_DIR -u GIT_WORK_TREE -u GIT_PREFIX \
        VERIFY_ALL_TIMEOUT_SEC="${VERIFY_ALL_TIMEOUT_SEC:-30}" \
+       XP_LIVE=0 ESTATE_REPLAY=1 \
        "$HOME/Scripts/verify-all.sh" --quiet \
        --budget "${ESTATE_VERIFY_ALL_BUDGET_SEC:-120}" >&2 2>&1
   _va_rc=$?
