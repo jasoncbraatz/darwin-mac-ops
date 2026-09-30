@@ -23,7 +23,7 @@ case "$os" in
       --uninstall)
         launchctl bootout "gui/$(id -u)/com.braatz.oauth-keepalive" 2>/dev/null; rm -f "$LA"; echo "oauth-keepalive: disarmed" ;;
       --status)
-        if launchctl list com.braatz.oauth-keepalive >/dev/null 2>&1; then echo "oauth-keepalive: armed (launchd)"; else echo "oauth-keepalive: NOT ARMED"; fi
+        if launchctl list com.braatz.oauth-keepalive >/dev/null 2>&1; then echo "oauth-keepalive: armed (launchd$(grep -q WatchPaths "$LA" 2>/dev/null && echo ', watching fuel-usage.json'))"; else echo "oauth-keepalive: NOT ARMED"; fi
         tail -1 "$ST/oauth-keepalive.log" 2>/dev/null || true ;;
       *) echo "usage: $0 --install|--uninstall|--status" >&2; exit 2 ;;
     esac ;;
@@ -32,18 +32,20 @@ case "$os" in
     case "$mode" in
       --install)
         mkdir -p "$U"
-        cp "$DMO/systemd/oauth-keepalive.service" "$DMO/systemd/oauth-keepalive.timer" "$U/"
+        cp "$DMO/systemd/oauth-keepalive.service" "$DMO/systemd/oauth-keepalive.timer" "$DMO/systemd/oauth-keepalive.path" "$U/"
         systemctl --user daemon-reload
         systemctl --user enable --now oauth-keepalive.timer && echo "oauth-keepalive: ARMED (systemd --user, 30min)"
+        # event path (fuelKeepalive-01): heal a 401 the moment the probe writes it, not up to 30 min later
+        systemctl --user enable --now oauth-keepalive.path && echo "oauth-keepalive: WATCHING fuel-usage.json (systemd .path)"
         if [ "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)" != "yes" ]; then
           echo "  ⚠ Linger=no: this timer dies at logout. Fix: loginctl enable-linger $USER"
         fi ;;
       --uninstall)
-        systemctl --user disable --now oauth-keepalive.timer 2>/dev/null; rm -f "$U/oauth-keepalive.service" "$U/oauth-keepalive.timer"
+        systemctl --user disable --now oauth-keepalive.path oauth-keepalive.timer 2>/dev/null; rm -f "$U/oauth-keepalive.service" "$U/oauth-keepalive.timer" "$U/oauth-keepalive.path"
         systemctl --user daemon-reload; echo "oauth-keepalive: disarmed" ;;
       --status)
         if systemctl --user is-active oauth-keepalive.timer >/dev/null 2>&1; then
-          echo "oauth-keepalive: armed (systemd --user)"; systemctl --user list-timers oauth-keepalive.timer --no-pager 2>/dev/null | sed -n 2p
+          echo "oauth-keepalive: armed (systemd --user$(systemctl --user is-active oauth-keepalive.path >/dev/null 2>&1 && echo ', watching fuel-usage.json' || echo ', ⚠ .path NOT active -- re-run --install'))"; systemctl --user list-timers oauth-keepalive.timer --no-pager 2>/dev/null | sed -n 2p
         else echo "oauth-keepalive: NOT ARMED"; fi
         tail -1 "$ST/oauth-keepalive.log" 2>/dev/null || true ;;
       *) echo "usage: $0 --install|--uninstall|--status" >&2; exit 2 ;;

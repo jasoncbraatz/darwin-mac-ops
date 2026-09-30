@@ -1,0 +1,14 @@
+# oauth-keepalive.path -- Linux twin of the plist's WatchPaths (fuelKeepalive-01, 2026-09-30).
+# Fire oauth-keepalive.service the moment the fuel probe rewrites its verdict, so a 401 heals in
+# seconds instead of waiting up to 30 min for the timer (darwin 2026-09-30: the token died 06:39Z,
+# 3 min after the keepalive's last "ok"). The .timer stays as the backstop; the script's 600 s
+# cooldown stops its own re-probe from re-triggering this unit in a loop.
+[Unit]
+Description=Run the OAuth keepalive whenever the fuel probe writes a new verdict
+
+[Path]
+PathChanged=%h/.local/state/pitching-machine/fuel-usage.json
+Unit=oauth-keepalive.service
+
+[Install]
+WantedBy=paths.target
