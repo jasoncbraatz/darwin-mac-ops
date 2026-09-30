@@ -103,8 +103,19 @@ ledger_is_tracked() {
 FOUND=0
 ORPHANS=()
 WORKTREE_DUPES=()
+# Same repo, different parent dir (darwin keeps repos in ~/code, feynman/curie in ~/repos, the rail's
+# lane checkouts under either): a registered ledger is recognised by its <repo>/<relative path>
+# suffix on any box, PROVIDED git tracks the found copy (an untracked stray still flags).
+# packrat-01 2026-09-30: braatz-mail-server registered at ~/code/, found at ~/repos/ on feynman ->
+# every feynman wrap went RED on a project nobody on feynman was touching.
+ledger_suffix() { local x="$1"; x="${x#$HOME/code/}"; x="${x#$HOME/repos/}"; printf '%s' "$x"; }
+REGISTERED_SUFFIXES="$(printf '%s\n' "$REGISTERED" | while IFS= read -r r; do [ -n "$r" ] && ledger_suffix "$r"; echo; done)"
+
 for f in "${LEDGERS[@]}"; do
   if printf '%s\n' "$REGISTERED" | grep -qxF "$f"; then
+    continue
+  fi
+  if printf '%s\n' "$REGISTERED_SUFFIXES" | grep -qxF "$(ledger_suffix "$f")" && ledger_is_tracked "$f"; then
     continue
   fi
   if in_linked_worktree "$f" && ledger_is_tracked "$f"; then
