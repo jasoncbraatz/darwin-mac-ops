@@ -74,8 +74,17 @@ case "$http" in
     # claude -p prints its errors on STDOUT; v1 sent stdout to /dev/null, so the 2026-09-26 curie
     # failure left no reason behind. Keep the output; log its tail when it fails.
     if out=$("$CLAUDE" -p ok --max-turns 1 --model "$model" </dev/null 2>&1); then
-      echo "$(now) claude -p ok returned 0 — re-probing" >> "$LOG"
-      /usr/bin/python3 "$PM/scripts/fuel_gauge.py" probe >> "$LOG" 2>&1
+      # Re-run the WHOLE tick (probe + publish to the n8n hub + guard), not just the probe
+      # (fuelKeepalive-01, 2026-09-30 08:30Z): feynman's tick published its 401 to the hub, this
+      # job healed feynman 4 s later with a bare probe, and darwin's FuelBar showed feynman as an
+      # error for 30 min because the healed record never left the box. Bare probe = fallback only.
+      if [ -f "$PM/scripts/fuel-tick.sh" ]; then
+        echo "$(now) claude -p ok returned 0 — re-running fuel-tick (probe + publish + guard)" >> "$LOG"
+        /bin/bash "$PM/scripts/fuel-tick.sh" >> "$LOG" 2>&1
+      else
+        echo "$(now) claude -p ok returned 0 — re-probing (no fuel-tick.sh: local only)" >> "$LOG"
+        /usr/bin/python3 "$PM/scripts/fuel_gauge.py" probe >> "$LOG" 2>&1
+      fi
       rc=$?
       echo "$(now) probe rc=$rc" >> "$LOG"
       exit $rc

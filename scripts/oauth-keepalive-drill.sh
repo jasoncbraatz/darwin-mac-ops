@@ -47,5 +47,11 @@ rc=$(COOL=600 run "$D/claude"); ok $([ "$rc" = 0 ] && [ -e "$D/claude.args" ] &&
 # 10. the installed plist is event-driven AND keeps its clock parachute
 PL="$(dirname "$0")/../launchagents/com.braatz.oauth-keepalive.plist"
 ok $(grep -q '<key>WatchPaths</key>' "$PL" && grep -q 'fuel-usage.json' "$PL" && grep -q '<key>StartInterval</key>' "$PL" && echo 0 || echo 1) "plist watches fuel-usage.json and keeps StartInterval"
+# 11. a healed token is PUBLISHED, not just probed (fuelKeepalive-01, feynman 08:30Z): when
+#     fuel-tick.sh exists the keepalive runs it (probe + hub publish + guard) instead of a bare probe.
+printf 'echo ticked > "%s/ticked"\n' "$D" > "$D/pm/scripts/fuel-tick.sh"
+echo '{"ok": false, "http": 401}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed" "$D/ticked" "$D/stamp"
+rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ -e "$D/ticked" ] && [ ! -e "$D/probed" ] && echo 0 || echo 1) "401 healed: full fuel-tick re-run (publishes to hub), not a bare probe"
+rm -f "$D/pm/scripts/fuel-tick.sh"
 echo "oauth-keepalive-drill: $pass/$total"
 [ "$pass" = "$total" ]
