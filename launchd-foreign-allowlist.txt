@@ -29,7 +29,7 @@ com.electron.asana.ShipIt         # TRANSIENT: Asana desktop app updater (Electr
                                 # Seen 2026-09-22 by the ledgerSecurity desk's session-out.
                                 # RETIRE-WHEN: path-gone:/Applications/Asana.app — drop it when the app goes
 com.autodesk.*                  # Fusion 360 vendor agent
-com.docker.*                    # Docker Desktop vendor helper
+com.docker.*                    # TRANSIENT: Docker Desktop vendor helper -- loaded only while Docker Desktop is running or updating (measured 2026-09-30 06:4xZ: 0 loaded labels with Docker closed; it returns the next time Jason opens Docker)
 com.google.*                    # GoogleUpdater / Keystone, vendor-installed
 com.openssh.*                   # system ssh-agent
 com.wireguard.macos.*           # WireGuard app's own login-item helper. NOTE: com.braatz.wg-keepalive
