@@ -310,4 +310,23 @@ estate_drill_scratch() {
 }
 estate_drill_scratch || exit 1
 
+# --- the judge-pair leg (reportsFit-01, Jason 2026-10-02) ----------------------------------------
+# A RELATIVE eye never ships alone. The /reports Sankey ran off its card on every desktop < ~2393 px for four
+# days because every judge that looked compared ours to a reference at three stops; lkgEnvelope-04 built the
+# ABSOLUTE judge (contain.py) and wired it into lkg, but braatzio-plan's ruler -- the one each ledgerPrimitive
+# lane clones -- never called it, and a doc cannot stop a clone. This refuses a commit that ADDS a
+# `primitive.py eye` call to a script that never runs contain.py (or carries `# judge-pair: <why>`).
+# Same shape as the drill-scratch leg: staged ADDS only, fails OPEN without the guard, CLOSED on a finding,
+# and placed before the FINAL exec (see "PLACEMENT IS LOAD-BEARING" above).
+estate_judge_pair() {
+  [ "${ESTATE_JUDGE_PAIR:-1}" = "1" ] || return 0
+  _jpg="$HOME/Scripts/judge-pair-guard.py"
+  [ -f "$_jpg" ] || return 0
+  python3 "$_jpg" --staged >&2 && return 0
+  printf 'estate pre-commit: REFUSED - see above. Silence this ONE commit deliberately:\n' >&2
+  printf '  ESTATE_JUDGE_PAIR=0 git commit ...   (and say why in the message)\n' >&2
+  return 1
+}
+estate_judge_pair || exit 1
+
 ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
