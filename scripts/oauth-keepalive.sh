@@ -73,7 +73,25 @@ case "$http" in
     model=$(/usr/bin/python3 -c 'import json;print(json.load(open("'"$HOME"'/Scripts/models.json"))["tiers"]["fast_worker"]["alias"])' 2>/dev/null || echo haiku)
     # claude -p prints its errors on STDOUT; v1 sent stdout to /dev/null, so the 2026-09-26 curie
     # failure left no reason behind. Keep the output; log its tail when it fails.
-    if out=$("$CLAUDE" -p ok --max-turns 1 --model "$model" </dev/null 2>&1); then
+    refresh() { out=$("$CLAUDE" -p ok --max-turns 1 --model "$model" </dev/null 2>&1); }
+    refresh; rc=$?
+    # feynman 2026-10-02 (fuelbar-01): "Failed to refresh OAuth token: another Claude Code process is
+    # refreshing it or exited mid-refresh ... retry in a minute". Claude Code guards the refresh with a
+    # mkdir lock; a process killed mid-refresh (rail timeouts) leaves it behind, and on feynman a session
+    # had renamed six of them aside BY HAND (.oauth_refresh.lock.stale-*). So: if the lock is older than
+    # 5 min and no claude process is alive, it is litter -- RENAME it aside (never delete), then take
+    # the one patient retry the CLI itself asks for.
+    if [ $rc != 0 ] && printf '%s' "$out" | grep -q "another Claude Code process is refreshing"; then
+      LOCK="${CLAUDE_REFRESH_LOCK:-$HOME/.claude/.oauth_refresh.lock}"
+      if [ -n "${KEEPALIVE_IGNORE_PROCS:-}" ]; then alive=no      # drill only
+      elif pgrep -u "$(id -u)" -f '(^|/)claude( |$)' >/dev/null; then alive=yes; else alive=no; fi
+      if [ -d "$LOCK" ] && [ "$alive" = no ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +5 2>/dev/null)" ]; then
+        mv "$LOCK" "$LOCK.stale-$(date -u +%Y%m%dT%H%M%SZ)" && echo "$(now) refresh lock was stale (>5 min, no claude alive) — renamed aside" >> "$LOG"
+      fi
+      echo "$(now) refresh lock busy — one patient retry in ${KEEPALIVE_RETRY_S:-60}s" >> "$LOG"
+      sleep "${KEEPALIVE_RETRY_S:-60}"; refresh; rc=$?
+    fi
+    if [ $rc = 0 ]; then
       # Re-run the WHOLE tick (probe + publish to the n8n hub + guard), not just the probe
       # (fuelKeepalive-01, 2026-09-30 08:30Z): feynman's tick published its 401 to the hub, this
       # job healed feynman 4 s later with a bare probe, and darwin's FuelBar showed feynman as an

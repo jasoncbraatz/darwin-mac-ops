@@ -11,7 +11,7 @@ printf 'import sys; open("%s/probed","w").write("yes"); print("stub probe ok")\n
 KA="$(dirname "$0")/oauth-keepalive.sh"
 pass=0; total=0
 ok(){ total=$((total+1)); if [ "$1" = 0 ]; then pass=$((pass+1)); echo "  ok   $2"; else echo "  FAIL $2"; fi; }
-run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" KEEPALIVE_LOG="$D/keepalive.log" KEEPALIVE_STAMP="$D/stamp" KEEPALIVE_COOLDOWN_S="${COOL:-0}" CLAUDE_CREDS="$D/creds.json" CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
+run(){ HOME_SAVE=$HOME; FUEL_USAGE_JSON="$D/fu.json" PM_DIR="$D/pm" KEEPALIVE_LOG="$D/keepalive.log" KEEPALIVE_STAMP="$D/stamp" KEEPALIVE_COOLDOWN_S="${COOL:-0}" CLAUDE_CREDS="$D/creds.json" CLAUDE_REFRESH_LOCK="$D/lock" KEEPALIVE_RETRY_S=0 KEEPALIVE_IGNORE_PROCS=1 CLAUDE_BIN="$1" bash "$KA" >/dev/null 2>&1; echo $?; }
 # 1. healthy -> no claude call, rc 0
 echo '{"ok": true, "http": 200}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed"
 rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ ! -e "$D/claude.args" ] && echo 0 || echo 1) "healthy: rc=0, claude not called"
@@ -53,5 +53,20 @@ printf 'echo ticked > "%s/ticked"\n' "$D" > "$D/pm/scripts/fuel-tick.sh"
 echo '{"ok": false, "http": 401}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed" "$D/ticked" "$D/stamp"
 rc=$(run "$D/claude"); ok $([ "$rc" = 0 ] && [ -e "$D/ticked" ] && [ ! -e "$D/probed" ] && echo 0 || echo 1) "401 healed: full fuel-tick re-run (publishes to hub), not a bare probe"
 rm -f "$D/pm/scripts/fuel-tick.sh"
+# 9. lock contention: first refresh says "another Claude Code process is refreshing", retry succeeds
+cat > "$D/claude-lock" <<STUB
+#!/bin/bash
+if [ ! -e "$D/tried" ]; then touch "$D/tried"; echo "Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh."; exit 1; fi
+echo "\$@" > "$D/claude.args"; exit 0
+STUB
+chmod +x "$D/claude-lock"
+echo '{"ok": false, "http": 401}' > "$D/fu.json"; rm -f "$D/claude.args" "$D/probed" "$D/tried"
+mkdir -p "$D/lock"; touch -t 202001010000 "$D/lock"
+rc=$(run "$D/claude-lock"); ok $([ "$rc" = 0 ] && [ -e "$D/probed" ] && echo 0 || echo 1) "refresh-lock busy: one patient retry heals it"
+# 10. ...and the >5-min orphan lock was RENAMED aside (never deleted)
+ok $([ ! -d "$D/lock" ] && ls -d "$D"/lock.stale-* >/dev/null 2>&1 && echo 0 || echo 1) "orphaned refresh lock renamed aside, not deleted"
+# 11. a FRESH lock (<5 min) is left alone -- it may belong to a live refresh
+rm -rf "$D"/lock*; mkdir -p "$D/lock"; rm -f "$D/tried" "$D/probed"
+rc=$(run "$D/claude-lock"); ok $([ -d "$D/lock" ] && echo 0 || echo 1) "fresh refresh lock left alone"
 echo "oauth-keepalive-drill: $pass/$total"
 [ "$pass" = "$total" ]
