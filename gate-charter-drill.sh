@@ -118,6 +118,30 @@ chk "unknown project stays unresolved (rc=3)" 3 "$RC" "no charter registered" "$
 run_cr --resolve x-9
 chk "a 1-char identity resolves nothing" 3 "$RC" "no charter registered" "$OUT"
 
+# ── THREE NAMES, ONE SESSION (card 1219111527350918, 2026-10-03) ───────────────────────
+# One real session can carry three DIFFERENT WORDS for its own project: the roster "who"
+# (big_worker-ledgerAutoCat-01), the session-in slug (ledgerAutoCoderS1), and the project id
+# itself (ledgerAutoCoder). "ledgerAutoCat" vs "ledgerAutoCoder" is a different WORD, not a
+# tier prefix or a trailing -NN, so no amount of norm()/prefix matching will ever unify them
+# (night-crew i153's finding, confirmed i156 by measuring the churn had stopped). The
+# convention that actually shipped for this exact case (project-charters.tsv commits
+# 3afa033/897a37d/20668ef) is not a merge into one key -- it is ONE ROW PER NAME, each with
+# its OWN --out, so the three boards never clobber each other's checklist file. These
+# controls pin that it actually works: three distinct identities for "the same session"
+# resolve to three distinct, non-colliding rows, each carrying its own brief.
+mkfix
+cat >> "$T/charters.tsv" <<EOF
+demo3	DEMO3	$T/proj/v3/crit.tsv	printf "## out-a\\n"
+bigworkerdemo3cat	DEMO3	$T/proj/v3/crit.tsv	printf "## out-b\\n"
+demo3S1	DEMO3	$T/proj/v3/crit.tsv	printf "## out-c\\n"
+EOF
+run_cr --resolve demo3
+chk "three-named session: project id resolves to its OWN row" 0 "$RC" "out-a" "$OUT"
+run_cr --resolve big_worker-demo3Cat-01
+chk "three-named session: roster who resolves to its OWN row" 0 "$RC" "out-b" "$OUT"
+run_cr --resolve demo3S1
+chk "three-named session: session-in slug resolves to its OWN row" 0 "$RC" "out-c" "$OUT"
+
 # PREFIX — the voice-box shape (per-phase slugs) still resolves, at every tier.
 printf 'demoPhase\tDEMO2\t%s/proj/v3/crit.tsv\tprintf "## The board\\n"\n' "$T" >> "$T/charters.tsv"
 run_cr --resolve opus-demoPhaseCorpus-2
