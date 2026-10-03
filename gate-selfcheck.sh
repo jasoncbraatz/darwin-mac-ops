@@ -1872,7 +1872,7 @@ else
     0) : ;;
     1) bold "=== G-V#3#estate · stale references OUTSIDE this session's scope (a sibling's, or nobody's) ==="
        echo "$CL_WIDE" | grep -E 'NEW|STALE-|no longer an offender|RATCHET' | sed 's/^/  /'
-       WARNS+=("G-V#3#estate: card-lint box-wide has a NEW stale reference (or a retired baseline row) in a doc OUTSIDE this session's claims -- a live sibling's in-flight handoff reconciles itself at their wrap; anything else is nobody's, and nobody else is looking (the daily card-lint job does not exist). Not this wrap's red. See: python3 ~/Scripts/card-lint.py --ratchet") ;;
+       WARNS+=("G-V#3#estate: card-lint box-wide has a NEW stale reference (or a retired baseline row) in a doc OUTSIDE this session's claims -- a live sibling's in-flight handoff reconciles itself at their wrap; anything else is card-lint-daily.timer's (curie, 08:50 local, ~/Scripts/card-lint-daily.sh -- it files ONE deduped SM card on a NEW row; built 2026-10-02 because this note used to say the job did not exist). Not this wrap's red. See: python3 ~/Scripts/card-lint.py --ratchet") ;;
     2) WARNS+=("G-V#3#estate CANNOT VERIFY: the box-wide card-lint could not look (Asana unreachable?) -- the session-scoped verdict above stands on its own") ;;
     *) WARNS+=("G-V#3#estate: card-lint box-wide exited unexpectedly ($CL_WRC)") ;;
   esac
