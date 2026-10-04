@@ -275,6 +275,19 @@ estate_pipefail_nudge() {
 }
 estate_pipefail_nudge
 
+# --- THE API RULE (Jason 2026-10-04): prompt caching is de facto, not a debate -------------------
+# Every estate Messages-API call puts its stable prefix (system, tools, the brief) in a cache_control
+# block, or goes through autocache (n8n-stack). ~/Scripts/api-cache-lint.sh is the deterministic read;
+# a NUDGE like pipefail (the commit proceeds) because 11 standing callers are findings today and a hook
+# that fails on somebody else's debt gets --no-verify'd on every commit. canon: START-HERE.md "The API rule".
+estate_api_cache_nudge() {
+  local _acl="$HOME/Scripts/api-cache-lint.sh"
+  [ -f "$_acl" ] || return 0
+  bash "$_acl" --staged >&2 || printf 'estate pre-commit: ^ prompt-caching nudge (THE API RULE; advisory; this commit PROCEEDS)\n' >&2
+  return 0
+}
+estate_api_cache_nudge
+
 # --- the drill-scratch leg (card 1218232604204962 ask 3, opus-feynmanSync-14 2026-09-08) ----
 # A drill that mutates real files is not a drill; it is an outage with a test suite attached.
 # `bb-close.py --selftest` appended a fabricated closure line -- citing a commit that does not
