@@ -34,7 +34,7 @@ com.google.*                    # GoogleUpdater / Keystone, vendor-installed
 com.openssh.*                   # system ssh-agent
 com.wireguard.macos.*           # WireGuard app's own login-item helper. NOTE: com.braatz.wg-keepalive
                                 # IS ours and is deliberately NOT covered by this glob.
-pro.betterdisplay.*             # BetterDisplay's own Sparkle auto-updater (…-sparkle-progress,
+pro.betterdisplay.*             # TRANSIENT: BetterDisplay's Sparkle auto-updater, loaded only while an update is downloading or installing (measured 2026-10-06 18:0xZ: 0 loaded labels between updates) (…-sparkle-progress,
                                 # …-sparkle-updater). Vendor-installed, and it registers its
                                 # labels with launchd while LEAVING NO PLIST in ~/Library/
                                 # LaunchAgents — so the census read them as estate jobs whose
