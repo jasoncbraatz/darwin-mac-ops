@@ -1182,6 +1182,21 @@ done
 [ "$SECCOUNT" -gt 0 ] && WARNS+=("G-E: $SECCOUNT possible SECRET(s) in tracked files (see list above) — if real, scrub from HEAD, ROTATE the credential, and never commit it")
 # Suppression is never silent — a reader has to be able to see what the allowlist ate.
 [ "$GE_SUPPRESSED" -gt 0 ] && printf '    G-E: %s hit(s) suppressed by %s allowlist rule(s) in %s (review it when a repo changes hands)\n' "$GE_SUPPRESSED" "${#GE_PATS[@]}" "${GE_ALLOW/#$HOME/~}"
+# G-E argv canary (SM 1219118945226177): a secret in LIVE PROCESS ARGV is readable by every local
+# user via ps -- the Twilio MCP launch carried its key secret there on curie until mcp-key-sanitizer
+# 52c1f0d. Tracked files are not the only place a credential leaks. Same needle family (SSOT
+# ARGV_SECRET_RE), tail masked, WARN like the rest of G-E: the fix is the launch config + a ROTATE,
+# not a blocked wrap. GE_PS_CMD is overridable so the canary is drillable without a real leak.
+GE_ARGV=0
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  [ "$GE_ARGV" -eq 0 ] && bold "=== G-E · secret in live process argv (ps -eo args) ==="
+  # print the process with EVERY 20+ alnum run masked, plus the matched token's first 10 chars
+  printf '    %s  [match: %s]\n' "$(printf '%s' "$line" | sed -E 's/[A-Za-z0-9]{20,}/…MASKED/g' | cut -c1-110)" \
+    "$(printf '%s' "$line" | grep -oE "${ARGV_SECRET_RE:-$SECRET_RE}" | head -1 | sed -E 's/(.{10}).*/\1…MASKED/')"
+  GE_ARGV=$((GE_ARGV+1))
+done < <(${GE_PS_CMD:-ps -eo args} 2>/dev/null | grep -E "${ARGV_SECRET_RE:-$SECRET_RE}" | grep -v -e 'grep -E')
+[ "$GE_ARGV" -gt 0 ] && WARNS+=("G-E: $GE_ARGV process(es) carry a SECRET in argv (ps -eo args, world-readable) -- move it to env / a 0600 file (mcp-key-sanitizer/twilio-env-launcher.js is the worked example), restart the process, then ROTATE the key: it has been visible")
 
 # --- _probe_field · TRI-STATE parsing of a remote ssh probe's answer (State Machine 1217341652482828) ---
 #     THE DEFECT THIS CLOSES. Every G-T#4x probe below is ONE ssh round-trip under `timeout 14`

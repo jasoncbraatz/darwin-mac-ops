@@ -29,6 +29,15 @@
 # "shpat_" or a regex literal in a doc do not trip it.
 SECRET_RE='shpat_[a-f0-9]{32}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|xox[baprs]-[0-9A-Za-z-]{20,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
 
+# ARGV_SECRET_RE -- the same needle aimed at LIVE PROCESS ARGV (`ps -eo args`), which every local
+# user can read. Born 2026-10-08 (SM 1219118945226177 / 1219137587415367): curie's Claude Desktop
+# launched `@twilio-alpha/mcp <AccountSid>/<KeySid>:<secret>`, so the Twilio key secret sat in
+# argv for anyone running ps. Fixed at the launch (mcp-key-sanitizer 52c1f0d, env not argv); this
+# is the canary so it cannot recur silently. The Twilio shapes live HERE, not in SECRET_RE: they
+# are argv-shaped (key sid COLON secret), and SECRET_RE's line is parsed verbatim by
+# ratification-census.sh. Self-indict safe: neither literal below contains 32 hex / 20 alnum.
+ARGV_SECRET_RE="$SECRET_RE"'|SK[0-9a-f]{32}:[A-Za-z0-9]{20,}|twilio-alpha/mcp .*:[A-Za-z0-9]{20,}'
+
 # Repo-backed home. A ~/Scripts copy is SILENTLY swallowed by that repo's '*secret*'
 # ignore rule -- a control file git ignores is not backed, and it took a `git status`
 # that showed nothing to notice (S44). ~/Scripts/gate-secret-sweep.allow is a symlink here.
