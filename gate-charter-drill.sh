@@ -244,6 +244,8 @@ if [ -r "$GATE_SC" ]; then
     else
       printf '  ok    %-52s\n' "a resolved charter row overrides the opt-out"; PASS=$((PASS+1))
     fi
+    # lesson 2026-09-09-known-broken-darwin-mac-ops-state (blackbook): the gate named broken
+    # there is proved fixed by this control, not by a new code path.
     # POSITIVE, the SECOND spelling (SM 1218323812563047): the roster join banner has told
     # errand sessions to set ROSTER_FOUNDING_CHECK=0 since before this gate had an opt-out at
     # all, and that variable used to reach roster's founding check and nothing else -- so an
