@@ -354,6 +354,41 @@ else
     *'(G-H#22f), so it is being reported as YOURS'*) ok "#22h ...and the anonymous FAIL survives beneath it (attribution, not absolution)" ;;
     *) bad "#22h the anonymous FAIL is gone — #22f became an amnesty" ;;
   esac
+
+  # ── #22k · G-H#22h, DIRT WRITTEN BEFORE THIS DESK'S OWN JOIN IS NOT "YOURS" (nightCrew i234,
+  # SM 1218799021417865, dead-letter bounced 2026-09-10 opus-freshCanary-03). #22c/#22e/#22f/#22g
+  # above only ask the roster about OTHER sessions; none of them ever checks whether the dirt
+  # predates the WRAPPER's own join — the exact repro: HEAD mtime 16:40 local, this session's
+  # join 18:44:45Z two hours later, and the gate still said "yours". zzMeDrill (started 3600s
+  # ago, from #22's own setup) is reused here on purpose: same desk, same roster row.
+  sed -n '/^_dirt_predates_my_join() {/,/^}/p' "$GATE" > "$S/fn4b.sh"
+  if ! grep -q 'kind=.session' "$S/fn4b.sh"; then
+    bad "#22k could not extract _dirt_predates_my_join() from $GATE — G-H#22h is unproven this run"
+  else
+    . "$S/fn4b.sh"
+    : > "$M/d.txt"; _touch_ago "$M/d.txt" 5400          # 90 min ago: BEFORE zzMeDrill's 60-min-ago join
+    _v="$(_dirt_predates_my_join "$M" "?? d.txt")"
+    case "$_v" in *"${_T}"*"zzMeDrill"*) ok "#22ka THE CARD'S CASE: dirt written before my own join -> attributed PRE-EXISTING, naming me by id in the note" ;; *) bad "#22ka pre-join dirt not recognized (got '$_v')" ;; esac
+    : > "$M/e.txt"; _touch_ago "$M/e.txt" 600            # 10 min ago: AFTER zzMeDrill's join
+    chk "" "$(_dirt_predates_my_join "$M" "?? e.txt")" "#22kb dirt written AFTER my own join -> nothing attributed (could genuinely be mine)"
+    chk "" "$(_dirt_predates_my_join "$M" "?? d.txt
+?? e.txt")" "#22kc ONE path postdating my join poisons the set -> nothing attributed (fail-closed, same shape as #22d)"
+    chk "" "$(_dirt_predates_my_join "$M" " D gone.txt")" "#22kd a DELETED path has no mtime -> nothing attributed (fail-closed)"
+    (
+      unset GATE_ROSTER_WHO
+      chk "" "$(_dirt_predates_my_join "$M" "?? d.txt")" "#22ke no GATE_ROSTER_WHO at all -> nothing attributed, no crash"
+    )
+  fi
+  case "$SWEEP" in
+    *'_dirt_predates_my_join "$repo" "$dirty"'*'PRE-EXISTING'*) ok "#22kf BOTH anonymous-FAIL sites consult _dirt_predates_my_join, and the WARN says PRE-EXISTING" ;;
+    *) bad "#22kf G-H#22h is not wired into the sweep (or the WARN lost its PRE-EXISTING wording)" ;;
+  esac
+  _n="$(printf '%s\n' "$SWEEP" | grep -c '_dirt_predates_my_join "\$repo" "\$dirty"')"
+  chk "2" "$_n" "#22kg both anonymous-FAIL sites (ORPHAN's and the bottom case's) carry the new rung, not just one"
+  case "$SWEEP" in
+    *'(G-H#22h also checked: at least one path postdates your own roster join)'*) ok "#22kh ...and the anonymous FAIL's own text now says #22h was asked too (not a silent skip)" ;;
+    *) bad "#22kh the anonymous FAIL text does not mention G-H#22h was checked" ;;
+  esac
 fi
 
 # ── #23 · G-H#22g-unrostered, THE ACTOR THE ROSTER CANNOT SEE (smDrainHandoff-2) ──

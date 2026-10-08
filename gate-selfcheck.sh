@@ -771,6 +771,36 @@ EOF_DIRT
   printf '%s\t%s' "$(printf '%s' "$_cands" | tr ' ' ',')" "$_note"
 }
 
+# G-H #22h (nightCrew i234, SM 1218799021417865 -- dead-letter bounced 2026-09-10,
+# opus-freshCanary-03: "wrap gate blames the wrapping session for a dirty file older than its own
+# join"). #22c/#22c-content/#22e/#22f/#22g above all answer "whose is it" by asking the roster
+# about SOMEONE ELSE; none of them asks the one question that costs nothing -- was THIS DESK even
+# here yet? A file written before my own `roster join` cannot be my half-finished work, no live
+# sibling or claim journal row needed to say so. Measured 2026-09-10: HEAD mtime 16:40 local, this
+# session's own join 18:44:45Z -- two hours later -- and the gate still said "yours" because every
+# rung only reasons about OTHER sessions, never about the wrapper's own start time.
+_dirt_predates_my_join() {   # <repo-path> <porcelain> -> "latest-mtime<TAB>note" or empty
+  [ -n "${GATE_ROSTER_WHO:-}" ] || return 0
+  [ -f "$_ROSTER_DB" ] || return 0
+  [ -x "$_SQ" ] || return 0
+  local _mystart _line _p _mt _latest=0
+  _mystart="$("$_SQ" "$_ROSTER_DB" "SELECT started FROM roster WHERE kind='session' AND who='$GATE_ROSTER_WHO' ORDER BY started DESC LIMIT 1;" 2>/dev/null)"
+  [ -n "$_mystart" ] || return 0
+  while IFS= read -r _line; do
+    [ -n "$_line" ] || continue
+    case "$_line" in " D "*|"D  "*) return 0 ;; esac   # a deleted path has no mtime: fail-closed
+    _p="${_line:3}"; _p="${_p##* -> }"; _p="${_p%\"}"; _p="${_p#\"}"
+    _mt="$(stat -c %Y "$1/$_p" 2>/dev/null || stat -f %m "$1/$_p" 2>/dev/null)"
+    [ -n "$_mt" ] || return 0                    # unstat-able => fail-closed
+    [ "$_mt" -lt "$_mystart" ] || return 0        # one path written AFTER I joined => not this rung
+    [ "$_mt" -gt "$_latest" ] && _latest="$_mt"
+  done <<EOF_DIRT
+$2
+EOF_DIRT
+  [ "$_latest" -gt 0 ] || return 0
+  printf '%s\t%s' "$_latest" "every dirty path predates this session's own roster join ($GATE_ROSTER_WHO)"
+}
+
 # G-H #22g-unrostered (smDrainHandoff inning 2, 2026-09-03 — SM 1218125780430801, found by
 # big_worker-smBacklog-5 at its own wrap). ATTRIBUTION WHEN THE ACTOR IS NOT ON THE ROSTER AT ALL.
 # #22c (filename), #22c-content (signature), #22e (claim journal) and #22f (live sibling's mtime
@@ -911,9 +941,15 @@ $_paths")
               WARNS+=("$name: $nd uncommitted change(s) — UNATTRIBUTED, which is the answer, not a softer way of saying YOURS: $_ur. (G-H#22g-unrostered; #22c, #22c-content, #22e and #22f all declined, and every one of them can only see the roster.) A repo does not commit itself, so somebody was working here — most likely a sibling that never ran `roster join`, the one actor the roster is blind to by construction. Do NOT commit it blind: committing a sibling's in-flight work under your name is worse than the dirty tree it clears. If it IS yours, you owe a claim: ~/Scripts/roster claim $(basename "$repo") — then commit it before you wrap. Verify: git -C $repo log -1 --format='%h %an %ad' --date=iso
 $_paths")
               [ "$level" = ok ] && level="WARN"
+            elif _pj="$(_dirt_predates_my_join "$repo" "$dirty")" && [ -n "$_pj" ]; then
+              _pjmt="${_pj%%${_T}*}"; _pjnote="${_pj#*${_T}}"
+              flags="$flags DIRTY($nd,pre-existing)"
+              WARNS+=("$name: $nd uncommitted change(s) — PRE-EXISTING (G-H#22h: $_pjnote). Not newly dirtied by you; do NOT commit it blind. If it is yours from an earlier session, \`roster claim\` it and commit. Verify: git -C $repo log -1 --format='%h %an %ad' --date=iso
+$_paths")
+              [ "$level" = ok ] && level="WARN"
             else
               flags="$flags DIRTY($nd)"
-              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, the claim journal has NO author for it (G-H#22e), and no live sibling's window covers its mtimes (G-H#22f), so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, the claim journal has NO author for it (G-H#22e), and no live sibling's window covers its mtimes (G-H#22f), so it is being reported as YOURS (G-H#22h also checked: at least one path postdates your own roster join). If it is not, the sibling owes a \`roster claim\`:
 $_paths")
               level="FAIL"
             fi ;;
@@ -933,9 +969,15 @@ $_paths")
               WARNS+=("$name: $nd uncommitted change(s) — UNATTRIBUTED, which is the answer, not a softer way of saying YOURS: $_ur. (G-H#22g-unrostered; #22c, #22c-content, #22e and #22f all declined, and every one of them can only see the roster.) A repo does not commit itself, so somebody was working here — most likely a sibling that never ran `roster join`, the one actor the roster is blind to by construction. Do NOT commit it blind: committing a sibling's in-flight work under your name is worse than the dirty tree it clears. If it IS yours, you owe a claim: ~/Scripts/roster claim $(basename "$repo") — then commit it before you wrap. Verify: git -C $repo log -1 --format='%h %an %ad' --date=iso
 $_paths")
               [ "$level" = ok ] && level="WARN"
+            elif _pj="$(_dirt_predates_my_join "$repo" "$dirty")" && [ -n "$_pj" ]; then
+              _pjmt="${_pj%%${_T}*}"; _pjnote="${_pj#*${_T}}"
+              flags="$flags DIRTY($nd,pre-existing)"
+              WARNS+=("$name: $nd uncommitted change(s) — PRE-EXISTING (G-H#22h: $_pjnote). Not newly dirtied by you; do NOT commit it blind. If it is yours from an earlier session, \`roster claim\` it and commit. Verify: git -C $repo log -1 --format='%h %an %ad' --date=iso
+$_paths")
+              [ "$level" = ok ] && level="WARN"
             else
               flags="$flags DIRTY($nd)"
-              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, and no live sibling's window covers its mtimes (G-H#22f), so it is being reported as YOURS. If it is not, the sibling owes a \`roster claim\`:
+              FAILS+=("$name: $nd uncommitted change(s) — no live roster claim covers this repo, G-H#22c could not attribute every path by filename, and no live sibling's window covers its mtimes (G-H#22f), so it is being reported as YOURS (G-H#22h also checked: at least one path postdates your own roster join). If it is not, the sibling owes a \`roster claim\`:
 $_paths")
               level="FAIL"
             fi ;;
