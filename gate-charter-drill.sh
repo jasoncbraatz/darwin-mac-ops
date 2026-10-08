@@ -119,6 +119,8 @@ run_cr --resolve x-9
 chk "a 1-char identity resolves nothing" 3 "$RC" "no charter registered" "$OUT"
 
 # ── THREE NAMES, ONE SESSION (card 1219111527350918, 2026-10-03) ───────────────────────
+# lesson 2026-10-02-known-broken-darwin-mac-ops-state (blackbook): the mechanism this card
+# named as broken is proved fixed by the controls below, not by a new code path.
 # One real session can carry three DIFFERENT WORDS for its own project: the roster "who"
 # (big_worker-ledgerAutoCat-01), the session-in slug (ledgerAutoCoderS1), and the project id
 # itself (ledgerAutoCoder). "ledgerAutoCat" vs "ledgerAutoCoder" is a different WORD, not a
