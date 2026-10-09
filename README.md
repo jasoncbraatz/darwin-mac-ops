@@ -24,6 +24,7 @@ Everything required to rebuild lives here EXCEPT the secrets — those land in `
 - **Daily ops (where logs live, how to kick a run, etc.):** [`OPS.md`](OPS.md)
 - **The macOS 26 TCC dance, with footnotes:** [`shared/tcc-notes.md`](shared/tcc-notes.md)
 - **Grant FDA recipe (UI screenshots-of-words):** [`shared/grant-fda.md`](shared/grant-fda.md)
+- **darwin as a subject — its own SSH/sshd, `pmset`, and firewall state:** [`docs/host/REMOTE-ACCESS.md`](docs/host/REMOTE-ACCESS.md)
 
 ## Related repos
 
@@ -37,5 +38,6 @@ These three private repos make up Jason's personal infrastructure constellation:
 | [**braatzresearch-site**](https://github.com/jasoncbraatz/braatzresearch-site) | LessWrong-style one-pager at braatzresearch.com |
 | [**braatz-mail-server**](https://github.com/jasoncbraatz/braatz-mail-server) | Self-hosted Stalwart mail server on the flowers Linode |
 | [**miniblog**](https://github.com/jasoncbraatz/miniblog) | jason.braatz.ai personal site (Next.js + Postgres on n8n Linode) |
+| [**darwin-remote-access**](https://github.com/jasoncbraatz/darwin-remote-access) | The map of how darwin is reached from outside the house — WireGuard, VNC, ttyd. See also [`docs/host/REMOTE-ACCESS.md`](docs/host/REMOTE-ACCESS.md) here for the pieces that repo doesn't cover (sshd, `pmset`, firewall). |
 
 Each repo has its own `HANDOFF.md` you can paste into a fresh Claude session to pick up cold.
