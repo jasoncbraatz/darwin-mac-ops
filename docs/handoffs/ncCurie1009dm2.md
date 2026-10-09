@@ -1,19 +1,19 @@
 ---
 project: "ncCurie1009dm2"
-session_n: 0
+session_n: 1
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: ""
+gh_sha: "3d8c44c"
 updated: "2026-10-09"
 definition_of_done: "Every one of the 1 card(s) in the frozen manifest lane-ncCurie1009dm2.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie1009dm2` exits 0."
 verify_cmd: "bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie1009dm2"
 ruler_files: ["$HOME/repos/claude-blackbook/state/smdrain/lane-ncCurie1009dm2.json", "$HOME/repos/claude-blackbook/scripts/verify-smdrain.sh"]
 engine_sha: "23507861ee8917c40f52a7033d1a69611603c36a"
-lessons_consulted: []
-live_theme: "session 0: lane armed by the CEO desk from the 2026-10-09 freeze; no work yet."
-phase: "0/1 closed. RULER RED (expected before any work)."
-gate_passed: false
-next_at_bat: "Run the verify_cmd; take the first OPEN gid in the table below; read the card on Asana (the body carries prior sessions' measurements), fix it reversibly, verify it yourself, bb-close.py with a receipt. One card per inning is fine; two is better; a card you cannot close is a finding: a big_worker/Fable lane RULES its own reversible park (THE PROPERTY RULE, see the handoff body); only ruler amends, prod/TNT and Jason-values calls wait on someone else."
+lessons_consulted: ["2026-10-09-estate-audit-2026-10-09-sm"]
+live_theme: "session 1: closed the only card (1219355290378801) by writing docs/host/REMOTE-ACCESS.md -- darwin's own SSH/sshd, pmset, and firewall state, read-only, cross-linked from README.md."
+phase: "1/1 closed. RULER GREEN."
+gate_passed: true
+next_at_bat: "DONE. All 1 card(s) in the frozen manifest are closed and verify_cmd is RULER GREEN. The next session should confirm the ruler is still green (nobody can add cards to a frozen manifest) and run rail.py complete for this project/fence. No further card work exists for this lane."
 blockers: []
 drift_flags: []
 parking_lot: []
@@ -70,7 +70,23 @@ It is a head start, not an order: if the card or the repo disagree with the brie
 
 | gid | bin | card | BRIEF (fix surface · Q1 done? · who) |
 |---|---|---|---|
-| `1219355290378801` | SOMEDAY | [process] darwin as a SUBJECT: record its own remote access + credential model, re-assert  | — |
+| `1219355290378801` | SOMEDAY | [process] darwin as a SUBJECT: record its own remote access + credential model, re-assert  | **CLOSED session 1** (3d8c44c) |
+
+## Session 1 (2026-10-09) — closed the lane
+
+Found that `darwin-remote-access` (a separate repo) already documents VNC/ttyd/WireGuard for
+darwin-as-subject reasonably well, but was missing from this repo's "Related repos" table and
+didn't cover the three things the 2026-10-09 estate audit (SM 1218729017558178) flagged as
+undocumented anywhere: SSH/sshd's own config + `authorized_keys`, `pmset`, and the Application
+Firewall. Gathered all of it read-only over SSH to darwin (no box config touched) and wrote
+`docs/host/REMOTE-ACCESS.md`, cross-linked from `README.md` alongside a new `darwin-remote-access`
+row in Related repos. Closed `1219355290378801` with a receipt citing commit `3d8c44c`.
+`verify-smdrain.sh ncCurie1009dm2` now reports **RULER GREEN**.
+
+Two findings carried in the doc, not fixed (document-only lane, property rule): `pmset`'s
+always-on settings (`SleepDisabled`, `womp`, etc.) and the Application Firewall's current
+OFF state are both hand-set with no re-assertion script anywhere — neither is a 3-file/one-commit
+fix, and firewall-on-or-off is a security-posture call for the estate desk, not this lane.
 
 ## How to close one
 
