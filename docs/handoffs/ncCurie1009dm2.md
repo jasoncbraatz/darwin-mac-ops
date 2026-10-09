@@ -3,7 +3,7 @@ project: "ncCurie1009dm2"
 session_n: 1
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: "3d8c44c"
+gh_sha: "e0ac4c1f9a69b7fd206cefe9ff789ace289ebba0"
 updated: "2026-10-09"
 definition_of_done: "Every one of the 1 card(s) in the frozen manifest lane-ncCurie1009dm2.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie1009dm2` exits 0."
 verify_cmd: "bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie1009dm2"
