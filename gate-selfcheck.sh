@@ -3630,6 +3630,75 @@ else
   FAILS+=("G-BA#drill CANNOT VERIFY: $DLC_DRILL is missing or not executable, so nothing proved G-BA can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-downloads-copy-drill.sh")
 fi
 
+# -- G-BB . the seam audit at wrap: a contract that moved unrecorded is RED (seam recipe leg 1) --
+# SM 1219339796975909, ncFeynman1009wp i3 2026-10-09. The rail half (rail.py 2.32.0) runs
+# `seam.py audit` at every inning's release/complete; this is the same instrument at a SESSION's
+# wrap, for the project this session is. In the recipe a contract that moved with no hem/recut
+# row is drift BY DEFINITION, and the audit has already written the invisible recut row when it
+# says so -- this leg only makes it impossible to wrap past. seam.py exits 0 clean, 2 no pattern
+# (a no-op: most projects carry no seam, so ONE leg covers every session), 3 board unreachable,
+# 4 drift. Anything but 0/2/4 is CANNOT VERIFY, never a pass. The project is the same tag G-AL
+# resolved, tried stripped (`opus-foo-12` -> foo) then raw; SEAM_PROJECT overrides.
+gate_ran "G-BB"
+SEAM_PY="${SEAM_PY:-$HOME/repos/auto-bridge/seam.py}"
+_sm_cands=()
+if [ -n "${SEAM_PROJECT:-}" ]; then
+  _sm_cands=("$SEAM_PROJECT")
+elif [ -n "${_ch_tag:-}" ]; then
+  for _sm_s in "${_ch_tag#*-}" "$_ch_tag"; do
+    _sm_cands+=("$(printf '%s' "$_sm_s" | sed -E 's/-[0-9]+[a-z]?$//')")
+  done
+fi
+if [ "${#_sm_cands[@]}" -eq 0 ]; then
+  bold "=== G-BB . the seam audit at wrap ==="
+  gate_na "G-BB" "no session tag, so no project whose contracts could have moved (G-AL says why)"
+elif [ ! -f "$SEAM_PY" ]; then
+  bold "=== G-BB . the seam audit at wrap ==="
+  WARNS+=("G-BB CANNOT VERIFY: $SEAM_PY not found, so nothing checked whether this session moved a seam contract without a hem/recut. Not a pass. Restore it: git -C ~/repos/auto-bridge pull")
+else
+  _sm_done=""
+  for _sm_p in "${_sm_cands[@]}"; do
+    _sm_o="$(python3 "$SEAM_PY" audit --project "$_sm_p" --by "${GATE_ROSTER_WHO:-gate}" </dev/null 2>&1)"; _sm_rc=$?
+    case "$_sm_rc" in
+      2) continue ;;
+      0) _sm_done=1
+         [ "$QUIET" -eq 1 ] || { bold "=== G-BB . the seam audit at wrap ($_sm_p) ==="; printf '%s\n' "$_sm_o" | tail -1 | sed 's/^/         /'; }
+         break ;;
+      4) _sm_done=1
+         bold "=== G-BB . the seam audit at wrap ($_sm_p) ==="
+         printf '%s\n' "$_sm_o" | sed 's/^/         /'
+         FAILS+=("G-BB: SEAM DRIFT on $_sm_p -- a contract moved with no hem/recut recorded. The audit already wrote the invisible recut row; label it and find who moved it: python3 ~/repos/auto-bridge/seam.py show --project $_sm_p")
+         break ;;
+      *) _sm_done=1
+         bold "=== G-BB . the seam audit at wrap ($_sm_p) ==="
+         printf '%s\n' "$_sm_o" | tail -3 | sed 's/^/         /'
+         WARNS+=("G-BB CANNOT VERIFY: seam.py audit --project $_sm_p exited $_sm_rc (3 = board unreachable). Nothing proved this session's seam contracts are recorded. Not a pass.")
+         break ;;
+    esac
+  done
+  if [ -z "$_sm_done" ]; then
+    bold "=== G-BB . the seam audit at wrap ==="
+    gate_na "G-BB" "no seam carries a contract_path for ${_sm_cands[*]} -- nothing the audit can see"
+  fi
+fi
+# G-BB-END . gate-seam-audit-drill.sh EXTRACTS the text between the gate_ran marker above and
+#            this line and eval's it against a stub seam.py -- a drill that grades a copy proves the copy.
+
+# -- G-BB#drill . the seam leg can still tell drift from clean from blind ----------------------
+gate_ran "G-BB#drill"
+SEAM_DRILL="${SEAM_DRILL:-$HOME/code/darwin-mac-ops/gate-seam-audit-drill.sh}"
+if [ -x "$SEAM_DRILL" ]; then
+  _smd2_o="$(bash "$SEAM_DRILL" </dev/null 2>&1)"; _smd2_rc=$?
+  if [ "$_smd2_rc" -ne 0 ]; then
+    bold "=== G-BB#drill . the seam leg can still go red ==="
+    printf '%s\n' "$_smd2_o" | sed 's/^/         /'
+    FAILS+=("G-BB#drill: the seam-audit leg failed its own controls ($_smd2_rc). A leg that cannot tell drift from no-pattern is decorative or a permanent red. Run: bash ~/code/darwin-mac-ops/gate-seam-audit-drill.sh")
+  fi
+else
+  bold "=== G-BB#drill . the seam leg can still go red ==="
+  FAILS+=("G-BB#drill CANNOT VERIFY: $SEAM_DRILL is missing or not executable, so nothing proved G-BB can still go red. Restore it: git -C ~/code/darwin-mac-ops checkout -- gate-seam-audit-drill.sh")
+fi
+
 # -- G-AQ#number . the predecessor's filename is derived correctly (offline drill) -------
 # The check above can only grade an inbound it can NAME. Getting that name wrong does not
 # read as a naming bug -- it reads as "your predecessor's handoff is unreadable", which is

@@ -72,6 +72,8 @@ G-AQ#dod	-	every handoff declares a definition of done, and ERRAND is a falsifia
 G-AQ#dod-drill	-	the DoD check can still go red (7 negative controls)
 G-BA	-	the wrap Jason can SEE: a handoff committed to git has a copy in the downloads folder he opens
 G-BA#drill	-	the downloads-copy row can still tell a blocker from a rail lane (15 controls, 1 mutant)
+G-BB	-	the seam audit at wrap: a seam contract this session's project moved with no hem/recut is RED (seam recipe leg 1, SM 1219339796975909)
+G-BB#drill	-	the seam-audit leg can still tell drift from clean from no-pattern from blind (stub seam.py, 1 mutant)
 G-R	-	reference integrity -- every gid/path/sha the outbound handoff cites RESOLVES
 G-R#drill	-	the reference check can still go red
 G-AR	-	a handoff that ASSERTS an exit code must have it RE-RUN, un-piped, from a declared registry
