@@ -1,6 +1,6 @@
 ---
 project: "ncCurie1009dm"
-session_n: 0
+session_n: 1
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
 gh_sha: ""
@@ -10,12 +10,12 @@ verify_cmd: "bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie
 ruler_files: ["$HOME/repos/claude-blackbook/state/smdrain/lane-ncCurie1009dm.json", "$HOME/repos/claude-blackbook/scripts/verify-smdrain.sh"]
 engine_sha: "858f4697dc887570b6f1500588f7e1b78b15ff97"
 lessons_consulted: []
-live_theme: "session 0: lane armed by the CEO desk from the 2026-10-08 freeze; no work yet."
-phase: "0/2 closed. RULER RED (expected before any work)."
-gate_passed: false
-next_at_bat: "Run the verify_cmd; take the first OPEN gid in the table below; read the card on Asana (the body carries prior sessions' measurements), fix it reversibly, verify it yourself, bb-close.py with a receipt. One card per inning is fine; two is better; a card you cannot close is a finding: a big_worker/Fable lane RULES its own reversible park (THE PROPERTY RULE, see the handoff body); only ruler amends, prod/TNT and Jason-values calls wait on someone else."
+live_theme: "session 1: both frozen cards were already CLOSED on Asana before this lane's first inning began -- by nightCrew (fence 235, local-feynman-8822-m), which drains the same shared backlog without a per-lane manifest and reached these two gids first. RULER GREEN on claim."
+phase: "2/2 closed (both pre-closed by nightCrew i234, with receipts, before this lane claimed). RULER GREEN."
+gate_passed: true
+next_at_bat: "DONE. Nothing left to fix: `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie1009dm` exits 0 (ssh darwin -- it is the board host; the manifest lane-ncCurie1009dm.json and bb-close receipts live there, not on this box). Both gids carry marked_complete + a receipt-shaped comment: 1218799021417865 'CLOSED -- nightCrew i234 ... fixed by darwin-mac-ops commit 6618385' and 1219234903451799 'NO-AAR: FIXED (pitching-machine/Scripts commit 552f806, not darwin-mac-ops)'. Next worker: confirm with rail.py status that ncCurie1009dm reads complete; if a sibling somehow reopened it, re-run the verify and re-check before doing any card work."
 blockers: []
-drift_flags: []
+drift_flags: ["session 0's 'no work yet / RULER RED' line was written at arming time without a verify_cmd run -- it was wrong the moment nightCrew closed these two gids minutes later. Lesson banked: always run verify_cmd before trusting a freshly-armed lane's boilerplate phase line."]
 parking_lot: []
 ---
 
@@ -96,6 +96,24 @@ It is a head start, not an order: if the card or the repo disagree with the brie
 ## Lane-specific notes from the desk
 
 (none)
+
+## Session 1 — found already green
+
+Ran the verify_cmd FIRST (per "Read first" above), over `ssh darwin` since curie is a twin and
+the lane manifest + bb-close receipts live on the board host, not this box's filesystem. Result:
+
+```
+LANE ncCurie1009dm (darwin-mac-ops) — 2/2 done (2 closed, 0 handed)
+RULER GREEN — every playable card in the lane is closed or handed
+```
+
+Both gids were marked `completed` on Asana (1218799021417865 at 2026-10-08T22:21:38Z,
+1219234903451799 at 2026-10-08T20:58:46Z) with receipt-shaped comments, by `nightCrew` (fence 235,
+local-feynman-8822-m) — a sibling lane that drains the same shared backlog without a per-card
+manifest, and reached both of these gids before ncCurie1009dm's own claim/arming finished. Checked
+via the live Asana API (`asana_client.AsanaClient`, run on darwin): both tasks' story feed shows
+`comment_added` with a receipt immediately followed by `marked_complete`, same shape as a
+`bb-close.py` run. Nothing left to fix; no card work needed this inning.
 
 ## Definition of done
 Every one of the 2 card(s) in the frozen manifest lane-ncCurie1009dm.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie1009dm` exits 0.
