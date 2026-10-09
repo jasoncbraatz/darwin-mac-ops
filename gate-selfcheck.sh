@@ -136,6 +136,35 @@ if [ "$DO_ROLLCALL_ONLY" -eq 1 ]; then
   gate_rollcall_print
   exit $?
 fi
+
+# -- ONE GATE RUN PER BOX AT A TIME (SM 1218681008953143, ncFeynman1009ws i2 2026-10-09) --------
+# 2026-09-20 21:11Z two gate PIDs (44938, 64685) ran at once on darwin: a bridge call timed out,
+# the desk re-launched, and both runs shared $SESSION_STATE/current, the roll-call sidecar and the
+# drills' scratch -- so neither verdict was about one run. mkdir is the lock because macOS ships
+# no flock(1); the holder's PID is inside it, a DEAD holder is reclaimed (a SIGKILLed gate must not
+# wedge every wrap on the box), and a LIVE one is a refusal that names it. Below the --roll-call
+# exit on purpose: reading the last sidecar is a view and never needs the lock. A nested gate
+# (a drill re-entering this file under a running gate) inherits GATE_LOCK_HELD and walks through.
+# Escape hatch for a scratch drill that wants its own run: GATE_NO_LOCK=1.
+if [ -z "${GATE_LOCK_HELD:-}" ] && [ "${GATE_NO_LOCK:-0}" != 1 ]; then
+  _GATE_LOCK="${GATE_LOCK_DIR:-$HOME/.cache/gate-selfcheck.lock}"
+  mkdir -p "$(dirname "$_GATE_LOCK")" 2>/dev/null
+  if ! mkdir "$_GATE_LOCK" 2>/dev/null; then
+    _gl_pid="$(cat "$_GATE_LOCK/pid" 2>/dev/null)"
+    if [ -n "$_gl_pid" ] && kill -0 "$_gl_pid" 2>/dev/null; then
+      echo "gate-selfcheck: REFUSED -- another gate run is live on this box (pid $_gl_pid, since $(cat "$_GATE_LOCK/since" 2>/dev/null || echo '?')). Two runs share \$SESSION_STATE and scratch, so neither verdict would be about one run. Wait for it (ps -p $_gl_pid), or if you are SURE it is not a gate: rm -rf $_GATE_LOCK" >&2
+      exit 2
+    fi
+    # dead or unreadable holder: reclaim, loudly. A lock dir with no pid yet is a holder mid-mkdir
+    # only for microseconds; one that old is debris.
+    echo "gate-selfcheck: reclaiming a stale lock (holder pid ${_gl_pid:-none} is not running): $_GATE_LOCK" >&2
+    rm -rf "$_GATE_LOCK"
+    mkdir "$_GATE_LOCK" 2>/dev/null || { echo "gate-selfcheck: REFUSED -- lost the lock race on $_GATE_LOCK to a run that started this instant" >&2; exit 2; }
+  fi
+  echo $$ > "$_GATE_LOCK/pid"; date -u +%Y-%m-%dT%H:%M:%SZ > "$_GATE_LOCK/since"
+  export GATE_LOCK_HELD=$$
+  trap 'rm -rf "$_GATE_LOCK"' EXIT
+fi
 FAILS=(); WARNS=()
 
 # -- A CHECK THAT NEVER RAN IS NOT A CHECK THAT PASSED ----------------------------------
