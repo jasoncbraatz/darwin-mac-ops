@@ -116,3 +116,5 @@ fix, and firewall-on-or-off is a security-posture call for the estate desk, not 
 
 ## Definition of done
 Every one of the 1 card(s) in the frozen manifest lane-ncCurie1009dm2.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncCurie1009dm2` exits 0.
+
+_Reconcile (ncFeynman1010tl 2026-10-10T21:16:05Z): cites 1218729017558178 "[process] Audit: which boxes are documented only as the FLOOR, not as subjects w" — now CLOSED: closed earlier (reconcile-only)_
