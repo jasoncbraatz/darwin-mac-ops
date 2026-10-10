@@ -3,8 +3,8 @@ project: "ncFeynman1009qm"
 session_n: 1
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: ""
-updated: "2026-10-09"
+gh_sha: "c2dd6177f8d2c4f2d9549e531ccee077176f9583"
+updated: "2026-10-10"
 definition_of_done: "Every one of the 1 card(s) in the frozen manifest lane-ncFeynman1009qm.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncFeynman1009qm` exits 0."
 verify_cmd: "bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncFeynman1009qm"
 ruler_files: ["$HOME/repos/claude-blackbook/state/smdrain/lane-ncFeynman1009qm.json", "$HOME/repos/claude-blackbook/scripts/verify-smdrain.sh"]
