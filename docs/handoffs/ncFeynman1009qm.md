@@ -100,3 +100,5 @@ It is a head start, not an order: if the card or the repo disagree with the brie
 
 ## Definition of done
 Every one of the 1 card(s) in the frozen manifest lane-ncFeynman1009qm.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncFeynman1009qm` exits 0.
+
+_Reconcile (local-feynman-9034-d 2026-10-10T02:56:39Z): cites 1219367612917959 "[process] quality pass: darwin-mac-ops gate-selfcheck + hooks-drill green on dar" — now CLOSED: NO-AAR: Quality pass on feynman 2026-10-09 (ncFeynman1009qm). hooks/hooks-drill.sh 42/0. gate-selfcheck has no --selftest flag; read as its self-drills, which are ALL green now. Full gate went 8->5 is_
