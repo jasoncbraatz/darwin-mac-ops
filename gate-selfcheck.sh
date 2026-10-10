@@ -470,6 +470,23 @@ for _rdrill in "$HOME/Scripts/roster-ghost-drill.sh" "$HOME/Scripts/roster-ident
   fi
 done
 
+# ── G-AW#wired · three drills born orphans on 2026-10-08/09 (ncFeynman1009qm, SM 1219367612917959) ──
+# G-AW went red on each: no-stash-in-live-lane (774898c), ledger-offbox PAN gate (235e130) and
+# session-out --cleared --function (3253dd5). All hermetic (scratch repos/state, stub lessons.py),
+# all green and under ~5 s on feynman 2026-10-09, so there was no cost argument for a baseline row.
+gate_ran "G-AW#wired"
+for _wdrill in "$HOME/Scripts/claude-hooks/no-stash-in-live-lane-drill.sh" "$HOME/Scripts/ledger-offbox-pan-drill.sh" "$HOME/Scripts/session-out-function-drill.sh"; do
+  _wdname="$(basename "$_wdrill")"
+  if [ -f "$_wdrill" ]; then
+    bold "=== G-AW#wired · $_wdname (offline) ==="
+    _WD_OUT="$(bash "$_wdrill" </dev/null 2>&1)"; _WD_RC=$?
+    printf '%s\n' "$_WD_OUT" | tail -1 | sed 's/^/  /'
+    [ "$_WD_RC" -eq 0 ] || FAILS+=("G-AW#wired: $_wdname failed (rc $_WD_RC) -- that control can no longer be shown to refuse. Run: bash $_wdrill")
+  else
+    WARNS+=("G-AW#wired: $_wdrill missing -- that control is unproven this run")
+  fi
+done
+
 # G-H #22c (acmeLedger-25, 2026-08-15) — ATTRIBUTION BY NAME, when no repo claim covers it.
 # #22b attributes dirt by roster CLAIM on the repo. That misses the commonest multi-session
 # case there is: a sibling drops HANDOFF-<theirSlug>-N.md into the everything folder, which
