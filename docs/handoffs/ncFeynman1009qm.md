@@ -1,25 +1,37 @@
 ---
 project: "ncFeynman1009qm"
-session_n: 0
+session_n: 1
 gh_repo: "jasoncbraatz/darwin-mac-ops"
 branch: "main"
-gh_sha: ""
-updated: "2026-10-09"
+gh_sha: "c2dd6177f8d2c4f2d9549e531ccee077176f9583"
+updated: "2026-10-10"
 definition_of_done: "Every one of the 1 card(s) in the frozen manifest lane-ncFeynman1009qm.json is closed on the State Machine with a bb-close.py receipt (or PARKED by a CEO ruling via smdrain-lane.py park), and `bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncFeynman1009qm` exits 0."
 verify_cmd: "bash $HOME/repos/claude-blackbook/scripts/verify-smdrain.sh ncFeynman1009qm"
 ruler_files: ["$HOME/repos/claude-blackbook/state/smdrain/lane-ncFeynman1009qm.json", "$HOME/repos/claude-blackbook/scripts/verify-smdrain.sh"]
 engine_sha: "23507861ee8917c40f52a7033d1a69611603c36a"
-lessons_consulted: []
-live_theme: "session 0: lane armed by the CEO desk from the 2026-10-10 freeze; no work yet."
-phase: "0/1 closed. RULER RED (expected before any work)."
-gate_passed: false
-next_at_bat: "Run the verify_cmd; take the first OPEN gid in the table below; read the card on Asana (the body carries prior sessions' measurements), fix it reversibly, verify it yourself, bb-close.py with a receipt. One card per inning is fine; two is better; a card you cannot close is a finding: a big_worker/Fable lane RULES its own reversible park (THE PROPERTY RULE, see the handoff body); only ruler amends, prod/TNT and Jason-values calls wait on someone else."
+lessons_consulted: ["2026-07-31-gate-selfcheck-sh-dual-tracked-copy"]
+live_theme: "session 1 (local-feynman-9034-d): the card is closed, RULER GREEN. hooks-drill 42/0, gate 8->5 issues; 3 root fixes, remainder carded as SM 1219368016143351."
+phase: "1/1 closed. RULER GREEN. Is the phase DONE? YES. The DoD is met; rail.py complete is session 1's LAST act; rail_log has the row if it landed."
+gate_passed: true
+next_at_bat: "NONE: the DoD is met. If the project is not complete on rail_log, run: rail.py complete --project ncFeynman1009qm --fence <N>. Ignore the rework-required row from ruling #939 (see the Session 1 section)."
 blockers: []
 drift_flags: []
 parking_lot: []
 ---
 
 # ncFeynman1009qm — LIVING HANDOFF
+
+## Session 1 (2026-10-09, local-feynman-9034-d, feynman), CARD CLOSED, RULER GREEN
+
+- `hooks/hooks-drill.sh`: **42 passed / 0 failed**.
+- `gate-selfcheck.sh` has **no `--selftest` flag**, so the card's "selftest" was read as the gate's own embedded drills. All of them are green now.
+  The full estate gate went **8 issues to 5**. Three fixes were made at the root:
+  - **G-AL#tag**: `~/Scripts/session-out-tag-drill.sh` was 21/10. Since 599623c, `session-out --record pass` refuses to record without a green `PREFLIGHT pass` line, and the drill fixture was never updated to write one. The fixture now seeds that line. Fixed in darwin-scripts **03b8108**; the drill is 31/0.
+  - **G-AO**: `rc-through-pipe-audit.py` flagged full-line `#` comments in scripts. The trigger was braatzio-plan `docs/ruler-exit-lint.sh:14`, which is header prose. The audit now skips those comments, and the selftest has both arms (the old file fails the new control). Live walk: 2 VIOLATIONs to clean. Fixed in **d1c0aa4**.
+  - **G-AW**: 3 orphan drills (no-stash-in-live-lane, ledger-offbox-pan, session-out-function) are now run by a new `G-AW#wired` loop, with a manifest row. gate-roll-call-drill is 35/0. Fixed in **9fd7293**. Everything is merged into main at d8b02d0.
+- **The 5 remaining reds are estate state outside this repo.** They are carded through the door as **SM 1219368016143351**: sz-exhaust-ledger `spend.jsonl` dirt (that is DATA, so do not commit it), G-V, G-V#3, G-AD (sz-shakedown-lap.sh), and G-AK (lane-a allowlist rows that are box-local). Also untouched: **G-AL#board NEVER RAN** for rail lanes, because the gate's slug is the worker id rather than the project.
+- **Ruling #939: the substance is A (close).** It reads `overturned`, and a `rework-required` row is on rail_log, but that is my mis-key: I ruled with the text "A" instead of `--confirm`. **No rework is needed.** If a later claim shows rework_required for #939, it is this mistake.
+- Card closed with a bb-close receipt. `verify-smdrain.sh ncFeynman1009qm`: 1/1, RULER GREEN, exit 0.
 
 ## Read first
 Run the `verify_cmd` in the frontmatter above FIRST. Its OPEN lines are the at-bat and its
