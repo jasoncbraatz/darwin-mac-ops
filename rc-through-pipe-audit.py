@@ -299,6 +299,11 @@ def scan_lines(lines, is_doc=False, path=""):
             continue
         if opted_out(lines, i):
             continue
+        # a full-line `#` comment in a SCRIPT never executes, so it cannot read an exit code --
+        # prose that DESCRIBES `fn; exit $?` next to a `|` is not the species (braatzio-plan
+        # docs/ruler-exit-lint.sh:14 held G-AO red on its own header, 2026-10-09)
+        if not is_doc and line.lstrip().startswith("#"):
+            continue
         if PIPESTATUS_RE.search(line) or LC_PIPESTATUS_RE.search(line):
             continue
 
@@ -479,6 +484,11 @@ def selftest():
     if "VIOLATION" not in got_script:
         fails.append("QUOTED leniency leaked into a SCRIPT: %r -> %s"
                      % (warned_script, got_script or "nothing"))
+    commented = ["#!/bin/bash", "#   a test `[ ... ]` | a bare call (or `fn; exit $?`) whose body"]
+    if "VIOLATION" in _kinds(commented):
+        fails.append("a full-line COMMENT in a script was flagged -- it never executes")
+    if "VIOLATION" not in _kinds(["#!/bin/bash", "   a test | a bare call; exit $?"]):
+        fails.append("the same line UNcommented must still be a violation (the control can fail)")
     pf_ok = ["#!/bin/bash", "set -uo pipefail", "audit x | report", "exit $?"]
     if "VIOLATION" in _kinds(pf_ok):
         fails.append("top-level pipefail before the line should NOT be a violation")
