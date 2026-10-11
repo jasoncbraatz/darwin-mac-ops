@@ -276,6 +276,29 @@ estate_verify_all_advisory() {
 }
 estate_verify_all_advisory
 
+# --- the auto-bridge drills advisory (SM 1218842095722041, nightCrew i269 2026-10-11) --------
+# run-all-drills.sh is a door with no doorbell: multTriage-01 (2026-09-12) made
+# `project-init --primes` required and five fixtures went RED that day, and nothing ran them
+# together for 12 days because nothing was wired to. Same shape and same reason as the
+# verify-all leg above (fires on the COMMIT most able to break a shared convention), scoped to
+# auto-bridge instead of pitching-machine since that is where abridge.py's own flag surface
+# lives. PRINTS, NEVER BLOCKS, for the same reason: blocking trains --no-verify by reflex,
+# which costs the SECRET scan above its teeth.
+estate_autobridge_drills_advisory() {
+  [ "${ESTATE_AUTOBRIDGE_DRILLS:-1}" = "1" ] || return 0
+  [ "${BASE:-}" = "auto-bridge" ] || return 0
+  [ -f "$TOP/tests/run-all-drills.sh" ] || return 0
+  printf 'estate pre-commit: running auto-bridge tests/run-all-drills.sh (advisory)...\n' >&2
+  ( cd "$TOP" && bash tests/run-all-drills.sh ) >&2 2>&1
+  _abd_rc=$?
+  if [ "$_abd_rc" != 0 ]; then
+    printf 'estate pre-commit: ^ auto-bridge drills RED -- advisory only, this commit PROCEEDS.\n' >&2
+    printf '  Silence for one commit: ESTATE_AUTOBRIDGE_DRILLS=0 git commit ...\n' >&2
+  fi
+  return 0
+}
+estate_autobridge_drills_advisory
+
 # PIPEFAIL RATCHET (SM 1218156102990892, fable-smRanger-00 2026-09-27) -- a NUDGE, never a refusal.
 # A tree sweep of ~/Scripts + repos reads ~677 SIGPIPE trapdoors, mostly harmless, and nobody drains
 # that; so read only the lines THIS commit ADDS to *.sh files that set pipefail. No new trapdoor lands
