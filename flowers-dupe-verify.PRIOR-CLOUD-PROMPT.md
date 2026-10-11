@@ -1,5 +1,9 @@
 # ARCHIVE — the prior CLOUD prompt for "Flowers double-send: 24h post-fix verification"
 
+> **The Batter's Box retired 2026-10-10** (claude-blackbook `docs/THE-MAILBOX-LAW.md` v2). Below, a
+> "Batter's Box card" now means `~/Scripts/bb-card.py` (a shim: State Machine card + one numbered text on
+> NOW/NEXT) when Jason's literal hand is missing, else `~/Scripts/sm-file`. Never write to the Box gid.
+
 **Trigger id:** `trig_01GK8X6JQ72L5Rgr6DSPSyU3` · one-shot `2026-07-30T01:30:00Z` · fresh-session cloud task
 **Status:** DELETED 2026-07-29 by the AAR phase-3 session, superseded by the LOCAL launchd job
 `com.braatz.flowers-dupe-verify` (`~/Scripts/flowers-dupe-verify.sh`).

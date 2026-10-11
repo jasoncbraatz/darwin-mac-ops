@@ -1,5 +1,9 @@
 # photo-sync — family photos/videos → Dropbox (one-way cold backup)
 
+> **The Batter's Box retired 2026-10-10** (claude-blackbook `docs/THE-MAILBOX-LAW.md` v2). Below, a
+> "Batter's Box card" now means `~/Scripts/bb-card.py` (a shim: State Machine card + one numbered text on
+> NOW/NEXT) when Jason's literal hand is missing, else `~/Scripts/sm-file`. Never write to the Box gid.
+
 Hourly (+ weekly full-sweep) one-way backup of the family photo/video corpus from
 voyager (the NAS SSOT) to Dropbox. Reads the NAS via rclone's own SMB client
 (`my_nas:` remote) — **no `/Volumes` mount needed** (that path caused a beachball; see below).
