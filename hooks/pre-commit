@@ -380,4 +380,20 @@ estate_judge_pair() {
 }
 estate_judge_pair || exit 1
 
+# --- the sheet-guard leg (ledgerArch-02, 2026-10-18; ruling #1075) ------------------------------------
+# THE SHEET IS SIGNED OR IT IS A DRAFT. An unsigned words sheet (docs/renderings/<r>/build.py) committed on main
+# made words.py's sheet==worker gate RED in every tree and parked a rail lane nine hours on a signature. On main a
+# staged build.py/rotation.tsv lands only with its SIGNED.json in the same commit (arch-sign's shape); drafts live
+# on draft/<r>. Same shape as the legs above: fails OPEN without the guard, CLOSED on a finding, before the FINAL exec.
+estate_sheet_guard() {
+  [ "${ESTATE_SHEET_GUARD:-1}" = "1" ] || return 0
+  _sg="$HOME/Scripts/sheet-guard.sh"
+  [ -f "$_sg" ] || return 0
+  bash "$_sg" --staged >&2 && return 0
+  printf 'estate pre-commit: REFUSED - see above. Silence this ONE commit deliberately:\n' >&2
+  printf '  ESTATE_SHEET_GUARD=0 git commit ...   (and say why in the message)\n' >&2
+  return 1
+}
+estate_sheet_guard || exit 1
+
 ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
