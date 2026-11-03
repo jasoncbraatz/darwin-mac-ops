@@ -155,4 +155,4 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
 fi
 # <<< nvm + per-repo node (acmeLedger-19, 2026-08-15) <<<
 
-. "$HOME/.local/bin/env"
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
