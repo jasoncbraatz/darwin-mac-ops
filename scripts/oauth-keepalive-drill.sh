@@ -65,6 +65,14 @@ mkdir -p "$D/lock"; touch -t 202001010000 "$D/lock"
 rc=$(run "$D/claude-lock"); ok $([ "$rc" = 0 ] && [ -e "$D/probed" ] && echo 0 || echo 1) "refresh-lock busy: one patient retry heals it"
 # 10. ...and the >5-min orphan lock was RENAMED aside (never deleted)
 ok $([ ! -d "$D/lock" ] && ls -d "$D"/lock.stale-* >/dev/null 2>&1 && echo 0 || echo 1) "orphaned refresh lock renamed aside, not deleted"
+# 10b. WITNESSES (nightCrew-331/465): a busy lock logs lock_age/alive/pids/renamed up front,
+#      and the retry logs its own rc + output -- the 429-only failure the card found left none of
+#      this behind, so this is the log line that would have confirmed or killed its hypothesis.
+#      (KEEPALIVE_IGNORE_PROCS=1 is always set above, so the drill's own witness reads alive=no.)
+grep -q "refresh lock busy — lock_age=" "$D/keepalive.log" && grep -q "alive=no" "$D/keepalive.log" && grep -q "renamed=yes" "$D/keepalive.log"
+ok $? "lock-busy witnesses logged: lock_age, alive, pids, renamed"
+grep -q "retry rc=0 out=" "$D/keepalive.log"
+ok $? "lock-busy retry logs its own rc and output"
 # 11. a FRESH lock (<5 min) is left alone -- it may belong to a live refresh
 rm -rf "$D"/lock*; mkdir -p "$D/lock"; rm -f "$D/tried" "$D/probed"
 rc=$(run "$D/claude-lock"); ok $([ -d "$D/lock" ] && echo 0 || echo 1) "fresh refresh lock left alone"

@@ -68,6 +68,28 @@ case "$http" in
     case "$last" in ''|*[!0-9]*) last=0 ;; esac
     [ $(( $(date +%s) - last )) -lt "$COOL" ] && exit 0
     date +%s > "$STAMP"
+    # HEALED ELSEWHERE (nightCrew-331, 2026-10-28 · feynman 13:09-13:16Z): an unrelated interactive
+    # `claude` refreshed the token 4s before our own cooldown stamp, and the gauge still sat dark
+    # until the next scheduled tick -- this job never re-checked. Re-read the probe's own verdict
+    # right before spending a `claude -p`; if it already reads ok, someone else already paid for it.
+    http2=$(/usr/bin/python3 - "$FU" <<'PY' 2>/dev/null
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    print(d.get("http", "none") if not d.get("ok") else "ok")
+except Exception:
+    print("unreadable")
+PY
+)
+    if [ "$http2" = ok ]; then
+      echo "$(now) http=$http but fuel-usage.json now reads ok — healed elsewhere, re-running fuel-tick" >> "$LOG"
+      if [ -f "$PM/scripts/fuel-tick.sh" ]; then
+        /bin/bash "$PM/scripts/fuel-tick.sh" >> "$LOG" 2>&1
+      else
+        /usr/bin/python3 "$PM/scripts/fuel_gauge.py" probe >> "$LOG" 2>&1
+      fi
+      exit $?
+    fi
     echo "$(now) http=$http — refreshing in the GUI domain" >> "$LOG"
     # fast_worker per ~/Scripts/models.json; a keepalive that bills orchestrator tokens is a leak.
     model=$(/usr/bin/python3 -c 'import json;print(json.load(open("'"$HOME"'/Scripts/models.json"))["tiers"]["fast_worker"]["alias"])' 2>/dev/null || echo haiku)
@@ -83,13 +105,23 @@ case "$http" in
     # the one patient retry the CLI itself asks for.
     if [ $rc != 0 ] && printf '%s' "$out" | grep -q "another Claude Code process is refreshing"; then
       LOCK="${CLAUDE_REFRESH_LOCK:-$HOME/.claude/.oauth_refresh.lock}"
-      if [ -n "${KEEPALIVE_IGNORE_PROCS:-}" ]; then alive=no      # drill only
-      elif pgrep -u "$(id -u)" -f '(^|/)claude( |$)' >/dev/null; then alive=yes; else alive=no; fi
-      if [ -d "$LOCK" ] && [ "$alive" = no ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +5 2>/dev/null)" ]; then
-        mv "$LOCK" "$LOCK.stale-$(date -u +%Y%m%dT%H%M%SZ)" && echo "$(now) refresh lock was stale (>5 min, no claude alive) — renamed aside" >> "$LOG"
+      if [ -n "${KEEPALIVE_IGNORE_PROCS:-}" ]; then alive=no; pids=""      # drill only
+      else
+        pids=$(pgrep -u "$(id -u)" -fl '(^|/)claude( |$)' 2>/dev/null | tr '\n' ';')
+        if [ -n "$pids" ]; then alive=yes; else alive=no; fi
       fi
-      echo "$(now) refresh lock busy — one patient retry in ${KEEPALIVE_RETRY_S:-60}s" >> "$LOG"
+      # WITNESSES (nightCrew-331, 2026-10-28 · feynman: 126 refresh attempts, 25 "lock busy", 21
+      # FAILED the same way, 0 stale locks renamed -- the >5min+no-claude-alive branch never fired
+      # for this failure, and nothing logged why. Log the evidence every time, not just on rename.
+      lock_age="n/a"
+      [ -d "$LOCK" ] && lock_age=$(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || stat -f %m "$LOCK" 2>/dev/null || date +%s) ))s
+      renamed=no
+      if [ -d "$LOCK" ] && [ "$alive" = no ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +5 2>/dev/null)" ]; then
+        mv "$LOCK" "$LOCK.stale-$(date -u +%Y%m%dT%H%M%SZ)" && renamed=yes
+      fi
+      echo "$(now) refresh lock busy — lock_age=$lock_age alive=$alive pids=[$pids] renamed=$renamed — one patient retry in ${KEEPALIVE_RETRY_S:-60}s" >> "$LOG"
       sleep "${KEEPALIVE_RETRY_S:-60}"; refresh; rc=$?
+      echo "$(now) retry rc=$rc out=$(printf '%s' "$out" | tr '\n' ' ' | cut -c1-200)" >> "$LOG"
     fi
     if [ $rc = 0 ]; then
       # Re-run the WHOLE tick (probe + publish to the n8n hub + guard), not just the probe
