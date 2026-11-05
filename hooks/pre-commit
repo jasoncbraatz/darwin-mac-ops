@@ -239,6 +239,12 @@ estate_roster_brake || exit 1
 estate_verify_all_advisory() {
   [ "${ESTATE_VERIFY_ALL:-1}" = "1" ] || return 0
   [ "${BASE:-}" = "pitching-machine" ] || return 0
+  # A darlish door (DARLISH_VIA set) has a 120 s wall; the replay alone can outlast it and kill git
+  # mid-hook (stale .git/index.lock). Skip it there, and say so. ESTATE_VERIFY_ALL=1 + no DARLISH_VIA runs it.
+  if [ -n "${DARLISH_VIA:-}" ]; then
+    printf 'estate pre-commit: DARLISH_VIA set -- skipping the ruler replay advisory (door wall 120 s).\n' >&2
+    return 0
+  fi
   [ -x "$HOME/Scripts/verify-all.sh" ] || return 0
   printf 'estate pre-commit: replaying frozen rulers of done projects (advisory)...\n' >&2
   # --budget, not `timeout <n> verify-all`: an outside kill exits non-zero and reads exactly
@@ -287,6 +293,10 @@ estate_verify_all_advisory
 estate_autobridge_drills_advisory() {
   [ "${ESTATE_AUTOBRIDGE_DRILLS:-1}" = "1" ] || return 0
   [ "${BASE:-}" = "auto-bridge" ] || return 0
+  if [ -n "${DARLISH_VIA:-}" ]; then
+    printf 'estate pre-commit: DARLISH_VIA set -- skipping the auto-bridge drills advisory (door wall 120 s).\n' >&2
+    return 0
+  fi
   [ -f "$TOP/tests/run-all-drills.sh" ] || return 0
   printf 'estate pre-commit: running auto-bridge tests/run-all-drills.sh (advisory)...\n' >&2
   ( cd "$TOP" && bash tests/run-all-drills.sh ) >&2 2>&1
