@@ -1477,6 +1477,23 @@ fi
 # --- HANDOFF-GATE secondary-mirror freshness (G-L#35: one canonical home, synced not forked) ---
 gate_ran "G-L"
 CANON_GATE="$HOME/Desktop/downloads/HANDOFF-GATE.md"
+# --- G-L#36 · the brief's boot doors hold the canon (briefPointer, 2026-11-06) ------------------
+#     The settings box now holds a KERNEL that READS the canon brief at STEP 0 through a door
+#     (~/Scripts/BRIEF.md on every box, /tmp/BRIEF.md, n8n BriefRead00001's hub copy). A door that
+#     lags the canon teaches every new session yesterday's rules with today's confidence -- the
+#     paste drift of 2026-07 (brief-check.sh's header) in a new costume. `brief-publish --check`
+#     reads every door back: STALE (exit 1) is a BLOCKER, because the fix is one command and this
+#     wrap is the cheapest holder; unreachable (exit 2) is a WARN, phone-safe like G-W's box checks.
+if [ -x "$HOME/Scripts/brief-publish" ]; then
+  _bp_out="$("$HOME/Scripts/brief-publish" --check 2>&1)"; _bp_rc=$?
+  case "$_bp_rc" in
+    0) : ;;
+    1) FAILS+=("G-L#36: a brief door is STALE vs the canon -- $(printf '%s' "$_bp_out" | grep -m1 STALE | sed 's/^ *//') ; fix: ~/Scripts/brief-publish") ;;
+    *) WARNS+=("G-L#36 CANNOT VERIFY every brief door: $(printf '%s' "$_bp_out" | grep -m1 -E '\?\?|CANNOT|REFUSED' | sed 's/^ *//')") ;;
+  esac
+else
+  WARNS+=("G-L#36 CANNOT VERIFY: ~/Scripts/brief-publish missing -- git -C ~/Scripts pull")
+fi
 MIRROR_GATE="$HOME/repos/claude-blackbook/HANDOFF-GATE.md"
 if [ -f "$CANON_GATE" ]; then
   if [ ! -f "$MIRROR_GATE" ]; then
