@@ -76,5 +76,10 @@ ok $? "lock-busy retry logs its own rc and output"
 # 11. a FRESH lock (<5 min) is left alone -- it may belong to a live refresh
 rm -rf "$D"/lock*; mkdir -p "$D/lock"; rm -f "$D/tried" "$D/probed"
 rc=$(run "$D/claude-lock"); ok $([ -d "$D/lock" ] && echo 0 || echo 1) "fresh refresh lock left alone"
+# 11b. THE FIELD CASE (curie 2026-11-09 lock_age=19s/24s, feynman 2026-11-10 31s, all "renamed=no"):
+#      litter a dead refresh left 30 s ago, no claude CLI alive -> renamed aside NOW, not after 5 minutes
+rm -rf "$D"/lock*; mkdir -p "$D/lock"; rm -f "$D/tried" "$D/probed"
+touch -t "$(python3 -c 'import time;print(time.strftime("%Y%m%d%H%M.%S",time.localtime(time.time()-30)))')" "$D/lock"
+rc=$(run "$D/claude-lock"); ok $([ ! -d "$D/lock" ] && ls -d "$D"/lock.stale-* >/dev/null 2>&1 && echo 0 || echo 1) "30s-old orphan lock (no claude alive) renamed aside -- the 5-min floor never fired in the field"
 echo "oauth-keepalive-drill: $pass/$total"
 [ "$pass" = "$total" ]

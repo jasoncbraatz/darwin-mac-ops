@@ -113,10 +113,16 @@ PY
       # WITNESSES (nightCrew-331, 2026-10-28 · feynman: 126 refresh attempts, 25 "lock busy", 21
       # FAILED the same way, 0 stale locks renamed -- the >5min+no-claude-alive branch never fired
       # for this failure, and nothing logged why. Log the evidence every time, not just on rename.
-      lock_age="n/a"
-      [ -d "$LOCK" ] && lock_age=$(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || stat -f %m "$LOCK" 2>/dev/null || date +%s) ))s
+      lock_age="n/a"; age_s=0
+      [ -d "$LOCK" ] && age_s=$(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || stat -f %m "$LOCK" 2>/dev/null || date +%s) )) && lock_age=${age_s}s
       renamed=no
-      if [ -d "$LOCK" ] && [ "$alive" = no ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +5 2>/dev/null)" ]; then
+      # THE 5-MINUTE FLOOR NEVER FIRED (opus-fuelbarCurie-01; curie 2026-11-09 lock_age=19s/24s, feynman
+      # 2026-11-10 lock_age=31s, every tick "renamed=no"): each failed refresh by an idle rail lane LEFT a
+      # fresh lock, so the litter was always < 5 min old and this branch could not see it. With no claude
+      # CLI process alive the lock cannot be anyone's (rail-runner.sh oauth_clear_stale_lock already uses
+      # exactly that rule, no age). The floor stays only as a margin against a refresh that is mid-flight
+      # right now (a refresh takes seconds): KEEPALIVE_LOCK_FLOOR_S, default 15.
+      if [ -d "$LOCK" ] && [ "$alive" = no ] && [ "$age_s" -ge "${KEEPALIVE_LOCK_FLOOR_S:-15}" ]; then
         mv "$LOCK" "$LOCK.stale-$(date -u +%Y%m%dT%H%M%SZ)" && renamed=yes
       fi
       echo "$(now) refresh lock busy — lock_age=$lock_age alive=$alive pids=[$pids] renamed=$renamed — one patient retry in ${KEEPALIVE_RETRY_S:-60}s" >> "$LOG"
