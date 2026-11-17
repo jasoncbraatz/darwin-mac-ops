@@ -35,4 +35,17 @@ if [ -x "$HOME/Scripts/dod-echo.py" ]; then
   python3 "$HOME/Scripts/dod-echo.py" 2>/dev/null || true
 fi
 
+# --- trainBell (2026-11-17): the cut countdown, braatzio-plan ONLY ---------------------------
+# Session mail is PULLED (read only when the recipient next runs a command), which for a 20:00
+# cut is too late to matter -- so this says the time at the one moment a session is already
+# looking, instead of trying to message anyone. This hook dir is shared by ~107 repos; the
+# countdown means nothing to the other 106, so it is gated on the repo being braatzio-plan.
+# Best-effort, same as everything above: never fail a commit over a clock.
+if [ -x "$HOME/Scripts/train-countdown" ]; then
+  REPO_TOP="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [ "$(basename "${REPO_TOP:-}")" = "braatzio-plan" ]; then
+    "$HOME/Scripts/train-countdown" 2>/dev/null || true
+  fi
+fi
+
 ESTATE_HOOK_NAME=post-commit exec "$HOOK_DIR/_chain.sh" "$@"
