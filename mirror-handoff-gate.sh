@@ -33,6 +33,21 @@ if cmp -s "$CANON" "$MIRROR"; then
   exit 0
 fi
 
+# REFUSE TO REGRESS (fable-estateMow-01, 2026-11-18). The mirror is not read-only in practice:
+# brief sessions edited it directly on 2026-11-15 (G-F.0) while the canonical sat at 2026-10-02,
+# and on a box whose canonical clone was stale this script -- the gate's own suggested remedy for
+# "mirror is STALE" -- would have pushed a six-week-old gate over the newer text. So: if the mirror
+# has a NON-mirror commit to this file newer than the canonical's last commit to it, the mirror is
+# AHEAD. Pull it home first (review, then: cat "$MIRROR" > "$CANON", commit in darwin-everything-meta).
+# Override with MIRROR_GATE_FORCE=1 only after you have done exactly that.
+_canon_dir=$(dirname "$CANON")
+_canon_t=$(git -C "$_canon_dir" log -1 --format=%ct -- "$(basename "$CANON")" 2>/dev/null || echo 0)
+_mirror_t=$(git -C "$MIRROR_REPO" log -1 --format=%ct --invert-grep --grep='^mirror HANDOFF-GATE.md' -- HANDOFF-GATE.md 2>/dev/null || echo 0)
+if [ "${MIRROR_GATE_FORCE:-0}" != 1 ] && [ "${_mirror_t:-0}" -gt "${_canon_t:-0}" ]; then
+  echo "[mirror-gate] REFUSED [mirror-ahead]: claude-blackbook has a direct edit to HANDOFF-GATE.md ($(git -C "$MIRROR_REPO" log -1 --format='%h %cd' --date=short --invert-grep --grep='^mirror HANDOFF-GATE.md' -- HANDOFF-GATE.md)) newer than the canonical's last commit -- copying would REGRESS it." >&2
+  echo "[mirror-gate]   fix: git -C $_canon_dir pull --ff-only; if still refused, review the diff, then cat $MIRROR > $CANON and commit in darwin-everything-meta (MIRROR_GATE_FORCE=1 overrides)" >&2
+  exit 3
+fi
 cp "$CANON" "$MIRROR"
 cd "$MIRROR_REPO"
 # `git add <path>` then a bare `git commit` is NOT path-scoped: commit takes the whole INDEX,
