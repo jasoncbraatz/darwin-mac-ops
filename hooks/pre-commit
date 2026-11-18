@@ -131,6 +131,39 @@ if [ "${#PATHS[@]}" -eq 0 ]; then
   ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
 fi
 
+# Each scan leg is WALL-CLOCK BOUNDED (SM 1220643385879649, 2026-11-18): a disk-I/O-bound
+# `git grep --cached` over a huge staged set (one acme-ledger-plan receipt commit: 4447
+# files, 290MB+ in one of six bbenv dirs) hung past 25 minutes and burned three rail
+# innings before it was diagnosed. `timeout` (not --budget: there is no such flag on git
+# grep) + an EXPLICIT rc=124 check, so a timeout reads as "BLOCKED, time-boxed" and never
+# as a silent pass-through of whatever partial output buffered before the kill -- that
+# would be a fail-OPEN on the one scan this hook cannot afford to skip quietly. Escape
+# hatch is the same one this hook already documents: git commit --no-verify after a
+# manual review.
+GE_GREP_BUDGET="${ESTATE_GREP_BUDGET_SEC:-60}"
+SECRET_HITS_FILE="$(mktemp)"; PAN_HITS_FILE="$(mktemp)"
+trap 'rm -f "$SECRET_HITS_FILE" "$PAN_HITS_FILE"' EXIT
+
+timeout "$GE_GREP_BUDGET" git grep --cached -nIE "$SECRET_RE" -- "${PATHS[@]}" >"$SECRET_HITS_FILE" 2>/dev/null
+secret_rc=$?
+if [ "$secret_rc" -eq 124 ]; then
+  echo "" >&2
+  echo "estate pre-commit: BLOCKED — the secret scan over the staged index (${#PATHS[@]} files) exceeded its ${GE_GREP_BUDGET}s budget" >&2
+  echo "  This fails CLOSED: a scan that cannot finish is not a scan that passed. Review by hand, then:" >&2
+  echo "  git commit --no-verify   (deliberate, one commit only)" >&2
+  exit 1
+fi
+
+timeout "$GE_GREP_BUDGET" git grep --cached -nIE "$PAN_RE" -- "${PATHS[@]}" >"$PAN_HITS_FILE" 2>/dev/null
+pan_rc=$?
+if [ "$pan_rc" -eq 124 ]; then
+  echo "" >&2
+  echo "estate pre-commit: BLOCKED — the card-number scan over the staged index (${#PATHS[@]} files) exceeded its ${GE_GREP_BUDGET}s budget" >&2
+  echo "  This fails CLOSED: a scan that cannot finish is not a scan that passed. Review by hand, then:" >&2
+  echo "  git commit --no-verify   (deliberate, one commit only)" >&2
+  exit 1
+fi
+
 hits=0; pan_hits=0
 while IFS= read -r line; do
   [ -z "$line" ] && continue
@@ -145,7 +178,7 @@ while IFS= read -r line; do
   floc="$(printf '%s' "$line" | cut -d: -f1-2)"
   printf '    %s: %s  [match: %s]\n' "$BASE" "$floc" "$(ge_mask "$line")" >&2
   hits=$((hits+1))
-done < <(git grep --cached -nIE "$SECRET_RE" -- "${PATHS[@]}" 2>/dev/null)
+done < "$SECRET_HITS_FILE"
 
 # --- the PAN layer (S15 2026-09-04, SM 1217561601836055) ---------------------------
 # THIRD axis, same index, same allowlist. SECRET_RE matches vendor SHAPES and
@@ -173,7 +206,7 @@ while IFS= read -r line; do
   printf '    %s: %s  [PAN: %s]\n' "$BASE" "$floc" "$tok" >&2
   hits=$((hits+1))
   pan_hits=$((pan_hits+1))
-done < <(git grep --cached -nIE "$PAN_RE" -- "${PATHS[@]}" 2>/dev/null)
+done < "$PAN_HITS_FILE"
 
 # Suppression is NEVER silent — a reader has to be able to see what the allowlist ate.
 # A silent cap reads as "covered everything" when it did not (S44).
