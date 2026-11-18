@@ -96,4 +96,4 @@ bbooks202611	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/OUTCOMES.md	ba
 braatzbooks	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/OUTCOMES.md	bash $HOME/repos/braatzio-plan/docs/student-in.sh --short
 mailAuthOutlook	~/repos/domain-inventory	$HOME/repos/domain-inventory/docs/done-criteria-mailAuthOutlook.tsv	BOARD_CHECK_TIMEOUT=120 python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/domain-inventory/docs/done-criteria-mailAuthOutlook.tsv --project mailAuthOutlook --brief
 mailauth	~/repos/domain-inventory	$HOME/repos/domain-inventory/docs/done-criteria-mailAuthOutlook.tsv	BOARD_CHECK_TIMEOUT=120 python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/domain-inventory/docs/done-criteria-mailAuthOutlook.tsv --project mailAuthOutlook --brief
-drilldown	braatzio-plan	docs/DOD-drillDown-SESSION.md	cat ~/repos/braatzio-plan/docs/DOD-drillDown-SESSION.md
+drilldown	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-drillDown-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-drillDown-SESSION.md
