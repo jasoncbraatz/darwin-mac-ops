@@ -98,3 +98,4 @@ mailAuthOutlook	~/repos/domain-inventory	$HOME/repos/domain-inventory/docs/done-
 mailauth	~/repos/domain-inventory	$HOME/repos/domain-inventory/docs/done-criteria-mailAuthOutlook.tsv	BOARD_CHECK_TIMEOUT=120 python3 $HOME/Scripts/handoff-kit/board.py --criteria $HOME/repos/domain-inventory/docs/done-criteria-mailAuthOutlook.tsv --project mailAuthOutlook --brief
 drilldown	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-drillDown-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-drillDown-SESSION.md
 bbbugspray	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-bbBugSpray-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-bbBugSpray-SESSION.md
+bbbraatz	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-bbBraatz-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-bbBraatz-SESSION.md
