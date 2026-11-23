@@ -262,9 +262,10 @@ fi
 
 # ---- 14. A 16-DIGIT RUN IS NOT AUTOMATICALLY A CARD (feynmanSync-15, from FF-2 mail
 #          1788899803-2221, found by orchestrator-braatz911-07 on their own wrap) ---------
-# G-AQ harvested `1213050213165325` -- the Batter's Box PROJECT gid, which every honest thread
-# ledger on this estate cites by design -- and a 16-digit WINDOW inside a longer number. Both
+# G-AQ harvested `1213050213165325` (BOX-REF-OK: comment citing the gid the harvester must exclude) --
+# the Batter's Box PROJECT gid, which every honest thread ledger cites by design -- and a 16-digit WINDOW. Both
 # then read as "a thread you dropped", an accusation aimed at a handoff that did nothing wrong.
+# BOX-REF-OK: test fixture data below cites both board gids as the parser's exclusion target
 cat > "$T/boards-in.md" <<EOF
 # inbound
 - the two boards themselves: 1213050213165325 (Batter's Box) and 1215913700958709 (State Machine)
@@ -283,6 +284,7 @@ fi
 
 # POSITIVE TWIN, so the control above is not satisfied by a parser that harvests NOTHING --
 # which would be the same defect with the opposite sign, and just as silent.
+# BOX-REF-OK: test fixture data below cites both board gids as the parser's exclusion target
 cat > "$T/boards-in2.md" <<EOF
 # inbound
 - the boards: 1213050213165325 and 1215913700958709

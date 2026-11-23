@@ -23,6 +23,7 @@ WATCHED=(
   "metafield-detector|1217034598173934|26"   # hourly darwin launchd; 26h tolerates a night of laptop sleep
 )
 
+# BOX-REF-OK: ratified HITL writer (bb-writers-allowlist.json, 2026-08-07 S37) -- a dead detector needs Jason's hands
 BATTERS_BOX="1213050213165325"
 TOKEN_FILE="$HOME/.config/scan-pipeline/asana.token"
 LOG="$HOME/Library/Logs/detector-heartbeat-watch.log"

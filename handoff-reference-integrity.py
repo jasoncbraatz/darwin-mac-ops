@@ -43,7 +43,7 @@ WHAT IT CHECKS -- three reference kinds, each with a deliberate narrow scope
              object type the estate cites, not just /tasks. A 404 from /tasks
              means "not a task" -- it does NOT mean "not a thing". Caught on this
              tool's first corpus sweep, where it called the Batter's Box itself
-             (1213050213165325, a PROJECT) an unresolved reference. Only when
+             (1213050213165325, a PROJECT) an unresolved reference. BOX-REF-OK: docstring example of a past false positive, not a live reference. Only when
              every endpoint 404s is a gid genuinely unresolvable; a 403 anywhere
              is CANNOT VERIFY and outranks every 404 beside it.
 2. PATHS     only backticked tokens beginning `~/`, `/Users/` or `/home/`.

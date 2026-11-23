@@ -117,6 +117,7 @@ prose() {
   ' "$1"
 }
 
+# BOX-REF-OK: explains why the board gids below are excluded, not a live write or filter target
 # A 16-DIGIT RUN IS NOT AUTOMATICALLY A CARD. Delivered into feynmanSync-15's roster mailbox
 # by orchestrator-braatz911-07 (mail 1788899803-2221), measured on their own wrap: G-AQ
 # reported `1213050213165325` -- the Batter's Box PROJECT gid, which every thread ledger cites
@@ -144,6 +145,7 @@ prose() {
 #      because the secret sentry refuses that 16-digit literal at commit (the hook and the
 #      harvester disagreed about one number, and the human was the pipe between them). Blank
 #      every <digits>.<digits> run before harvesting; a real gid never carries a decimal point.
+# BOX-REF-OK: declared exclusion list (both boards), not a write target -- see note above
 HTC_BOARD_GIDS="${HTC_BOARD_GIDS:-1213050213165325 1215913700958709}"
 gids_of() {
   prose "$1" \

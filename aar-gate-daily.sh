@@ -23,7 +23,8 @@ HEARTBEAT="$HOME/Library/Logs/aar-gate.heartbeat"
 # hand, eye or credit card is the missing part. Filing it into Jason's Box was the costliest error the
 # Law names, and it also produced a duplicate-bbkey finding (one twin per board, 1218645053968330 vs
 # 1218468093966735) because the SM copy had been rerouted there on 2026-09-14 while this filer kept
-# minting Box copies. Undo: put 1213050213165325 back here -- but read docs/THE-MAILBOX-LAW.md first.
+# minting Box copies. Undo: put 1213050213165325 back here (BOX-REF-OK: historical warning against
+# reverting this fix, not a live reference) -- but read docs/THE-MAILBOX-LAW.md first.
 BATTERS_BOX="1215913700958709"
 # HTML-comment form is REQUIRED: bb-close-on-clear.py matches <!--BBKEY:([^>]*)-->,
 # and the plain-line form this used to carry was invisible to it (BBKEY backlog,

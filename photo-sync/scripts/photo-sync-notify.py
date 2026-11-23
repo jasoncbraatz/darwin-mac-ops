@@ -24,7 +24,7 @@ Dependency-free (urllib only). Reuses the scan-pipeline Asana token.
 import sys, json, urllib.request, pathlib
 
 TOKEN_FILE = pathlib.Path.home() / ".config" / "scan-pipeline" / "asana.token"
-PROJECT = "1213050213165325"   # Batter's Box
+PROJECT = "1213050213165325"   # BOX-REF-OK: ratified HITL writer (bb-writers-allowlist.json, 2026-08-07 S37)
 SECTION = "1213050213165326"   # top "Untitled section" (the inbox)
 ASANA = "https://app.asana.com/api/1.0/tasks"
 

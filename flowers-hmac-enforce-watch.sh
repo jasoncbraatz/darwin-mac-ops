@@ -59,6 +59,7 @@ MIN_ORDERS=3                          # one verified order is an anecdote; three
 DRIVER_CARD="1217092365565115"
 COMPANION_CARDS="1216968508495305 1216968620841480"
 AAR_SLUG="delivered-text-double-fire" # closing comments MUST carry this or the AAR gate trips
+# BOX-REF-OK: ratified HITL writer (bb-writers-allowlist.json, 2026-08-07 S38) -- real orders 401d/dropped needs a human call
 BATTERS_BOX="1213050213165325"
 BBKEY="BBKEY flowers-hmac-enforce-watch"
 TOKEN_FILE="$HOME/.config/scan-pipeline/asana.token"
@@ -360,7 +361,10 @@ Exit $RC. 0=verified 1=webhooks being dropped 2=insufficient data (NOT a pass)."
     printf '\n--- DRYRUN: would CREATE a Batter'"'"'s Box card ---\n%s\n--- end ---\n' "$BODY"
     SURFACED=1
   else
-    if NEWGID=$(/usr/bin/python3 - "$PAT" "$BATTERS_BOX" "$BODY" <<'PY'
+    # portability-guard check 10: a heredoc INSIDE $(...) cannot be parsed by bash 3.2 (the
+    # BOARD box). Write it to a file first, then capture the file's output in one line.
+    _T="$(mktemp -d)"
+    cat > "$_T/create_card.py" <<'PY'
 import json,sys,urllib.request,urllib.error
 pat,proj,body=sys.argv[1],sys.argv[2],sys.argv[3]
 r=urllib.request.Request("https://app.asana.com/api/1.0/tasks",
@@ -373,11 +377,12 @@ try:
 except Exception as e:
     sys.stderr.write("asana create failed: %s\n" % e); sys.exit(1)
 PY
-    ); then
+    if NEWGID=$(/usr/bin/python3 "$_T/create_card.py" "$PAT" "$BATTERS_BOX" "$BODY"); then
       SURFACED=1; log "FAIL — filed a new Batter's Box card $NEWGID"
     else
       log "FAIL — could NOT file a Batter's Box card — the failure is NOT surfaced anywhere but this log."
     fi
+    rm -rf "$_T"
   fi
 
   if [ "$SURFACED" = 1 ]; then

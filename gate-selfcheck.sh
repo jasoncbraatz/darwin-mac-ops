@@ -2133,6 +2133,7 @@ fi
 
 
 # ── G-AD · bb-writers ratchet (born 2026-08-07 S37/BB-cleanup, card 1217284335878756) ──
+# BOX-REF-OK: cites the gid to explain what this ratchet audits, never writes or reads it
 # Batter's Box gid 1213050213165325 is HITL-ONLY (Jason ruling 2026-08-07, third routing
 # recurrence — aar.py was the unguarded door). Models forget contours; this check makes
 # the contour deterministic: every file in the estate that can WRITE a card to the BB gid
