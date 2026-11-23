@@ -457,4 +457,22 @@ estate_box_ref() {
 }
 estate_box_ref || exit 1
 
+# --- the api-ref leg (apiFence G1, 2026-11-23; source n8n-stack tools/api_ref_guard.py) ---------------
+# THE ANTHROPIC API IS FOR BRAATZBOOKS SERVING STRANGERS (n8n-stack docs/THE-API-IS-FOR-BRAATZBOOKS.md). Jason
+# told sessions three times and it drifted, so the rule now fails at the moment it is tried: a commit that ADDS
+# a code line reaching the API (api.anthropic.com, ANTHROPIC_API_KEY, an n8n Anthropic node or credential, an
+# SDK client) without `# API-SERVE-OK: <who is served>` is refused, and the refusal prints the serve-versus-
+# develop test and the tank command. WARN-ONLY until the guard's own ENFORCE flips (receipts/apiFence/
+# G1-enforcing.md): the mode lives in the guard, not here. Same shape as the legs above.
+estate_api_ref() {
+  [ "${ESTATE_API_REF:-1}" = "1" ] || return 0
+  _arg="$HOME/Scripts/api-ref-guard.py"
+  [ -f "$_arg" ] || return 0
+  python3 "$_arg" --staged >&2 && return 0
+  printf 'estate pre-commit: REFUSED - see above. Silence this ONE commit deliberately:\n' >&2
+  printf '  ESTATE_API_REF=0 git commit ...   (and say why in the message)\n' >&2
+  return 1
+}
+estate_api_ref || exit 1
+
 ESTATE_HOOK_NAME=pre-commit exec "$HOOK_DIR/_chain.sh" "$@"
