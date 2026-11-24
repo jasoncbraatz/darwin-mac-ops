@@ -99,3 +99,4 @@ mailauth	~/repos/domain-inventory	$HOME/repos/domain-inventory/docs/done-criteri
 drilldown	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-drillDown-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-drillDown-SESSION.md
 bbbugspray	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-bbBugSpray-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-bbBugSpray-SESSION.md
 bbbraatz	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-bbBraatz-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-bbBraatz-SESSION.md
+bbizer	~/repos/bbizer	$HOME/repos/bbizer/docs/SESSION-DOD-bbizer-01.md	cat $HOME/repos/bbizer/docs/SESSION-DOD-bbizer-01.md
