@@ -100,3 +100,4 @@ drilldown	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-drillDown-SES
 bbbugspray	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-bbBugSpray-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-bbBugSpray-SESSION.md
 bbbraatz	~/repos/braatzio-plan	$HOME/repos/braatzio-plan/docs/DOD-bbBraatz-SESSION.md	cat $HOME/repos/braatzio-plan/docs/DOD-bbBraatz-SESSION.md
 bbizer	~/repos/bbizer	$HOME/repos/bbizer/docs/SESSION-DOD-bbizer-01.md	cat $HOME/repos/bbizer/docs/SESSION-DOD-bbizer-01.md
+qanightly	~/repos/claude-blackbook	$HOME/repos/claude-blackbook/docs/QA-DIRECTOR-NIGHTLY.md	$HOME/Scripts/hat qa
