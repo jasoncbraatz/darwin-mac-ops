@@ -156,3 +156,6 @@ fi
 # <<< nvm + per-repo node (acmeLedger-19, 2026-08-15) <<<
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+
+# Claude (estate): a new Cowork session with ~/Scripts and ~/repos attached (claude-open --install-launcher)
+alias claude-estate='$HOME/Scripts/claude-open'
