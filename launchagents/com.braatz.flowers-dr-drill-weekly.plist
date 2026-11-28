@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.braatz.flowers-dr-drill-weekly — the weekly restore+corrupt gate, braatzio-plan/docs/DR.md §5.
+
+  §5's gate: every week, `dr-drill.sh restore && dr-drill.sh corrupt` against jasonwalk, from a host
+  that can reach flowers and darwin. darwin (mbp2024) is one such host directly (the age identity for
+  the off-box bundle lives here), so this job runs the braatzio-plan wrapper locally rather than
+  sshing to a third box.
+
+  ALARM ROUTE: "extend the existing mouth, do not add a third one" (DR.md §5). This job writes its
+  own heartbeat BESIDE com.braatz.flowers-dr-verify's monthly one (same JSON shape, different file:
+  ~/flowers-dr-state/drill-heartbeat.json), via braatzio-plan/v3/ops/dr-drill-heartbeat.sh. It files
+  no cards of its own — com.braatz.flowers-dr-watchdog is the one mouth that reads heartbeats and
+  cards a missing/stale/failed one.
+
+  SCHEDULE: every Wednesday at 06:00 local.
+    * weekly per the §5 gate (first dated run was due 2026-11-13).
+    * 06:00 sits ahead of flowers-dr-watchdog's daily 05:15 read... no: BEFORE 05:15 would starve
+      the drill of a watchdog pass same-day, so this runs AFTER — 06:00 is deliberately past 05:15,
+      and well before the shop's day, same reasoning as flowers-dr-verify's 06:30. A day early or
+      late is cheap: the watchdog's own staleness window is 8 days, not same-day.
+    * a different day/hour than the monthly drill (day 9, 06:30) and the daily watchdog (05:15) on
+      purpose, so three jobs never collide even on the rare Wednesday that is also the 9th (each
+      drill uses its own `dr_scratch_<ts>` name; a true collision is still harmless, just unlikely).
+
+  Repo-backed at ~/code/darwin-mac-ops/launchagents/ per handoff gate G-AE (same convention as every
+  other com.braatz.flowers-* plist — the controlling script lives in whichever repo owns it,
+  braatzio-plan here, but the plist SSOT is always this directory, never the script's own repo).
+
+  Install:   cp into ~/Library/LaunchAgents/ + `launchctl bootstrap gui/$(id -u) <path>`
+  Disarm:    launchctl bootout gui/$(id -u)/com.braatz.flowers-dr-drill-weekly; rm the LaunchAgents copy
+  Run now:   launchctl kickstart -k gui/$(id -u)/com.braatz.flowers-dr-drill-weekly
+  Log:       /tmp/flowers-dr-drill-weekly.out / .err
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.braatz.flowers-dr-drill-weekly</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>bash</string>
+        <string>/Users/jasoncbraatz/repos/braatzio-plan/v3/ops/dr-drill-heartbeat.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key><integer>3</integer>
+        <key>Hour</key><integer>6</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+
+    <!-- Never at load: the drill restores a real backup and corrupts a scratch copy against the
+         live cluster. It runs on its schedule, not because somebody reloaded an agent. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- restore + corrupt, ssh round trips included. Give it room, but not forever. -->
+    <key>ExitTimeOut</key>
+    <integer>900</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/flowers-dr-drill-weekly.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/flowers-dr-drill-weekly.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <!-- DR_OFFBOX=local: darwin itself holds the age identity for the off-box bundle (it is
+             the off-box home dr-drill.sh calls 'darwin'), so the drill reads it directly instead
+             of sshing to a host named 'darwin', which has no such ssh alias from darwin itself. -->
+        <key>DR_OFFBOX</key>
+        <string>local</string>
+    </dict>
+</dict>
+</plist>
